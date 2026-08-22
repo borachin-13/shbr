@@ -60,10 +60,18 @@
         .input-box input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-weight: 700; background: var(--bg-main); }
         .fx-info { font-size: 10px; color: var(--accent); font-weight: 600; margin-top: 3px; }
 
-        .flow-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
-        .flow-row:last-child { border-bottom: none; }
-        .flow-label { color: var(--text-sub); }
-        .flow-val { font-weight: 700; }
+        /* 접기/펼치기 아코디언 스타일 */
+        .accordion-item { border-bottom: 1px dashed var(--border); }
+        .accordion-item:last-child { border-bottom: none; }
+        .accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; cursor: pointer; user-select: none; }
+        .accordion-title { font-size: 13px; font-weight: 600; color: var(--text-main); }
+        .accordion-val { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+        .accordion-icon { font-size: 10px; color: var(--text-sub); transition: transform 0.2s; }
+        .accordion-item.open .accordion-icon { transform: rotate(180deg); }
+        .accordion-content { display: none; padding: 8px 12px; background: var(--bg-main); border-radius: 6px; margin-bottom: 8px; }
+        .accordion-item.open .accordion-content { display: block; }
+        .sub-item-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; color: var(--text-sub); }
+        .sub-item-row span:last-child { font-weight: 600; color: var(--text-main); }
 
         .chart-container { display: flex; align-items: flex-end; justify-content: space-between; height: 120px; padding: 10px 10px 0; margin-top: 10px; border-bottom: 1px solid var(--border); }
         .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -149,11 +157,8 @@
                 <span class="card-title">지출 및 배분 현황</span>
                 <button class="btn-link" onclick="openModal(currentMonth)">세부 항목 수정 ⚙</button>
             </div>
-            <div class="flow-row"><span class="flow-label">공통 고정지출</span><span class="flow-val" id="val-exp">0만원</span></div>
-            <div class="flow-row"><span class="flow-label">보라 개인 지출 (고정+용돈)</span><span class="flow-val" id="val-bora-exp">0만원</span></div>
-            <div class="flow-row"><span class="flow-label">상훈 개인 지출 (고정+용돈)</span><span class="flow-val" id="val-sang-exp">0만원</span></div>
-            <div class="flow-row"><span class="flow-label">고정 저축 (청년계좌+청약)</span><span class="flow-val" id="val-sav">0만원</span></div>
-            <div class="flow-row"><span class="flow-label">공동 생활비 / 비상금</span><span class="flow-val" id="val-liv">0만원</span></div>
+            
+            <div id="flow-accordion-container"></div>
 
             <div class="ai-advice-box">
                 <div class="ai-advice-title">💡 재무관리자 한 줄 팁</div>
@@ -203,42 +208,44 @@
 <script>
     let usdRate = 1380; 
 
-    // 정리된 기본 세부 항목 세팅
+    // 세부 항목명 구조 정의 + 초기 금액은 모두 0
     const DEFAULT_MONTH_DATA = () => ({
-        bora: 420, sang: 400, trip_usd: 0, 
+        bora: 0, sang: 0, trip_usd: 0, 
         categories: {
             expense: [
-                { name: '월세', amount: 70 },
-                { name: '공과금', amount: 30 },
-                { name: '식비 예산', amount: 40 }
+                { name: '월세', amount: 0 },
+                { name: '공과금', amount: 0 },
+                { name: '식비 예산', amount: 0 }
             ],
             bora_personal: [
-                { name: '휴대폰비', amount: 5.8 },
-                { name: '보험료', amount: 12.5 },
-                { name: '교통비', amount: 8 },
-                { name: '후원금', amount: 0.1 },
-                { name: '청약', amount: 10 },
-                { name: '보라 용돈', amount: 30 }
+                { name: '휴대폰비', amount: 0 },
+                { name: '보험료', amount: 0 },
+                { name: '교통비', amount: 0 },
+                { name: '후원금', amount: 0 },
+                { name: '청약', amount: 0 },
+                { name: '보라 용돈', amount: 0 }
             ],
             sang_personal: [
-                { name: '부모님', amount: 40 },
-                { name: '학자금 대출', amount: 30 },
-                { name: '주유비', amount: 10 },
-                { name: '휴대폰비', amount: 10.9 },
-                { name: '자동차보험', amount: 10 },
-                { name: '세탁비', amount: 8 },
-                { name: '가족회비', amount: 5 },
-                { name: '청사단 모임비', amount: 5 },
-                { name: '재산세', amount: 1.3 },
-                { name: '상훈 용돈', amount: 30 }
+                { name: '부모님', amount: 0 },
+                { name: '학자금 대출', amount: 0 },
+                { name: '주유비', amount: 0 },
+                { name: '휴대폰비', amount: 0 },
+                { name: '자동차보험', amount: 0 },
+                { name: '세탁비', amount: 0 },
+                { name: '가족회비', amount: 0 },
+                { name: '청사단 모임비', amount: 0 },
+                { name: '재산세', amount: 0 },
+                { name: '상훈 용돈', amount: 0 }
             ],
             savings: [
-                { name: '보라 청년계좌', amount: 70 },
-                { name: '상훈 청년계좌', amount: 70 }
+                { name: '보라 청년계좌', amount: 0 },
+                { name: '상훈 청년계좌', amount: 0 }
             ],
             living: [
-                { name: '공동 생활비 계획', amount: 60 },
-                { name: '남겨둘 돈(비상금)', amount: 50 }
+                { name: '공동 생활비 계획', amount: 0 }
+            ],
+            reserve: [
+                { name: '남겨둘 돈(비상금)', amount: 0 }
             ]
         }
     });
@@ -251,7 +258,8 @@
         '2026-12': DEFAULT_MONTH_DATA()
     };
 
-    let store = JSON.parse(localStorage.getItem('MY_2026_FINANCE_V2')) || DEFAULT_STORE;
+    // 저장 키값 V5로 갱신하여 최신 세부 항목 노출 구조 보장
+    let store = JSON.parse(localStorage.getItem('MY_2026_FINANCE_V5')) || DEFAULT_STORE;
     let currentMonth = '2026-08';
     let editingTargetMonth = '2026-08';
     let currentTab = 'all';
@@ -270,6 +278,7 @@
     function init() {
         fetchExchangeRate();
         if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        document.getElementById('global-month').value = currentMonth;
         render();
     }
 
@@ -288,29 +297,30 @@
         const sangExp = sumCat(d.categories.sang_personal);
         const savSum = sumCat(d.categories.savings);
         const livSum = sumCat(d.categories.living);
+        const resSum = sumCat(d.categories.reserve);
 
         let activeIncome = totalInc;
-        let activeExpense = expSum + boraExp + sangExp + savSum + livSum;
+        let activeExpense = expSum + boraExp + sangExp + savSum + livSum + resSum;
 
         if (currentTab === 'all') {
             document.getElementById('kpi-target-label').innerText = '우리 집 총 추가 저축 가능액';
             container.innerHTML = `
                 <div class="input-grid">
-                    <div class="input-box"><label>보라 월급 (만원)</label><input type="number" value="${d.bora || ''}" onchange="updateIncome('bora', this.value)"></div>
-                    <div class="input-box"><label>상훈 월급 (만원)</label><input type="number" value="${d.sang || ''}" onchange="updateIncome('sang', this.value)"></div>
+                    <div class="input-box"><label>보라 월급 (만원)</label><input type="number" value="${d.bora || ''}" placeholder="0" onchange="updateIncome('bora', this.value)"></div>
+                    <div class="input-box"><label>상훈 월급 (만원)</label><input type="number" value="${d.sang || ''}" placeholder="0" onchange="updateIncome('sang', this.value)"></div>
                 </div>`;
         } else if (currentTab === 'bora') {
             activeIncome = d.bora || 0;
-            activeExpense = boraExp + 70; // 보라 개인 지출 + 청년계좌(70만)
+            activeExpense = boraExp; 
             document.getElementById('kpi-target-label').innerText = '보라 개인 잔액';
-            container.innerHTML = `<div class="input-box"><label>보라 월급 (만원)</label><input type="number" value="${d.bora || ''}" onchange="updateIncome('bora', this.value)"></div>`;
+            container.innerHTML = `<div class="input-box"><label>보라 월급 (만원)</label><input type="number" value="${d.bora || ''}" placeholder="0" onchange="updateIncome('bora', this.value)"></div>`;
         } else {
             activeIncome = (d.sang || 0) + tripKrwTenThousand;
-            activeExpense = sangExp + 70; // 상훈 개인 지출 + 청년계좌(70만)
+            activeExpense = sangExp; 
             document.getElementById('kpi-target-label').innerText = '상훈 개인 잔액';
             container.innerHTML = `
                 <div class="input-grid">
-                    <div class="input-box"><label>상훈 월급 (만원)</label><input type="number" value="${d.sang || ''}" onchange="updateIncome('sang', this.value)"></div>
+                    <div class="input-box"><label>상훈 월급 (만원)</label><input type="number" value="${d.sang || ''}" placeholder="0" onchange="updateIncome('sang', this.value)"></div>
                     <div class="input-box">
                         <label>해외출장 수당 ($)</label>
                         <input type="number" value="${d.trip_usd || ''}" placeholder="0" onchange="updateIncome('trip_usd', this.value)">
@@ -328,15 +338,63 @@
         const pct = totalInc > 0 ? Math.min(Math.round((activeSavings / totalInc) * 100), 100) : 0;
         document.getElementById('savings-progress').style.width = `${pct}%`;
 
-        document.getElementById('val-exp').innerText = `${expSum.toFixed(1)}만원`;
-        document.getElementById('val-bora-exp').innerText = `${boraExp.toFixed(1)}만원`;
-        document.getElementById('val-sang-exp').innerText = `${sangExp.toFixed(1)}만원`;
-        document.getElementById('val-sav').innerText = `${savSum.toFixed(1)}만원`;
-        document.getElementById('val-liv').innerText = `${livSum.toFixed(1)}만원`;
+        // 지출 및 배분 현황 접기/펼치기 아코디언 강제 렌더링
+        renderFlowAccordion(d.categories);
 
         document.getElementById('ai-advice-text').innerHTML = `기본 고정지출/저축 배분 후 추가 저축 가능액은 <b>${activeSavings.toFixed(1)}만원</b>입니다.`;
 
         renderChartAndMonthly();
+    }
+
+    function renderFlowAccordion(categories) {
+        const flowContainer = document.getElementById('flow-accordion-container');
+        flowContainer.innerHTML = '';
+
+        // 기본 카테고리가 비어있는 경우 디폴트 서식 적용
+        const defaultCats = DEFAULT_MONTH_DATA().categories;
+        const currentCats = categories || defaultCats;
+
+        const catLabels = {
+            expense: { label: '공통 고정지출', items: currentCats.expense && currentCats.expense.length ? currentCats.expense : defaultCats.expense },
+            bora_personal: { label: '보라 개인 지출 (고정+용돈)', items: currentCats.bora_personal && currentCats.bora_personal.length ? currentCats.bora_personal : defaultCats.bora_personal },
+            sang_personal: { label: '상훈 개인 지출 (고정+용돈)', items: currentCats.sang_personal && currentCats.sang_personal.length ? currentCats.sang_personal : defaultCats.sang_personal },
+            savings: { label: '고정 저축', items: currentCats.savings && currentCats.savings.length ? currentCats.savings : defaultCats.savings },
+            living: { label: '공동 생활비', items: currentCats.living && currentCats.living.length ? currentCats.living : defaultCats.living },
+            reserve: { label: '비상금 (남겨둘 돈)', items: currentCats.reserve && currentCats.reserve.length ? currentCats.reserve : defaultCats.reserve }
+        };
+
+        Object.keys(catLabels).forEach(key => {
+            const group = catLabels[key];
+            const sum = sumCat(group.items);
+
+            let subItemsHtml = '';
+            group.items.forEach(item => {
+                subItemsHtml += `
+                    <div class="sub-item-row">
+                        <span>${item.name || '항목'}</span>
+                        <span>${(Number(item.amount) || 0).toFixed(1)}만원</span>
+                    </div>`;
+            });
+
+            flowContainer.innerHTML += `
+                <div class="accordion-item" id="acc-flow-${key}">
+                    <div class="accordion-header" onclick="toggleFlowAccordion('${key}')">
+                        <span class="accordion-title">${group.label}</span>
+                        <div class="accordion-val">
+                            <span>${sum.toFixed(1)}만원</span>
+                            <span class="accordion-icon">▾</span>
+                        </div>
+                    </div>
+                    <div class="accordion-content">
+                        ${subItemsHtml}
+                    </div>
+                </div>`;
+        });
+    }
+
+    function toggleFlowAccordion(key) {
+        const item = document.getElementById(`acc-flow-${key}`);
+        if(item) item.classList.toggle('open');
     }
 
     function renderChartAndMonthly() {
@@ -352,7 +410,7 @@
             const d = store[m] || DEFAULT_MONTH_DATA();
             const tripKrw = Math.round(((d.trip_usd || 0) * usdRate) / 10000);
             const inc = (d.bora || 0) + (d.sang || 0) + tripKrw;
-            const exp = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.savings) + sumCat(d.categories.living);
+            const exp = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.savings) + sumCat(d.categories.living) + sumCat(d.categories.reserve);
             const sav = Math.max(inc - exp, 0);
             if(sav > maxSav) maxSav = sav;
         });
@@ -364,7 +422,7 @@
             const expSum = sumCat(d.categories.expense);
             const boraExp = sumCat(d.categories.bora_personal);
             const sangExp = sumCat(d.categories.sang_personal);
-            const totalExp = expSum + boraExp + sangExp + sumCat(d.categories.savings) + sumCat(d.categories.living);
+            const totalExp = expSum + boraExp + sangExp + sumCat(d.categories.savings) + sumCat(d.categories.living) + sumCat(d.categories.reserve);
             const sav = Math.max(inc - totalExp, 0);
 
             const heightPct = maxSav > 0 ? Math.round((sav / maxSav) * 100) : 0;
@@ -387,9 +445,9 @@
                         </div>
                     </div>
                     <div class="month-details">
-                        <div class="flow-row"><span class="flow-label">공통 고정지출</span><span class="flow-val">${expSum.toFixed(1)}만원</span></div>
-                        <div class="flow-row"><span class="flow-label">보라 개인 지출</span><span class="flow-val">${boraExp.toFixed(1)}만원</span></div>
-                        <div class="flow-row"><span class="flow-label">상훈 개인 지출</span><span class="flow-val">${sangExp.toFixed(1)}만원</span></div>
+                        <div class="sub-item-row"><span>공통 고정지출</span><span>${expSum.toFixed(1)}만원</span></div>
+                        <div class="sub-item-row"><span>보라 개인 지출</span><span>${boraExp.toFixed(1)}만원</span></div>
+                        <div class="sub-item-row"><span>상훈 개인 지출</span><span>${sangExp.toFixed(1)}만원</span></div>
                         <div style="text-align:right; margin-top:8px;">
                             <button class="btn-link" onclick="openModal('${m}')">세부 항목 수정 ⚙</button>
                         </div>
@@ -420,7 +478,8 @@
             bora_personal: '보라 개인 지출 (고정+용돈)', 
             sang_personal: '상훈 개인 지출 (고정+용돈)', 
             savings: '고정 저축', 
-            living: '공동 생활비 / 비상금' 
+            living: '공동 생활비',
+            reserve: '비상금 (남겨둘 돈)' 
         };
 
         Object.keys(catLabels).forEach(k => {
@@ -462,7 +521,7 @@
             store[editingTargetMonth].categories[k] = updated;
         });
 
-        localStorage.setItem('MY_2026_FINANCE_V2', JSON.stringify(store));
+        localStorage.setItem('MY_2026_FINANCE_V5', JSON.stringify(store));
         render();
         closeModal();
     }
@@ -470,7 +529,7 @@
     function updateIncome(k, v) {
         if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         store[currentMonth][k] = Number(v) || 0;
-        localStorage.setItem('MY_2026_FINANCE_V2', JSON.stringify(store));
+        localStorage.setItem('MY_2026_FINANCE_V5', JSON.stringify(store));
         render();
     }
 
@@ -502,7 +561,7 @@
 
     function resetData() {
         if(confirm('모든 데이터를 초기 설정으로 되돌리시겠습니까?')) {
-            localStorage.removeItem('MY_2026_FINANCE_V2');
+            localStorage.removeItem('MY_2026_FINANCE_V5');
             store = JSON.parse(JSON.stringify(DEFAULT_STORE));
             render();
         }
