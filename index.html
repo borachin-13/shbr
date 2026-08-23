@@ -334,7 +334,26 @@
     </div>
 </div>
 
-<script>
+<!-- Firebase SDK (CDN) -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // Firebase 설정 정보
+    const firebaseConfig = {
+        apiKey: "AIzaSyA_xbDi3K1KYq9QcYd2SN7EJJkLcSImE4",
+        authDomain: "shbr-family.firebaseapp.com",
+        projectId: "shbr-family",
+        storageBucket: "shbr-family.appspot.com",
+        messagingSenderId: "438280523923",
+        appId: "1:438280523923:web:aa5a10883bc471b7c2fd66",
+        measurementId: "G-R0DHG7HJMR"
+    };
+
+    // Firebase 초기화
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
     let usdRate = 1386; 
 
     function checkPassword() {
@@ -348,6 +367,7 @@
             document.getElementById('lock-input').focus();
         }
     }
+    window.checkPassword = checkPassword;
 
     function formatNumberString(val) {
         if (!val && val !== 0) return '';
@@ -422,22 +442,11 @@
         }
     });
 
-    const DEFAULT_STORE = {
-        '2026-06': DEFAULT_MONTH_DATA(),
-        '2026-07': DEFAULT_MONTH_DATA(),
-        '2026-08': DEFAULT_MONTH_DATA(),
-        '2026-09': DEFAULT_MONTH_DATA(),
-        '2026-10': DEFAULT_MONTH_DATA(),
-        '2026-11': DEFAULT_MONTH_DATA(),
-        '2026-12': DEFAULT_MONTH_DATA()
-    };
-
     let store = null;
     let currentMonth = '2026-08';
     let currentTab = 'all';
 
-    const STORE_KEY = 'gotgan-finance-v13';
-    const CATEGORY_KEY = 'gotgan-categories';
+    const FIRESTORE_DOC_ID = 'gotgan_data_v1';
 
     function debounce(fn, ms){
         let t = null;
@@ -445,32 +454,41 @@
     }
 
     async function persistStore(){
-        try{ await window.storage.set(STORE_KEY, JSON.stringify(store), false); }
-        catch(e){ console.error('저장 실패:', e); }
+        try {
+            await setDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
+                store: store,
+                categoryList: categoryList
+            });
+        } catch(e) { console.error('Firestore 저장 실패:', e); }
     }
     const schedulePersistStore = debounce(persistStore, 500);
 
-    async function persistCategories(){
-        try{ await window.storage.set(CATEGORY_KEY, JSON.stringify(categoryList), false); }
-        catch(e){ console.error('저장 실패:', e); }
-    }
-
     async function loadAll(){
-        try{
-            const res = await window.storage.get(STORE_KEY, false);
-            if (res && res.value) store = JSON.parse(res.value);
-        }catch(e){ }
-        if (!store) store = JSON.parse(JSON.stringify(DEFAULT_STORE));
+        try {
+            const docSnap = await getDoc(doc(db, "gotgan", FIRESTORE_DOC_ID));
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.store) store = data.store;
+                if (data.categoryList) categoryList = data.categoryList;
+            }
+        } catch(e) { console.error('Firestore 불러오기 실패:', e); }
+
+        if (!store) {
+            store = {
+                '2026-06': DEFAULT_MONTH_DATA(),
+                '2026-07': DEFAULT_MONTH_DATA(),
+                '2026-08': DEFAULT_MONTH_DATA(),
+                '2026-09': DEFAULT_MONTH_DATA(),
+                '2026-10': DEFAULT_MONTH_DATA(),
+                '2026-11': DEFAULT_MONTH_DATA(),
+                '2026-12': DEFAULT_MONTH_DATA()
+            };
+        }
 
         ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
             if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
         });
 
-        try{
-            const res = await window.storage.get(CATEGORY_KEY, false);
-            if (res && res.value) categoryList = JSON.parse(res.value);
-        }catch(e){ }
-        
         Object.keys(store).forEach(m => {
             if(!store[m].sectionTitles) {
                 store[m].sectionTitles = DEFAULT_MONTH_DATA().sectionTitles;
@@ -532,21 +550,21 @@
                 <div class="income-input-card">
                     <span class="income-input-label">보라 월급</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="handleIncomeInput('bora', this)">
+                        <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
                     <span class="income-input-label">보라 기타 수당</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="handleIncomeInput('bora_extra', this)">
+                        <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
                     <span class="income-input-label">상훈 월급</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="handleIncomeInput('sang', this)">
+                        <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
@@ -556,7 +574,7 @@
                         <span style="color:var(--accent);">[환율: ${usdRate.toLocaleString()}원/$]</span>
                     </span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="handleIncomeInput('trip_usd', this)">
+                        <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
                         <span class="income-unit">$</span>
                     </div>
                     <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toLocaleString()}원</b></div>
@@ -566,14 +584,14 @@
                 <div class="income-input-card">
                     <span class="income-input-label">보라 월급</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="handleIncomeInput('bora', this)">
+                        <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
                     <span class="income-input-label">보라 기타 수당</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="handleIncomeInput('bora_extra', this)">
+                        <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>`;
@@ -582,7 +600,7 @@
                 <div class="income-input-card">
                     <span class="income-input-label">상훈 월급</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="handleIncomeInput('sang', this)">
+                        <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
@@ -592,7 +610,7 @@
                         <span style="color:var(--accent);">[환율: ${usdRate.toLocaleString()}원/$]</span>
                     </span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="handleIncomeInput('trip_usd', this)">
+                        <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
                         <span class="income-unit">$</span>
                     </div>
                     <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toLocaleString()}원</b></div>
@@ -618,6 +636,7 @@
             }
         }
     }
+    window.handleIncomeInput = handleIncomeInput;
 
     function updateKPIAndChartsOnly() {
         const d = store[currentMonth] || DEFAULT_MONTH_DATA();
@@ -740,7 +759,7 @@
 
             expenseContainer.innerHTML += `
                 <div class="accordion-item" id="acc-flow-${key}" data-key="${key}">
-                    <div class="accordion-header" onclick="toggleFlowAccordion('${key}')">
+                    <div class="accordion-header" onclick="window.toggleFlowAccordion('${key}')">
                         <span class="accordion-title">${labelTitle}</span>
                         <div class="accordion-val">
                             <span style="${key === 'variable_expense' ? 'color:var(--expense-color);' : ''}">${displayVal}</span>
@@ -772,7 +791,7 @@
 
             savingsContainer.innerHTML += `
                 <div class="accordion-item" id="acc-flow-${key}" data-key="${key}">
-                    <div class="accordion-header" onclick="toggleFlowAccordion('${key}')">
+                    <div class="accordion-header" onclick="window.toggleFlowAccordion('${key}')">
                         <span class="accordion-title">${labelTitle}</span>
                         <div class="accordion-val">
                             <span style="color:var(--savings-color);">${formatAmount(sumWon)}</span>
@@ -788,6 +807,7 @@
         const item = document.getElementById(`acc-flow-${key}`);
         if(item) item.classList.toggle('open');
     }
+    window.toggleFlowAccordion = toggleFlowAccordion;
 
     function renderChartAndMonthly() {
         const months = Object.keys(store).sort();
@@ -827,7 +847,7 @@
 
             listContainer.innerHTML += `
                 <div class="month-accordion" id="acc-${m}">
-                    <div class="month-header" onclick="toggleAccordion('${m}')">
+                    <div class="month-header" onclick="window.toggleAccordion('${m}')">
                         <div>
                             <div style="font-size:13px; font-weight:700; color:var(--text-main);">2026년 ${m.split('-')[1]}월</div>
                             <div style="font-size:11px; color:var(--text-sub); margin-top:2px;">수입 ${formatAmount(incWon)}</div>
@@ -848,6 +868,7 @@
     }
 
     function toggleAccordion(m) { document.getElementById(`acc-${m}`).classList.toggle('open'); }
+    window.toggleAccordion = toggleAccordion;
 
     function openModal(type) {
         const modal = document.getElementById('custom-modal');
@@ -859,19 +880,19 @@
         if (type === 'expense') {
             titleEl.innerText = '💸 지출 항목 관리';
             subtabsEl.innerHTML = `
-                <button class="modal-subtab-btn active" onclick="switchModalTab('expense', this)">공통고정</button>
-                <button class="modal-subtab-btn" onclick="switchModalTab('bora_personal', this)">보라지출</button>
-                <button class="modal-subtab-btn" onclick="switchModalTab('sang_personal', this)">상훈지출</button>
-                <button class="modal-subtab-btn" onclick="switchModalTab('living', this)">공동생활</button>
-                <button class="modal-subtab-btn" onclick="switchModalTab('variable_expense', this)">변동지출</button>
+                <button class="modal-subtab-btn active" onclick="window.switchModalTab('expense', this)">공통고정</button>
+                <button class="modal-subtab-btn" onclick="window.switchModalTab('bora_personal', this)">보라지출</button>
+                <button class="modal-subtab-btn" onclick="window.switchModalTab('sang_personal', this)">상훈지출</button>
+                <button class="modal-subtab-btn" onclick="window.switchModalTab('living', this)">공동생활</button>
+                <button class="modal-subtab-btn" onclick="window.switchModalTab('variable_expense', this)">변동지출</button>
             `;
             bodyEl.innerHTML = renderExpenseModalHTML();
             saveBtn.onclick = saveExpenseModal;
         } else if (type === 'savings') {
             titleEl.innerText = '💰 저축 및 자산 배분 관리';
             subtabsEl.innerHTML = `
-                <button class="modal-subtab-btn active" onclick="switchModalTab('savings', this)">고정저축</button>
-                <button class="modal-subtab-btn" onclick="switchModalTab('reserve', this)">비상금</button>
+                <button class="modal-subtab-btn active" onclick="window.switchModalTab('savings', this)">고정저축</button>
+                <button class="modal-subtab-btn" onclick="window.switchModalTab('reserve', this)">비상금</button>
             `;
             bodyEl.innerHTML = renderSavingsModalHTML();
             saveBtn.onclick = saveSavingsModal;
@@ -879,10 +900,12 @@
 
         modal.classList.add('open');
     }
+    window.openModal = openModal;
 
     function closeModal() {
         document.getElementById('custom-modal').classList.remove('open');
     }
+    window.closeModal = closeModal;
 
     function switchModalTab(catKey, btnEl) {
         document.querySelectorAll('.modal-subtab-btn').forEach(btn => btn.classList.remove('active'));
@@ -892,6 +915,7 @@
         const targetGrp = document.getElementById(`modal-group-${catKey}`);
         if(targetGrp) targetGrp.classList.add('active');
     }
+    window.switchModalTab = switchModalTab;
 
     function renderExpenseModalHTML() {
         const targetData = store[currentMonth] || DEFAULT_MONTH_DATA();
@@ -931,12 +955,12 @@
                             <input type="date" value="${item.date || ''}" class="inp-date">
                             <select class="inp-cat">${optionsHtml}</select>
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="내용">
-                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
+                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <span>원</span>
-                            <button onclick="removeExpenseSubModal(this)">✕</button>
+                            <button onclick="window.removeExpenseSubModal(this)">✕</button>
                         </div>`;
                 });
-                html += `</div><button class="add-row-btn" onclick="addExpenseSubModal('${k}')">+ 변동 지출 항목 추가</button></div>`;
+                html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 변동 지출 항목 추가</button></div>`;
             } else {
                 html += `
                     <div class="cat-group ${isActive}" id="modal-group-${k}" data-expense-cat="${k}">
@@ -951,12 +975,12 @@
                     html += `
                         <div class="sub-row" data-index="${rowIdx}">
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
-                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
+                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <span>원</span>
-                            <button onclick="removeExpenseSubModal(this)">✕</button>
+                            <button onclick="window.removeExpenseSubModal(this)">✕</button>
                         </div>`;
                 });
-                html += `</div><button class="add-row-btn" onclick="addExpenseSubModal('${k}')">+ 고정지출 항목 추가</button></div>`;
+                html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 고정지출 항목 추가</button></div>`;
             }
         });
         return html;
@@ -966,6 +990,7 @@
         const rawNum = parseNumberString(inputEl.value);
         inputEl.value = rawNum ? rawNum.toLocaleString() : '';
     }
+    window.handleModalNumInput = handleModalNumInput;
 
     function addExpenseSubModal(k) {
         const groupEl = document.getElementById(`modal-group-${k}`);
@@ -980,22 +1005,24 @@
                 <input type="date" value="${today}" class="inp-date">
                 <select class="inp-cat">${optionsHtml}</select>
                 <input type="text" value="" class="inp-name" placeholder="내용">
-                <input type="text" value="" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
+                <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                 <span>원</span>
-                <button onclick="removeExpenseSubModal(this)">✕</button>`;
+                <button onclick="window.removeExpenseSubModal(this)">✕</button>`;
         } else {
             newRow.innerHTML = `
                 <input type="text" value="" class="inp-name" placeholder="항목명">
-                <input type="text" value="" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
+                <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                 <span>원</span>
-                <button onclick="removeExpenseSubModal(this)">✕</button>`;
+                <button onclick="window.removeExpenseSubModal(this)">✕</button>`;
         }
         rowsContainer.appendChild(newRow);
     }
+    window.addExpenseSubModal = addExpenseSubModal;
 
     function removeExpenseSubModal(btn) {
         btn.closest('.sub-row').remove();
     }
+    window.removeExpenseSubModal = removeExpenseSubModal;
 
     function saveExpenseModal() {
         document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
@@ -1089,12 +1116,12 @@
                     <div class="sub-row" data-index="${rowIdx}">
                         ${ownerSelectHtml}
                         <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
-                        <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
+                        <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                         <span>원</span>
-                        <button onclick="removeSavingsSubModal(this)">✕</button>
+                        <button onclick="window.removeSavingsSubModal(this)">✕</button>
                     </div>`;
             });
-            html += `</div><button class="add-row-btn" onclick="addSavingsSubModal('${k}')">+ 저축 항목 추가</button></div>`;
+            html += `</div><button class="add-row-btn" onclick="window.addSavingsSubModal('${k}')">+ 저축 항목 추가</button></div>`;
         });
         return html;
     }
@@ -1115,15 +1142,17 @@
         newRow.innerHTML = `
             ${ownerSelectHtml}
             <input type="text" value="" class="inp-name" placeholder="항목명">
-            <input type="text" value="" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
+            <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
             <span>원</span>
-            <button onclick="removeSavingsSubModal(this)">✕</button>`;
+            <button onclick="window.removeSavingsSubModal(this)">✕</button>`;
         rowsContainer.appendChild(newRow);
     }
+    window.addSavingsSubModal = addSavingsSubModal;
 
     function removeSavingsSubModal(btn) {
         btn.closest('.sub-row').remove();
     }
+    window.removeSavingsSubModal = removeSavingsSubModal;
 
     function saveSavingsModal() {
         document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
@@ -1145,7 +1174,7 @@
                     updated.push({
                         name: nameInp.value.trim() || '항목',
                         amount: parseNumberString(amountInp.value),
-                        owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared') : 'shared'
+                        owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared' ) : 'shared'
                     });
                 }
             });
@@ -1171,7 +1200,7 @@
         container.innerHTML = categoryList.map((cat, idx) => `
             <div class="category-tag">
                 ${cat}
-                <span onclick="removeCategorySetting(${idx})">&times;</span>
+                <span onclick="window.removeCategorySetting(${idx})">&times;</span>
             </div>
         `).join('');
     }
@@ -1181,11 +1210,12 @@
         const val = input.value.trim();
         if (val && !categoryList.includes(val)) {
             categoryList.push(val);
-            persistCategories();
+            persistStore();
             input.value = '';
             renderCategorySettings();
         }
     }
+    window.addCategorySetting = addCategorySetting;
 
     function removeCategorySetting(index) {
         if (categoryList.length <= 1) {
@@ -1193,9 +1223,10 @@
             return;
         }
         categoryList.splice(index, 1);
-        persistCategories();
+        persistStore();
         renderCategorySettings();
     }
+    window.removeCategorySetting = removeCategorySetting;
 
     function setMemberTab(tab, btnEl) {
         currentTab = tab;
@@ -1203,12 +1234,14 @@
         if(btnEl) btnEl.classList.add('active');
         render();
     }
+    window.setMemberTab = setMemberTab;
 
     function changeMonth(m) {
         currentMonth = m;
         if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
         render();
     }
+    window.changeMonth = changeMonth;
 
     function navigate(page, btn) {
         document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
@@ -1223,22 +1256,24 @@
             memberTabBar.style.display = 'none';
         }
     }
+    window.navigate = navigate;
 
     function exportData() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
         const a = document.createElement('a'); a.href = dataStr; a.download = `our_gotgan_2026_backup.json`; a.click();
     }
+    window.exportData = exportData;
 
     async function resetData() {
         if(confirm('모든 데이터를 초기 설정으로 되돌리시겠습니까?')) {
-            try{ await window.storage.delete(STORE_KEY, false); }catch(e){}
-            try{ await window.storage.delete(CATEGORY_KEY, false); }catch(e){}
+            try { await deleteDoc(doc(db, "gotgan", FIRESTORE_DOC_ID)); } catch(e){}
             categoryList = DEFAULT_CATEGORIES.slice();
             store = JSON.parse(JSON.stringify(DEFAULT_STORE));
             renderCategorySettings();
             render();
         }
     }
+    window.resetData = resetData;
 
     window.onload = init;
 </script>
