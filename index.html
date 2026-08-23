@@ -46,8 +46,6 @@
             overflow-y: auto;
             background-color: var(--bg-color);
             color: var(--text-main);
-            display: flex;
-            justify-content: center;
             scrollbar-gutter: stable;
         }
 
@@ -56,6 +54,7 @@
             max-width: 480px;
             min-height: 100vh;
             height: auto;
+            margin: 0 auto;
             background-color: var(--bg-color);
             display: flex;
             flex-direction: column;
@@ -121,13 +120,19 @@
         header {
             position: sticky;
             top: 0;
+            width: 100%;
             background: rgba(244, 246, 248, 0.95);
             backdrop-filter: blur(8px);
-            z-index: 100;
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 1000;
             padding: 16px 20px 12px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+        }
+
+        header {
+            box-shadow: 0 1px 8px rgba(0,0,0,0.04);
         }
         .logo { font-size: 19px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 8px; }
         
@@ -197,7 +202,7 @@
         .tab-pill-btn.active { background: var(--primary); color: white; }
 
         /* Page Layout */
-        .page-content { padding: 0 20px; flex: 1; }
+        .page-content { padding: 0 20px; flex: none; }
         .page-view { display: none; }
         .page-view.active { display: block; }
 
@@ -1929,6 +1934,19 @@
     window.removeSubModalRow = removeSubModalRow;
 
     /* [기능 비활성화] 기존 자동 이월 로직 보존용
+    function restorePageScroll() {
+        // 모달이 닫힌 뒤 페이지 스크롤을 브라우저 기본 상태로 복구
+        document.documentElement.style.removeProperty('overflow');
+        document.documentElement.style.removeProperty('overflow-y');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('overflow-y');
+
+        // 혹시 남아 있는 잠금 class도 제거
+        document.documentElement.classList.remove('modal-open', 'no-scroll', 'overflow-hidden');
+        document.body.classList.remove('modal-open', 'no-scroll', 'overflow-hidden');
+    }
+    window.restorePageScroll = restorePageScroll;
+
     function saveExpenseModal() {
         document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
             const k = group.getAttribute('data-expense-cat');
@@ -1995,10 +2013,12 @@
                 });
             }
         });
-
+        closeModal();
+        restorePageScroll();
         persistStore();
         render();
-        closeModal();
+        restorePageScroll();
+
         // 저장 완료 후에도 스크롤 상태를 다시 보장
     }
 
@@ -2102,10 +2122,12 @@
                 }
             });
         });
-
+        closeModal();
+        restorePageScroll();
         persistStore();
         render();
-        closeModal();
+        restorePageScroll();
+
     }
 
     function renderCategorySettings
