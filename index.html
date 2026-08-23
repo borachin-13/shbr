@@ -1268,7 +1268,18 @@
         if(confirm('모든 데이터를 초기 설정으로 되돌리시겠습니까?')) {
             try { await deleteDoc(doc(db, "gotgan", FIRESTORE_DOC_ID)); } catch(e){}
             categoryList = DEFAULT_CATEGORIES.slice();
-            store = JSON.parse(JSON.stringify(DEFAULT_STORE));
+            
+            // 👉 수정 완료: DEFAULT_STORE 오타를 해결하고 전체 월 데이터를 깔끔하게 초기화합니다.
+            store = {
+                '2026-06': DEFAULT_MONTH_DATA(),
+                '2026-07': DEFAULT_MONTH_DATA(),
+                '2026-08': DEFAULT_MONTH_DATA(),
+                '2026-09': DEFAULT_MONTH_DATA(),
+                '2026-10': DEFAULT_MONTH_DATA(),
+                '2026-11': DEFAULT_MONTH_DATA(),
+                '2026-12': DEFAULT_MONTH_DATA()
+            };
+
             renderCategorySettings();
             render();
         }
