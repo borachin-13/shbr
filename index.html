@@ -145,7 +145,7 @@
         .sub-row input[type="date"].inp-date { width: 95px; font-size: 11px; color: var(--text-sub); background: var(--bg-main); padding: 4px; border-radius: 6px; }
         .sub-row select.inp-cat { width: 70px; font-size: 11px; font-weight: 600; color: var(--text-main); background: var(--bg-main); padding: 4px; border-radius: 6px; border: 1px solid var(--border-deep); }
         .sub-row input[type="text"].inp-name { flex: 1; min-width: 0; font-weight: 500; }
-        .sub-row input[type="text"].inp-amount { width: 85px; flex-shrink: 0; text-align: right; font-weight: 600; }
+        .sub-row input[type="text"].inp-amount { width: 95px; flex-shrink: 0; text-align: right; font-weight: 600; }
         .sub-row button { width: 24px; height: 24px; flex-shrink: 0; border: none; background: var(--bg-main); border-radius: 50%; color: var(--text-sub); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; }
 
         .add-row-btn { width: 100%; padding: 11px; background: #fff; border: 1px dashed var(--border-deep); color: var(--text-sub); border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; margin-top: 4px; }
@@ -215,32 +215,6 @@
             </select>
         </div>
 
-        <!-- <main id="page-dashboard" class="page-view active">
-            <div class="summary-card">
-                <div class="summary-title" id="kpi-target-label">우리 곳간 총 추가 저축 가능액</div>
-                <div class="summary-main" id="kpi-savings">0.0만원</div>
-                
-                <div class="progress-container">
-                    <div class="progress-bar-exp" id="bar-exp-pct"></div>
-                    <div class="progress-bar-sav" id="bar-sav-pct"></div>
-                </div>
-                <div class="progress-legend">
-                    <span style="color:var(--expense-color);">지출 비중: <b id="lbl-exp-pct" style="font-weight:600;">0%</b></span>
-                    <span style="color:var(--savings-color);">저축 비중: <b id="lbl-sav-pct" style="font-weight:600;">0%</b></span>
-                </div>
-    
-                <div class="kpi-grid">
-                    <div class="kpi-box">
-                        <div class="kpi-box-title">총수입</div>
-                        <div class="kpi-box-val" id="kpi-income">0.0만원</div>
-                    </div>
-                    <div class="kpi-box">
-                        <div class="kpi-box-title">총지출</div>
-                        <div class="kpi-box-val expense" id="kpi-expense">0.0만원</div>
-                    </div>
-                </div>
-            </div> -->
-            
         <div class="tab-pill-container" id="member-tab-bar">
             <button class="tab-pill-btn active" onclick="setMemberTab('all', this)">우리 곳간 전체</button>
             <button class="tab-pill-btn" onclick="setMemberTab('bora', this)">보라</button>
@@ -252,7 +226,7 @@
     <main id="page-dashboard" class="page-view active">
         <div class="summary-card">
             <div class="summary-title" id="kpi-target-label">우리 곳간 총 추가 저축 가능액</div>
-            <div class="summary-main" id="kpi-savings">0.0만원</div>
+            <div class="summary-main" id="kpi-savings">0원</div>
             
             <div class="progress-container">
                 <div class="progress-bar-exp" id="bar-exp-pct"></div>
@@ -266,11 +240,11 @@
             <div class="kpi-grid">
                 <div class="kpi-box">
                     <div class="kpi-box-title">총수입</div>
-                    <div class="kpi-box-val" id="kpi-income">0.0만원</div>
+                    <div class="kpi-box-val" id="kpi-income">0원</div>
                 </div>
                 <div class="kpi-box">
                     <div class="kpi-box-title">총지출</div>
-                    <div class="kpi-box-val expense" id="kpi-expense">0.0만원</div>
+                    <div class="kpi-box-val expense" id="kpi-expense">0원</div>
                 </div>
             </div>
         </div>
@@ -462,7 +436,7 @@
     let currentMonth = '2026-08';
     let currentTab = 'all';
 
-    const STORE_KEY = 'gotgan-finance-v12';
+    const STORE_KEY = 'gotgan-finance-v13';
     const CATEGORY_KEY = 'gotgan-categories';
 
     function debounce(fn, ms){
@@ -541,8 +515,8 @@
         }, 0);
     }
 
-    function formatAmount(manWon) {
-        return `${Number(manWon).toFixed(1)}만원`;
+    function formatAmount(won) {
+        return `${Math.round(won).toLocaleString()}원`;
     }
 
     function renderInputsOnly() {
@@ -551,29 +525,29 @@
         if (!container) return;
         container.innerHTML = '';
 
-        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate) / 10000;
+        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
 
         if (currentTab === 'all') {
             container.innerHTML = `
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 월급 (만원)</span>
+                    <span class="income-input-label">보라 월급</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="handleIncomeInput('bora', this)">
-                        <span class="income-unit">만원</span>
+                        <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 기타 수당 (만원)</span>
+                    <span class="income-input-label">보라 기타 수당</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="handleIncomeInput('bora_extra', this)">
-                        <span class="income-unit">만원</span>
+                        <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">상훈 월급 (만원)</span>
+                    <span class="income-input-label">상훈 월급</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="handleIncomeInput('sang', this)">
-                        <span class="income-unit">만원</span>
+                        <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
@@ -585,31 +559,31 @@
                         <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="handleIncomeInput('trip_usd', this)">
                         <span class="income-unit">$</span>
                     </div>
-                    <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toFixed(1)}만원</b></div>
+                    <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toLocaleString()}원</b></div>
                 </div>`;
         } else if (currentTab === 'bora') {
             container.innerHTML = `
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 월급 (만원)</span>
+                    <span class="income-input-label">보라 월급</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="handleIncomeInput('bora', this)">
-                        <span class="income-unit">만원</span>
+                        <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 기타 수당 (만원)</span>
+                    <span class="income-input-label">보라 기타 수당</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="handleIncomeInput('bora_extra', this)">
-                        <span class="income-unit">만원</span>
+                        <span class="income-unit">원</span>
                     </div>
                 </div>`;
         } else {
             container.innerHTML = `
                 <div class="income-input-card">
-                    <span class="income-input-label">상훈 월급 (만원)</span>
+                    <span class="income-input-label">상훈 월급</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="handleIncomeInput('sang', this)">
-                        <span class="income-unit">만원</span>
+                        <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
@@ -621,7 +595,7 @@
                         <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="handleIncomeInput('trip_usd', this)">
                         <span class="income-unit">$</span>
                     </div>
-                    <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toFixed(1)}만원</b></div>
+                    <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toLocaleString()}원</b></div>
                 </div>`;
         }
     }
@@ -637,17 +611,17 @@
         updateKPIAndChartsOnly();
 
         if (key === 'trip_usd') {
-            const tripWonTotal = Math.round(rawNum * usdRate) / 10000;
+            const tripWonTotal = Math.round(rawNum * usdRate);
             const subTextEl = inputEl.parentElement.nextElementSibling;
             if (subTextEl) {
-                subTextEl.innerHTML = `원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toFixed(1)}만원</b>`;
+                subTextEl.innerHTML = `원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toLocaleString()}원</b>`;
             }
         }
     }
 
     function updateKPIAndChartsOnly() {
         const d = store[currentMonth] || DEFAULT_MONTH_DATA();
-        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate) / 10000;
+        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
         const boraWonTotal = (d.bora || 0) + (d.bora_extra || 0);
         const sangWonTotal = (d.sang || 0);
         const totalIncWon = boraWonTotal + sangWonTotal + tripWonTotal;
@@ -739,7 +713,7 @@
                         subItemsHtml += `
                             <div class="sub-item-row">
                                 <span style="color:var(--text-main); font-weight:500;">[${formatKoreanDate(item.date)}] ${catTag}${item.name || '지출내역'}</span>
-                                <span style="color:var(--expense-color); font-weight:600;">-${Number(item.amount || 0).toFixed(1)}만원</span>
+                                <span style="color:var(--expense-color); font-weight:600;">-${Number(item.amount || 0).toLocaleString()}원</span>
                             </div>`;
                     });
                 }
@@ -753,9 +727,9 @@
                 } else {
                     items.forEach(item => {
                         const itemWon = Number(item.amount || 0);
-                        let subDetail = `${itemWon.toFixed(1)}만원`;
+                        let subDetail = `${itemWon.toLocaleString()}원`;
                         if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
-                            subDetail = `${(itemWon / 2).toFixed(1)}만원 (총 ${itemWon.toFixed(1)}만원)`;
+                            subDetail = `${(itemWon / 2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
                         }
                         subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
                     });
@@ -787,9 +761,9 @@
             items.forEach(item => {
                 const itemWon = Number(item.amount || 0);
                 const owner = item.owner || 'shared';
-                let subDetail = `${itemWon.toFixed(1)}만원`;
+                let subDetail = `${itemWon.toLocaleString()}원`;
                 if (currentTab !== 'all' && owner === 'shared') {
-                    subDetail = `${(itemWon/2).toFixed(1)}만원 (총 ${itemWon.toFixed(1)}만원)`;
+                    subDetail = `${(itemWon/2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
                 }
                 subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
             });
@@ -834,7 +808,7 @@
 
         months.forEach(m => {
             const d = store[m] || DEFAULT_MONTH_DATA();
-            const tripWon = Math.round((d.trip_usd || 0) * usdRate) / 10000;
+            const tripWon = Math.round((d.trip_usd || 0) * usdRate);
             const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + tripWon;
             const totalExpWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
             const totalSavWon = sumCat(d.categories.savings) + Math.max(incWon - totalExpWon - sumCat(d.categories.savings) - sumCat(d.categories.reserve), 0);
@@ -958,7 +932,7 @@
                             <select class="inp-cat">${optionsHtml}</select>
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="내용">
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-                            <span>만원</span>
+                            <span>원</span>
                             <button onclick="removeExpenseSubModal(this)">✕</button>
                         </div>`;
                 });
@@ -978,7 +952,7 @@
                         <div class="sub-row" data-index="${rowIdx}">
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-                            <span>만원</span>
+                            <span>원</span>
                             <button onclick="removeExpenseSubModal(this)">✕</button>
                         </div>`;
                 });
@@ -1007,13 +981,13 @@
                 <select class="inp-cat">${optionsHtml}</select>
                 <input type="text" value="" class="inp-name" placeholder="내용">
                 <input type="text" value="" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-                <span>만원</span>
+                <span>원</span>
                 <button onclick="removeExpenseSubModal(this)">✕</button>`;
         } else {
             newRow.innerHTML = `
                 <input type="text" value="" class="inp-name" placeholder="항목명">
                 <input type="text" value="" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-                <span>만원</span>
+                <span>원</span>
                 <button onclick="removeExpenseSubModal(this)">✕</button>`;
         }
         rowsContainer.appendChild(newRow);
@@ -1116,7 +1090,7 @@
                         ${ownerSelectHtml}
                         <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
                         <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-                        <span>만원</span>
+                        <span>원</span>
                         <button onclick="removeSavingsSubModal(this)">✕</button>
                     </div>`;
             });
@@ -1142,7 +1116,7 @@
             ${ownerSelectHtml}
             <input type="text" value="" class="inp-name" placeholder="항목명">
             <input type="text" value="" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-            <span>만원</span>
+            <span>원</span>
             <button onclick="removeSavingsSubModal(this)">✕</button>`;
         rowsContainer.appendChild(newRow);
     }
