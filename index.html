@@ -6,20 +6,20 @@
     <title>우리 곳간</title>
     <style>
         :root {
-            --bg-main: #f8fafc;
+            --bg-main: #f4f6f8;
             --card-bg: #ffffff;
-            --text-main: #0f172a;
-            --text-sub: #64748b;
-            --border: #f1f5f9;
-            --border-deep: #e2e8f0;
-            --accent: #2563eb;
-            --accent-light: #eff6ff;
-            --expense-color: #dc2626;
-            --savings-color: #16a34a;
+            --text-main: #191f28;
+            --text-sub: #8b95a1;
+            --border: #f2f4f6;
+            --border-deep: #e5e8eb;
+            --accent: #3182f6;
+            --accent-light: #e8f3ff;
+            --expense-color: #f04452;
+            --savings-color: #20c997;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #e2e8f0; color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
+        body { background-color: #e5e8eb; color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
 
         /* 비밀번호 잠금 화면 */
         #lock-screen {
@@ -36,44 +36,44 @@
 
         .app-container {
             width: 100%; max-width: 440px; background-color: var(--bg-main); min-height: 100vh; position: relative;
-            box-shadow: 0 0 25px rgba(0,0,0,0.06); padding-bottom: 70px;
+            box-shadow: 0 0 25px rgba(0,0,0,0.04); padding-bottom: 70px;
         }
 
         header {
-            background-color: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px);
+            background-color: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px);
             padding: 12px 16px; position: sticky; top: 0; z-index: 50; display: flex; flex-direction: column; gap: 10px;
-            border-bottom: 1px solid var(--border-deep);
+            border-bottom: 1px solid var(--border);
         }
         .header-top { display: flex; justify-content: space-between; align-items: center; }
         .header-title { font-size: 17px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
-        .month-select { border: 1px solid var(--border-deep); background: var(--bg-main); padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-main); outline: none; }
+        .month-select { border: none; background: var(--bg-main); padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-main); outline: none; }
 
         /* 알약 스타일 탭 */
         .tab-pill-container { display: flex; background: var(--border); padding: 3px; border-radius: 10px; }
         .tab-pill-btn { flex: 1; padding: 7px 0; border: none; background: transparent; font-size: 12px; font-weight: 500; color: var(--text-sub); border-radius: 7px; cursor: pointer; transition: all 0.2s ease; text-align: center; }
-        .tab-pill-btn.active { background: #fff; color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .tab-pill-btn.active { background: #fff; color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
 
-        .summary-card { padding: 20px; background: #fff; border-bottom: 1px solid var(--border-deep); margin-bottom: 12px; }
+        .summary-card { padding: 20px; background: #fff; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
         .summary-title { font-size: 12px; color: var(--text-sub); font-weight: 500; margin-bottom: 4px; }
         .summary-main { font-size: 24px; font-weight: 700; color: var(--savings-color); margin-bottom: 14px; }
 
-        .progress-container { background: var(--bg-main); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 6px; display: flex; }
+        .progress-container { background: var(--bg-main); height: 6px; border-radius: 3px; overflow: hidden; margin-bottom: 6px; display: flex; }
         .progress-bar-exp { background: var(--expense-color); height: 100%; transition: width 0.3s; }
         .progress-bar-sav { background: var(--savings-color); height: 100%; transition: width 0.3s; }
         .progress-legend { display: flex; justify-content: space-between; font-size: 11px; font-weight: 500; color: var(--text-sub); margin-bottom: 16px; }
 
-        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .kpi-box { background: var(--bg-main); padding: 12px; border-radius: 10px; }
         .kpi-box-title { font-size: 11px; color: var(--text-sub); font-weight: 500; }
         .kpi-box-val { font-size: 14px; font-weight: 600; margin-top: 4px; }
         .kpi-box-val.expense { color: var(--expense-color); }
 
-        .card { background: #fff; margin: 0 16px 12px 16px; padding: 16px; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .card { background: #fff; margin: 0 12px 10px 12px; padding: 16px; border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .card-title { font-size: 14px; font-weight: 600; color: var(--text-main); }
         .btn-link { font-size: 12px; color: var(--accent); font-weight: 500; cursor: pointer; background: none; border: none; }
 
-        .section-tag { font-size: 11px; font-weight: 600; color: var(--text-sub); margin: 16px 16px 8px 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .section-tag { font-size: 11px; font-weight: 600; color: var(--text-sub); margin: 16px 16px 6px 16px; text-transform: uppercase; letter-spacing: 0.5px; }
 
         .income-input-card { background: var(--bg-main); border-radius: 10px; padding: 10px 12px; }
         .income-input-label { font-size: 11px; color: var(--text-sub); font-weight: 500; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
@@ -83,15 +83,14 @@
         .income-unit { font-size: 12px; font-weight: 600; color: var(--text-main); white-space: nowrap; }
 
         .ai-advice-box { background: var(--accent-light); border-radius: 12px; padding: 14px; margin-top: 14px; }
-        .ai-advice-title { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
-        .ai-advice-body { font-size: 12px; color: #1e3a8a; line-height: 1.4; font-weight: 400; }
+        .ai-advice-title { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+        .ai-advice-body { font-size: 12px; color: #1c529f; line-height: 1.4; font-weight: 400; }
 
-        /* 아코디언 스타일 (컬러 단순화) */
+        /* 아코디언 스타일 */
         .accordion-item { background: var(--bg-main); border-radius: 10px; margin-bottom: 8px; padding: 0 12px; transition: background 0.2s; }
         .accordion-item:last-child { margin-bottom: 0; }
         .accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; cursor: pointer; user-select: none; }
         .accordion-title { font-size: 13px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
-        /* .accordion-title::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--text-sub); } */
 
         .accordion-val { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; color: var(--text-main); }
         .accordion-icon { font-size: 10px; color: var(--text-sub); transition: transform 0.2s; }
@@ -105,28 +104,28 @@
         /* 모달 팝업 스타일 */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.5); z-index: 1000;
+            background: rgba(0, 0, 0, 0.4); z-index: 1000;
             display: none; justify-content: center; align-items: flex-end;
             backdrop-filter: blur(2px);
         }
         .modal-overlay.open { display: flex; }
         .modal-card {
             background: #fff; width: 100%; max-width: 440px; height: 85vh; max-height: 650px;
-            border-top-left-radius: 24px; border-top-right-radius: 24px; display: flex; flex-direction: column; overflow: hidden;
-            box-shadow: 0 -10px 25px rgba(0,0,0,0.08);
+            border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.06);
             animation: modalUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes modalUp {
             from { transform: translateY(100%); }
             to { transform: translateY(0); }
         }
-        .modal-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fff; }
-        .modal-title { font-size: 16px; font-weight: 700; color: var(--text-main); }
-        .modal-close { background: var(--bg-main); border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 14px; cursor: pointer; color: var(--text-sub); display: flex; align-items: center; justify-content: center; }
+        .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fff; }
+        .modal-title { font-size: 15px; font-weight: 700; color: var(--text-main); }
+        .modal-close { background: var(--bg-main); border: none; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; cursor: pointer; color: var(--text-sub); display: flex; align-items: center; justify-content: center; }
         
         .modal-subtabs { display: flex; background: var(--bg-main); padding: 4px; border-bottom: 1px solid var(--border); overflow-x: auto; gap: 4px; }
-        .modal-subtab-btn { padding: 7px 10px; border: none; background: transparent; font-size: 11px; font-weight: 500; color: var(--text-sub); border-radius: 8px; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
-        .modal-subtab-btn.active { background: #fff; color: var(--accent); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .modal-subtab-btn { padding: 6px 10px; border: none; background: transparent; font-size: 11px; font-weight: 500; color: var(--text-sub); border-radius: 6px; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+        .modal-subtab-btn.active { background: #fff; color: var(--accent); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 
         .modal-body { padding: 16px; overflow-y: auto; flex: 1; background: var(--bg-main); }
         .modal-footer { padding: 12px 16px; border-top: 1px solid var(--border); background: #fff; display: flex; gap: 8px; }
@@ -134,12 +133,11 @@
         .cat-group { display: none; background: transparent; }
         .cat-group.active { display: block; }
         
-        /* 그룹 제목 영역 개선 */
-        .cat-title-box { background: #e2e8f0; border: 1px solid var(--border-deep); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; }
-        .cat-title-label-top { font-size: 11px; font-weight: 700; color: var(--text-sub); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
-        .cat-title-input-wrapper { display: flex; align-items: center; gap: 8px; background: #fff; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-deep); }
-        .cat-title-input-wrapper:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1); }
-        .cat-title-inp { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; font-weight: 700; color: var(--text-main); }
+        .cat-title-box { background: #fff; border: 1px solid var(--border-deep); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+        .cat-title-label-top { font-size: 11px; font-weight: 600; color: var(--text-sub); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+        .cat-title-input-wrapper { display: flex; align-items: center; gap: 8px; background: var(--bg-main); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-deep); }
+        .cat-title-input-wrapper:focus-within { border-color: var(--accent); }
+        .cat-title-inp { flex: 1; border: none; background: transparent; outline: none; font-size: 13px; font-weight: 600; color: var(--text-main); }
         
         .sub-row { display: flex; align-items: center; gap: 6px; background: #fff; padding: 8px 10px; border: 1px solid var(--border-deep); border-radius: 10px; margin-bottom: 8px; }
         .sub-row:focus-within { border-color: var(--accent); }
@@ -148,9 +146,9 @@
         .sub-row select.inp-cat { width: 70px; font-size: 11px; font-weight: 600; color: var(--text-main); background: var(--bg-main); padding: 4px; border-radius: 6px; border: 1px solid var(--border-deep); }
         .sub-row input[type="text"].inp-name { flex: 1; min-width: 0; font-weight: 500; }
         .sub-row input[type="text"].inp-amount { width: 85px; flex-shrink: 0; text-align: right; font-weight: 600; }
-        .sub-row button { width: 26px; height: 26px; flex-shrink: 0; border: none; background: var(--bg-main); border-radius: 50%; color: var(--text-sub); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+        .sub-row button { width: 24px; height: 24px; flex-shrink: 0; border: none; background: var(--bg-main); border-radius: 50%; color: var(--text-sub); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; }
 
-        .add-row-btn { width: 100%; padding: 11px; background: #fff; border: 1px dashed var(--border-deep); color: var(--text-main); border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; margin-top: 4px; }
+        .add-row-btn { width: 100%; padding: 11px; background: #fff; border: 1px dashed var(--border-deep); color: var(--text-sub); border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; margin-top: 4px; }
 
         /* 월별 데이터 페이지 스타일 */
         .chart-legend { display: flex; justify-content: flex-end; gap: 10px; font-size: 11px; font-weight: 500; margin-bottom: 6px; }
@@ -158,7 +156,7 @@
         .dot-exp { width: 8px; height: 8px; background: var(--expense-color); border-radius: 2px; }
         .dot-sav { width: 8px; height: 8px; background: var(--savings-color); border-radius: 2px; }
 
-        .chart-container { display: flex; align-items: flex-end; justify-content: space-between; height: 120px; padding: 10px 5px 0; margin-top: 5px; border-bottom: 1px solid var(--border-deep); overflow-x: auto; gap: 8px; }
+        .chart-container { display: flex; align-items: flex-end; justify-content: space-between; height: 120px; padding: 10px 5px 0; margin-top: 5px; border-bottom: 1px solid var(--border); overflow-x: auto; gap: 8px; }
         .bar-col { flex: 1; min-width: 32px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
         .bar-pair { display: flex; gap: 3px; align-items: flex-end; height: 80px; }
         .bar-wrapper { width: 8px; background: var(--bg-main); height: 100%; border-radius: 3px; display: flex; align-items: flex-end; overflow: hidden; }
@@ -166,9 +164,9 @@
         .bar-fill-sav { width: 100%; background: var(--savings-color); border-radius: 3px; }
         .bar-label { font-size: 10px; color: var(--text-sub); font-weight: 500; white-space: nowrap; }
 
-        .month-accordion { background: #fff; border-radius: 12px; margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .month-accordion { background: #fff; border-radius: 12px; margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
         .month-header { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-        .month-details { display: none; padding: 14px 16px; background: var(--bg-main); border-top: 1px solid var(--border-deep); font-size: 12px; }
+        .month-details { display: none; padding: 14px 16px; background: var(--bg-main); border-top: 1px solid var(--border); font-size: 12px; }
         .month-accordion.open .month-details { display: block; }
 
         /* 설정 페이지 */
@@ -179,7 +177,7 @@
         .category-tag { background: var(--bg-main); border: 1px solid var(--border-deep); color: var(--text-main); padding: 5px 10px; border-radius: 16px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
         .category-tag span { cursor: pointer; color: var(--expense-color); font-weight: 700; font-size: 12px; }
 
-        .gnb { position: fixed; bottom: 0; width: 100%; max-width: 440px; background: #fff; display: flex; border-top: 1px solid var(--border-deep); height: 56px; z-index: 100; }
+        .gnb { position: fixed; bottom: 0; width: 100%; max-width: 440px; background: #fff; display: flex; border-top: 1px solid var(--border); height: 56px; z-index: 100; }
         .gnb-btn { flex: 1; border: none; background: none; font-size: 11px; color: var(--text-sub); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .gnb-btn.active { color: var(--accent); font-weight: 600; }
         .gnb-btn span { font-size: 16px; margin-bottom: 2px; }
@@ -216,6 +214,33 @@
                 <option value="2026-12">2026.12</option>
             </select>
         </div>
+
+        <main id="page-dashboard" class="page-view active">
+            <div class="summary-card">
+                <div class="summary-title" id="kpi-target-label">우리 곳간 총 추가 저축 가능액</div>
+                <div class="summary-main" id="kpi-savings">0.0만원</div>
+                
+                <div class="progress-container">
+                    <div class="progress-bar-exp" id="bar-exp-pct"></div>
+                    <div class="progress-bar-sav" id="bar-sav-pct"></div>
+                </div>
+                <div class="progress-legend">
+                    <span style="color:var(--expense-color);">지출 비중: <b id="lbl-exp-pct" style="font-weight:600;">0%</b></span>
+                    <span style="color:var(--savings-color);">저축 비중: <b id="lbl-sav-pct" style="font-weight:600;">0%</b></span>
+                </div>
+    
+                <div class="kpi-grid">
+                    <div class="kpi-box">
+                        <div class="kpi-box-title">총수입</div>
+                        <div class="kpi-box-val" id="kpi-income">0.0만원</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-box-title">총지출</div>
+                        <div class="kpi-box-val expense" id="kpi-expense">0.0만원</div>
+                    </div>
+                </div>
+            </div>
+            
         <div class="tab-pill-container" id="member-tab-bar">
             <button class="tab-pill-btn active" onclick="setMemberTab('all', this)">우리 곳간 전체</button>
             <button class="tab-pill-btn" onclick="setMemberTab('bora', this)">보라</button>
@@ -227,7 +252,7 @@
     <main id="page-dashboard" class="page-view active">
         <div class="summary-card">
             <div class="summary-title" id="kpi-target-label">우리 곳간 총 추가 저축 가능액</div>
-            <div class="summary-main" id="kpi-savings">0원</div>
+            <div class="summary-main" id="kpi-savings">0.0만원</div>
             
             <div class="progress-container">
                 <div class="progress-bar-exp" id="bar-exp-pct"></div>
@@ -241,11 +266,11 @@
             <div class="kpi-grid">
                 <div class="kpi-box">
                     <div class="kpi-box-title">총수입</div>
-                    <div class="kpi-box-val" id="kpi-income">0원</div>
+                    <div class="kpi-box-val" id="kpi-income">0.0만원</div>
                 </div>
                 <div class="kpi-box">
                     <div class="kpi-box-title">총지출</div>
-                    <div class="kpi-box-val expense" id="kpi-expense">0원</div>
+                    <div class="kpi-box-val expense" id="kpi-expense">0.0만원</div>
                 </div>
             </div>
         </div>
@@ -280,8 +305,8 @@
     </main>
 
     <!-- 월별 데이터 페이지 -->
-    <section id="page-monthly" class="page-view" style="padding: 16px;">
-        <div class="card" style="margin:0 0 12px 0;">
+    <section id="page-monthly" class="page-view" style="padding: 12px;">
+        <div class="card" style="margin:0 0 10px 0;">
             <div class="card-title" style="margin-bottom:6px;">📊 2026년 월별 지출/저축 트렌드</div>
             <div class="chart-legend">
                 <span><i class="dot-exp"></i>지출</span>
@@ -294,8 +319,8 @@
     </section>
 
     <!-- 설정 페이지 -->
-    <section id="page-settings" class="page-view" style="padding: 16px;">
-        <div class="card" style="margin:0 0 12px 0;">
+    <section id="page-settings" class="page-view" style="padding: 12px;">
+        <div class="card" style="margin:0 0 10px 0;">
             <div class="setting-section-title">🏷️ 변동 지출 카테고리 설정</div>
             <div class="setting-input-group">
                 <input type="text" id="new-cat-input" placeholder="새 카테고리 입력 (예: 경조사)">
@@ -463,7 +488,6 @@
         }catch(e){ }
         if (!store) store = JSON.parse(JSON.stringify(DEFAULT_STORE));
 
-        // 6월, 7월 등이 기존 저장소에 없을 경우 추가
         ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
             if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
         });
@@ -512,17 +536,13 @@
             if (tab === 'all') return acc + amt;
             const owner = item.owner || 'shared';
             if (owner === tab) return acc + amt;
-            if (owner === 'shared') return acc + Math.round(amt / 2);
+            if (owner === 'shared') return acc + (amt / 2);
             return acc; 
         }, 0);
     }
 
-    function formatAmount(won) {
-        if (won >= 10000) {
-            const man = (won / 10000).toFixed(1);
-            return `${won.toLocaleString()}원 (${man}만원)`;
-        }
-        return `${won.toLocaleString()}원`;
+    function formatAmount(manWon) {
+        return `${Number(manWon).toFixed(1)}만원`;
     }
 
     function renderInputsOnly() {
@@ -531,29 +551,29 @@
         if (!container) return;
         container.innerHTML = '';
 
-        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
+        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate) / 10000;
 
         if (currentTab === 'all') {
             container.innerHTML = `
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 월급</span>
+                    <span class="income-input-label">보라 월급 (만원)</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="handleIncomeInput('bora', this)">
-                        <span class="income-unit">원</span>
+                        <span class="income-unit">만원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 기타 수당</span>
+                    <span class="income-input-label">보라 기타 수당 (만원)</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="handleIncomeInput('bora_extra', this)">
-                        <span class="income-unit">원</span>
+                        <span class="income-unit">만원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">상훈 월급</span>
+                    <span class="income-input-label">상훈 월급 (만원)</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="handleIncomeInput('sang', this)">
-                        <span class="income-unit">원</span>
+                        <span class="income-unit">만원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
@@ -565,31 +585,31 @@
                         <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="handleIncomeInput('trip_usd', this)">
                         <span class="income-unit">$</span>
                     </div>
-                    <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toLocaleString()}원</b></div>
+                    <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toFixed(1)}만원</b></div>
                 </div>`;
         } else if (currentTab === 'bora') {
             container.innerHTML = `
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 월급</span>
+                    <span class="income-input-label">보라 월급 (만원)</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="handleIncomeInput('bora', this)">
-                        <span class="income-unit">원</span>
+                        <span class="income-unit">만원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 기타 수당</span>
+                    <span class="income-input-label">보라 기타 수당 (만원)</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="handleIncomeInput('bora_extra', this)">
-                        <span class="income-unit">원</span>
+                        <span class="income-unit">만원</span>
                     </div>
                 </div>`;
         } else {
             container.innerHTML = `
                 <div class="income-input-card">
-                    <span class="income-input-label">상훈 월급</span>
+                    <span class="income-input-label">상훈 월급 (만원)</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="handleIncomeInput('sang', this)">
-                        <span class="income-unit">원</span>
+                        <span class="income-unit">만원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
@@ -601,7 +621,7 @@
                         <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="handleIncomeInput('trip_usd', this)">
                         <span class="income-unit">$</span>
                     </div>
-                    <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toLocaleString()}원</b></div>
+                    <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toFixed(1)}만원</b></div>
                 </div>`;
         }
     }
@@ -617,17 +637,17 @@
         updateKPIAndChartsOnly();
 
         if (key === 'trip_usd') {
-            const tripWonTotal = Math.round(rawNum * usdRate);
+            const tripWonTotal = Math.round(rawNum * usdRate) / 10000;
             const subTextEl = inputEl.parentElement.nextElementSibling;
             if (subTextEl) {
-                subTextEl.innerHTML = `원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toLocaleString()}원</b>`;
+                subTextEl.innerHTML = `원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toFixed(1)}만원</b>`;
             }
         }
     }
 
     function updateKPIAndChartsOnly() {
         const d = store[currentMonth] || DEFAULT_MONTH_DATA();
-        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
+        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate) / 10000;
         const boraWonTotal = (d.bora || 0) + (d.bora_extra || 0);
         const sangWonTotal = (d.sang || 0);
         const totalIncWon = boraWonTotal + sangWonTotal + tripWonTotal;
@@ -640,7 +660,7 @@
         const savForTab = sumCatForTab(d.categories.savings, currentTab);
         const resForTab = sumCatForTab(d.categories.reserve, currentTab);
 
-        const sharedExpenseHalf = Math.round((expSum + livSum) / 2);
+        const sharedExpenseHalf = (expSum + livSum) / 2;
 
         let activeIncomeWon = totalIncWon;
         let activeExpenseWon = expSum + boraExp + sangExp + livSum + varSum;
@@ -671,7 +691,7 @@
         document.getElementById('lbl-exp-pct').innerText = `${expPct}%`;
         document.getElementById('lbl-sav-pct').innerText = `${savPct}%`;
 
-        document.getElementById('ai-advice-text').innerHTML = `고정지출 및 생활비를 제외하고 남은 유동 자산 중 <b style="font-weight:600;">${formatAmount(activeSavingsWon)}</b>을 유연하게 저축할 수 있습니다.`;
+        document.getElementById('ai-advice-text').innerHTML = `고정지출 및 생활비를 제외하고 남은 예산 중 <b style="font-weight:600;">${formatAmount(activeSavingsWon)}</b>을 추가 저축할 수 있습니다.`;
 
         renderChartAndMonthly();
     }
@@ -706,7 +726,7 @@
 
             let displayVal = formatAmount(sumWon);
             if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
-                const halfWon = Math.round(sumWon / 2);
+                const halfWon = sumWon / 2;
                 displayVal = `${formatAmount(halfWon)}`;
             }
 
@@ -719,7 +739,7 @@
                         subItemsHtml += `
                             <div class="sub-item-row">
                                 <span style="color:var(--text-main); font-weight:500;">[${formatKoreanDate(item.date)}] ${catTag}${item.name || '지출내역'}</span>
-                                <span style="color:var(--expense-color); font-weight:600;">-${Number(item.amount || 0).toLocaleString()}원</span>
+                                <span style="color:var(--expense-color); font-weight:600;">-${Number(item.amount || 0).toFixed(1)}만원</span>
                             </div>`;
                     });
                 }
@@ -733,9 +753,9 @@
                 } else {
                     items.forEach(item => {
                         const itemWon = Number(item.amount || 0);
-                        let subDetail = `${itemWon.toLocaleString()}원`;
+                        let subDetail = `${itemWon.toFixed(1)}만원`;
                         if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
-                            subDetail = `${(Math.round(itemWon / 2)).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
+                            subDetail = `${(itemWon / 2).toFixed(1)}만원 (총 ${itemWon.toFixed(1)}만원)`;
                         }
                         subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
                     });
@@ -767,9 +787,9 @@
             items.forEach(item => {
                 const itemWon = Number(item.amount || 0);
                 const owner = item.owner || 'shared';
-                let subDetail = `${itemWon.toLocaleString()}원`;
+                let subDetail = `${itemWon.toFixed(1)}만원`;
                 if (currentTab !== 'all' && owner === 'shared') {
-                    subDetail = `${Math.round(itemWon/2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
+                    subDetail = `${(itemWon/2).toFixed(1)}만원 (총 ${itemWon.toFixed(1)}만원)`;
                 }
                 subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
             });
@@ -814,7 +834,7 @@
 
         months.forEach(m => {
             const d = store[m] || DEFAULT_MONTH_DATA();
-            const tripWon = Math.round((d.trip_usd || 0) * usdRate);
+            const tripWon = Math.round((d.trip_usd || 0) * usdRate) / 10000;
             const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + tripWon;
             const totalExpWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
             const totalSavWon = sumCat(d.categories.savings) + Math.max(incWon - totalExpWon - sumCat(d.categories.savings) - sumCat(d.categories.reserve), 0);
@@ -938,7 +958,7 @@
                             <select class="inp-cat">${optionsHtml}</select>
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="내용">
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-                            <span>원</span>
+                            <span>만원</span>
                             <button onclick="removeExpenseSubModal(this)">✕</button>
                         </div>`;
                 });
@@ -958,7 +978,7 @@
                         <div class="sub-row" data-index="${rowIdx}">
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-                            <span>원</span>
+                            <span>만원</span>
                             <button onclick="removeExpenseSubModal(this)">✕</button>
                         </div>`;
                 });
@@ -987,13 +1007,13 @@
                 <select class="inp-cat">${optionsHtml}</select>
                 <input type="text" value="" class="inp-name" placeholder="내용">
                 <input type="text" value="" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-                <span>원</span>
+                <span>만원</span>
                 <button onclick="removeExpenseSubModal(this)">✕</button>`;
         } else {
             newRow.innerHTML = `
                 <input type="text" value="" class="inp-name" placeholder="항목명">
                 <input type="text" value="" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-                <span>원</span>
+                <span>만원</span>
                 <button onclick="removeExpenseSubModal(this)">✕</button>`;
         }
         rowsContainer.appendChild(newRow);
@@ -1096,7 +1116,7 @@
                         ${ownerSelectHtml}
                         <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
                         <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-                        <span>원</span>
+                        <span>만원</span>
                         <button onclick="removeSavingsSubModal(this)">✕</button>
                     </div>`;
             });
@@ -1122,7 +1142,7 @@
             ${ownerSelectHtml}
             <input type="text" value="" class="inp-name" placeholder="항목명">
             <input type="text" value="" class="inp-amount" placeholder="0" oninput="handleModalNumInput(this)">
-            <span>원</span>
+            <span>만원</span>
             <button onclick="removeSavingsSubModal(this)">✕</button>`;
         rowsContainer.appendChild(newRow);
     }
