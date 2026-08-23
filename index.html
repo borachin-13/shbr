@@ -787,991 +787,994 @@
             </div>
         </div>
     </div>
+<!-- 스크립트 영역 -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    <!-- 스크립트 영역 -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    const firebaseConfig = {
+        apiKey: "AIzaSyA_xbdI3K1KYa9qCYYd2SN7EJJkLcSLmE4",
+        authDomain: "shbr-family.firebaseapp.com",
+        projectId: "shbr-family",
+        storageBucket: "shbr-family.firebasestorage.app",
+        messagingSenderId: "438280523923",
+        appId: "1:438280523923:web:aa5a10883bc471b7c2fd66",
+        measurementId: "G-R0DHG7HJMR"
+    };
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyA_xbdI3K1KYa9qCYYd2SN7EJJkLcSLmE4",
-            authDomain: "shbr-family.firebaseapp.com",
-            projectId: "shbr-family",
-            storageBucket: "shbr-family.firebasestorage.app",
-            messagingSenderId: "438280523923",
-            appId: "1:438280523923:web:aa5a10883bc471b7c2fd66",
-            measurementId: "G-R0DHG7HJMR"
-        };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+    let usdRate = 1386;
 
-        let usdRate = 1386;
+    // 토스트 피드백 표시 함수
+    function showToast(message, isError = false) {
+        const toast = document.getElementById('toast-message');
+        toast.innerText = message;
+        toast.style.background = isError ? 'rgba(229, 62, 62, 0.95)' : 'rgba(26, 32, 44, 0.95)';
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2500);
+    }
 
-        // 토스트 피드백 표시 함수
-        function showToast(message, isError = false) {
-            const toast = document.getElementById('toast-message');
-            toast.innerText = message;
-            toast.style.background = isError ? 'rgba(229, 62, 62, 0.95)' : 'rgba(26, 32, 44, 0.95)';
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2500);
-        }
-
-        async function fetchExchangeRate() {
-            try {
-                const res = await fetch('https://open.er-api.com/v6/latest/USD');
-                const data = await res.json();
-                if (data && data.rates && data.rates.KRW) {
-                    usdRate = data.rates.KRW;
-                }
-            } catch(e) {
-                console.log('환율 정보 가져오기 실패, 기본값 사용:', e);
+    async function fetchExchangeRate() {
+        try {
+            const res = await fetch('https://open.er-api.com/v6/latest/USD');
+            const data = await res.json();
+            if (data && data.rates && data.rates.KRW) {
+                usdRate = data.rates.KRW;
             }
+        } catch(e) {
+            console.log('환율 정보 가져오기 실패, 기본값 사용:', e);
         }
+    }
 
-        function checkPassword() {
-            const pwInput = document.getElementById('lock-input').value;
-            const errEl = document.getElementById('lock-error');
-            if (pwInput === '0315') {
-                document.getElementById('lock-screen').style.display = 'none';
-            } else {
-                errEl.innerText = '비밀번호가 일치하지 않습니다.';
-                document.getElementById('lock-input').value = '';
-                document.getElementById('lock-input').focus();
+    function checkPassword() {
+        const pwInput = document.getElementById('lock-input').value;
+        const errEl = document.getElementById('lock-error');
+        if (pwInput === '0315') {
+            document.getElementById('lock-screen').style.display = 'none';
+        } else {
+            errEl.innerText = '비밀번호가 일치하지 않습니다.';
+            document.getElementById('lock-input').value = '';
+            document.getElementById('lock-input').focus();
+        }
+    }
+    window.checkPassword = checkPassword;
+
+    function formatNumberString(val) {
+        if (!val && val !== 0) return '';
+        const num = String(val).replace(/[^0-9]/g, '');
+        return num ? Number(num).toLocaleString() : '';
+    }
+
+    function parseNumberString(str) {
+        if (!str) return 0;
+        return Number(String(str).replace(/[^0-9]/g, '')) || 0;
+    }
+
+    function formatKoreanDate(dateStr) {
+        if (!dateStr) return '날짜미상';
+        const parts = dateStr.split('-');
+        return parts.length === 3 ? `${parts[0]}.${parts[1]}.${parts[2]}` : dateStr;
+    }
+
+    const DEFAULT_CATEGORIES = ['식비', '생필품', '경조사', '기타'];
+    let categoryList = DEFAULT_CATEGORIES.slice();
+    
+    let carryoverSettings = {
+        expense: false,
+        bora_personal: false,
+        sang_personal: true,
+        living: false,
+        savings: true,
+        reserve: true
+    };
+
+    const DEFAULT_MONTH_DATA = () => ({
+        bora: 0, bora_extra: 0, sang: 0, trip_usd: 0, 
+        sectionTitles: {
+            expense: '공통 고정지출',
+            bora_personal: '보라 개인 지출',
+            sang_personal: '상훈 개인 지출',
+            living: '공동 생활비',
+            savings: '고정 저축',
+            reserve: '비상금 (남겨둘 돈)'
+        },
+        categories: {
+            expense: [{ name: '월세', amount: 0 }, { name: '공과금', amount: 0 }],
+            bora_personal: [{ name: '휴대폰비', amount: 0 }, { name: '보험료', amount: 0 }],
+            sang_personal: [{ name: '휴대폰비', amount: 0 }, { name: '주유비', amount: 0 }],
+            living: [{ name: '공동 생활비 예산', amount: 0 }],
+            variable_expense: [],
+            savings: [{ name: '보라 청년계좌', amount: 0, owner: 'bora' }, { name: '상훈 청년계좌', amount: 0, owner: 'sang' }],
+            reserve: [{ name: '남겨둘 돈', amount: 0, owner: 'shared' }]
+        }
+    });
+
+    let store = null;
+    let currentMonth = '2026-08';
+    let currentTab = 'all';
+
+    const FIRESTORE_DOC_ID = 'gotgan_data_v1';
+
+    function debounce(fn, ms){
+        let t = null;
+        return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    async function persistStore(){
+        try {
+            await setDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
+                store: store,
+                categoryList: categoryList,
+                carryoverSettings: carryoverSettings
+            });
+            showToast('저장되었습니다.');
+        } catch(e) { 
+            console.error('저장 실패:', e); 
+            showToast('저장에 실패했습니다 (권한 확인 필요)', true);
+        }
+    }
+    const schedulePersistStore = debounce(persistStore, 500);
+
+    async function loadAll(){
+        try {
+            const docSnap = await getDoc(doc(db, "gotgan", FIRESTORE_DOC_ID));
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.store) store = data.store;
+                if (data.categoryList) categoryList = data.categoryList;
+                if (data.carryoverSettings) carryoverSettings = { ...carryoverSettings, ...data.carryoverSettings };
             }
-        }
-        window.checkPassword = checkPassword;
+        } catch(e) { console.error('불러오기 실패:', e); }
 
-        function formatNumberString(val) {
-            if (!val && val !== 0) return '';
-            const num = String(val).replace(/[^0-9]/g, '');
-            return num ? Number(num).toLocaleString() : '';
+        if (!store) {
+            store = {};
+            ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
+                store[m] = DEFAULT_MONTH_DATA();
+            });
+        }
+    }
+
+    async function init() {
+        // Firebase 익명 로그인 실행 (권한 문제 해결)
+        const authBadge = document.getElementById('auth-status-badge');
+        try {
+            await signInAnonymously(auth);
+            authBadge.innerText = '연결됨';
+            authBadge.style.background = '#c6f6d5';
+            authBadge.style.color = '#22543d';
+        } catch (err) {
+            console.error("익명 로그인 실패:", err);
+            authBadge.innerText = '인증 실패';
+            authBadge.style.background = '#fed7d7';
+            authBadge.style.color = '#742a2a';
         }
 
-        function parseNumberString(str) {
-            if (!str) return 0;
-            return Number(String(str).replace(/[^0-9]/g, '')) || 0;
-        }
-
-        function formatKoreanDate(dateStr) {
-            if (!dateStr) return '날짜미상';
-            const parts = dateStr.split('-');
-            return parts.length === 3 ? `${parts[0]}.${parts[1]}.${parts[2]}` : dateStr;
-        }
-
-        const DEFAULT_CATEGORIES = ['식비', '생필품', '경조사', '기타'];
-        let categoryList = DEFAULT_CATEGORIES.slice();
+        await fetchExchangeRate();
+        await loadAll();
+        if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         
-        let carryoverSettings = {
-            expense: false,
-            bora_personal: false,
-            sang_personal: true,
-            living: false,
-            savings: true,
-            reserve: true
-        };
+        document.getElementById('global-month').value = currentMonth;
+        
+        const expToggle = document.getElementById('carryover-expense-toggle');
+        const boraToggle = document.getElementById('carryover-bora-toggle');
+        const sangToggle = document.getElementById('carryover-sang-toggle');
+        const livingToggle = document.getElementById('carryover-living-toggle');
+        const savToggle = document.getElementById('carryover-savings-toggle');
+        const resToggle = document.getElementById('carryover-reserve-toggle');
+        
+        if(expToggle) expToggle.checked = carryoverSettings.expense === true;
+        if(boraToggle) boraToggle.checked = carryoverSettings.bora_personal === true;
+        if(sangToggle) sangToggle.checked = carryoverSettings.sang_personal !== false;
+        if(livingToggle) livingToggle.checked = carryoverSettings.living === true;
+        if(savToggle) savToggle.checked = carryoverSettings.savings !== false;
+        if(resToggle) resToggle.checked = carryoverSettings.reserve !== false;
 
-        const DEFAULT_MONTH_DATA = () => ({
-            bora: 0, bora_extra: 0, sang: 0, trip_usd: 0, 
-            sectionTitles: {
-                expense: '공통 고정지출',
-                bora_personal: '보라 개인 지출',
-                sang_personal: '상훈 개인 지출',
-                living: '공동 생활비',
-                savings: '고정 저축',
-                reserve: '비상금 (남겨둘 돈)'
-            },
-            categories: {
-                expense: [{ name: '월세', amount: 0 }, { name: '공과금', amount: 0 }],
-                bora_personal: [{ name: '휴대폰비', amount: 0 }, { name: '보험료', amount: 0 }],
-                sang_personal: [{ name: '휴대폰비', amount: 0 }, { name: '주유비', amount: 0 }],
-                living: [{ name: '공동 생활비 예산', amount: 0 }],
-                variable_expense: [],
-                savings: [{ name: '보라 청년계좌', amount: 0, owner: 'bora' }, { name: '상훈 청년계좌', amount: 0, owner: 'sang' }],
-                reserve: [{ name: '남겨둘 돈', amount: 0, owner: 'shared' }]
+        renderCategorySettings();
+        render();
+    }
+
+    function updateCarryoverSettings() {
+        const expToggle = document.getElementById('carryover-expense-toggle');
+        const boraToggle = document.getElementById('carryover-bora-toggle');
+        const sangToggle = document.getElementById('carryover-sang-toggle');
+        const livingToggle = document.getElementById('carryover-living-toggle');
+        const savToggle = document.getElementById('carryover-savings-toggle');
+        const resToggle = document.getElementById('carryover-reserve-toggle');
+        
+        carryoverSettings = {
+            expense: expToggle ? expToggle.checked : false,
+            bora_personal: boraToggle ? boraToggle.checked : false,
+            sang_personal: sangToggle ? sangToggle.checked : true,
+            living: livingToggle ? livingToggle.checked : false,
+            savings: savToggle ? savToggle.checked : true,
+            reserve: resToggle ? resToggle.checked : true
+        };
+        persistStore();
+    }
+    window.updateCarryoverSettings = updateCarryoverSettings;
+
+    function toggleIncomeCard() {
+        const body = document.getElementById('income-body-container');
+        const icon = document.getElementById('income-toggle-icon');
+        if (body.classList.contains('collapsed')) {
+            body.classList.remove('collapsed');
+            icon.innerText = '접기 ▴';
+        } else {
+            body.classList.add('collapsed');
+            icon.innerText = '펼치기 ▾';
+        }
+    }
+    window.toggleIncomeCard = toggleIncomeCard;
+
+    function sumCat(items) { return (items || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0); }
+
+    function sumCatForTab(items, tab) {
+        return (items || []).reduce((acc, item) => {
+            const amt = Number(item.amount) || 0;
+            if (tab === 'all') return acc + amt;
+            const owner = item.owner || 'shared';
+            if (owner === tab) return acc + amt;
+            if (owner === 'shared') return acc + (amt / 2);
+            return acc; 
+        }, 0);
+    }
+
+    function formatAmount(won) { return `${Math.round(won).toLocaleString()}원`; }
+
+    function renderInputsOnly() {
+        const d = store[currentMonth] || DEFAULT_MONTH_DATA();
+        const container = document.getElementById('income-field-container');
+        if (!container) return;
+        
+        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
+
+        if (currentTab === 'all') {
+            container.innerHTML = `
+                <div class="income-input-card">
+                    <span class="income-input-label">보라 월급</span>
+                    <div class="income-input-flex">
+                        <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
+                        <span class="income-unit">원</span>
+                    </div>
+                </div>
+                <div class="income-input-card">
+                    <span class="income-input-label">보라 기타 수당</span>
+                    <div class="income-input-flex">
+                        <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
+                        <span class="income-unit">원</span>
+                    </div>
+                </div>
+                <div class="income-input-card">
+                    <span class="income-input-label">상훈 월급</span>
+                    <div class="income-input-flex">
+                        <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
+                        <span class="income-unit">원</span>
+                    </div>
+                </div>
+                <div class="income-input-card">
+                    <span class="income-input-label">해외출장 수당 ($)</span>
+                    <div class="income-input-flex">
+                        <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
+                        <span class="income-unit">$</span>
+                    </div>
+                </div>
+                <div class="exchange-sub-info">💡 적용 환율: $1 = ${Math.round(usdRate).toLocaleString()}원 (약 ${formatAmount(tripWonTotal)})</div>`;
+        } else if (currentTab === 'bora') {
+            container.innerHTML = `
+                <div class="income-input-card">
+                    <span class="income-input-label">보라 월급</span>
+                    <div class="income-input-flex">
+                        <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
+                        <span class="income-unit">원</span>
+                    </div>
+                </div>
+                <div class="income-input-card">
+                    <span class="income-input-label">보라 기타 수당</span>
+                    <div class="income-input-flex">
+                        <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
+                        <span class="income-unit">원</span>
+                    </div>
+                </div>`;
+        } else {
+            container.innerHTML = `
+                <div class="income-input-card">
+                    <span class="income-input-label">상훈 월급</span>
+                    <div class="income-input-flex">
+                        <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
+                        <span class="income-unit">원</span>
+                    </div>
+                </div>
+                <div class="income-input-card">
+                    <span class="income-input-label">해외출장 수당 ($)</span>
+                    <div class="income-input-flex">
+                        <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
+                        <span class="income-unit">$</span>
+                    </div>
+                </div>
+                <div class="exchange-sub-info">💡 적용 환율: $1 = ${Math.round(usdRate).toLocaleString()}원 (약 ${formatAmount(tripWonTotal)})</div>`;
+        }
+    }
+
+    function handleIncomeInput(key, inputEl) {
+        const rawNum = parseNumberString(inputEl.value);
+        if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        store[currentMonth][key] = rawNum;
+        
+        inputEl.value = rawNum ? rawNum.toLocaleString() : '';
+        
+        schedulePersistStore();
+        updateKPIAndChartsOnly();
+    }
+    window.handleIncomeInput = handleIncomeInput;
+
+    function updateKPIAndChartsOnly() {
+        const d = store[currentMonth] || DEFAULT_MONTH_DATA();
+        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
+        const boraWonTotal = (d.bora || 0) + (d.bora_extra || 0);
+        const sangWonTotal = (d.sang || 0);
+        const totalIncWon = boraWonTotal + sangWonTotal + tripWonTotal;
+
+        const expSum = sumCat(d.categories.expense);
+        const boraExp = sumCat(d.categories.bora_personal);
+        const sangExp = sumCat(d.categories.sang_personal);
+        const livSum = sumCat(d.categories.living);
+        const varSum = sumCat(d.categories.variable_expense);
+        const savForTab = sumCatForTab(d.categories.savings, currentTab);
+        const resForTab = sumCatForTab(d.categories.reserve, currentTab);
+
+        const sharedExpenseHalf = (expSum + livSum) / 2;
+
+        let activeIncomeWon = totalIncWon;
+        let activeExpenseWon = expSum + boraExp + sangExp + livSum + varSum;
+
+        if (currentTab === 'bora') {
+            activeIncomeWon = boraWonTotal;
+            activeExpenseWon = boraExp + sharedExpenseHalf; 
+            document.getElementById('kpi-target-label').innerText = '보라 개인 잔액';
+        } else if (currentTab === 'sang') {
+            activeIncomeWon = sangWonTotal + tripWonTotal;
+            activeExpenseWon = sangExp + sharedExpenseHalf; 
+            document.getElementById('kpi-target-label').innerText = '상훈 개인 잔액';
+        } else {
+            document.getElementById('kpi-target-label').innerText = '우리 곳간 총 추가 저축 가능액';
+        }
+
+        const activeSavingsWon = Math.max(activeIncomeWon - activeExpenseWon - savForTab - resForTab, 0);
+
+        document.getElementById('kpi-income').innerText = formatAmount(activeIncomeWon);
+        document.getElementById('kpi-expense').innerText = formatAmount(activeExpenseWon);
+        document.getElementById('kpi-savings').innerText = formatAmount(activeSavingsWon);
+
+        const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
+        const savPct = activeIncomeWon > 0 ? Math.min(Math.round((activeSavingsWon / activeIncomeWon) * 100), 100 - expPct) : 0;
+
+        document.getElementById('bar-exp-pct').style.width = `${expPct}%`;
+        document.getElementById('bar-sav-pct').style.width = `${savPct}%`;
+        document.getElementById('lbl-exp-pct').innerText = `${expPct}%`;
+        document.getElementById('lbl-sav-pct').innerText = `${savPct}%`;
+
+        document.getElementById('ai-advice-text').innerHTML = `고정지출 및 생활비를 제외하고 남은 예산 중 <b style="font-weight:700;">${formatAmount(activeSavingsWon)}</b>을 추가 저축할 수 있습니다.`;
+
+        renderChartAndMonthly();
+    }
+
+    function render() {
+        renderInputsOnly();
+        const d = store[currentMonth] || DEFAULT_MONTH_DATA();
+        updateKPIAndChartsOnly();
+        renderSplitAccordions(d);
+    }
+
+    function renderSplitAccordions(d) {
+        const expenseContainer = document.getElementById('expense-accordion-container');
+        const savingsContainer = document.getElementById('savings-accordion-container');
+        
+        expenseContainer.innerHTML = '';
+        savingsContainer.innerHTML = '';
+
+        const categories = d.categories;
+        const titles = d.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
+        const defaultCats = DEFAULT_MONTH_DATA().categories;
+
+        const expenseKeys = ['expense', 'bora_personal', 'sang_personal', 'living', 'variable_expense'];
+
+        expenseKeys.forEach(key => {
+            if (currentTab === 'bora' && key === 'sang_personal') return;
+            if (currentTab === 'sang' && key === 'bora_personal') return;
+
+            const items = categories[key] || defaultCats[key] || [];
+            let sumWon = sumCat(items);
+            let subItemsHtml = '';
+
+            let displayVal = formatAmount(sumWon);
+            if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
+                displayVal = `${formatAmount(sumWon / 2)}`;
             }
+
+            if (key === 'variable_expense') {
+                if (items.length === 0) {
+                    subItemsHtml += `<div style="font-size:12px; color:var(--text-sub); padding:4px 0;">등록된 내역이 없습니다.</div>`;
+                } else {
+                    items.forEach(item => {
+                        const catTag = item.category ? `[${item.category}] ` : '';
+                        subItemsHtml += `
+                            <div class="sub-item-row">
+                                <span style="color:var(--text-main); font-weight:500;">${formatKoreanDate(item.date)} ${catTag}${item.name || '내역'}</span>
+                                <span style="color:var(--expense-color); font-weight:700;">-${Number(item.amount || 0).toLocaleString()}원</span>
+                            </div>`;
+                    });
+                }
+            } else {
+                if (items.length === 0) {
+                    subItemsHtml = '<div style="font-size:12px; color:var(--text-sub);">등록된 내역이 없습니다.</div>';
+                } else {
+                    items.forEach(item => {
+                        const itemWon = Number(item.amount || 0);
+                        let subDetail = `${itemWon.toLocaleString()}원`;
+                        if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
+                            subDetail = `${(itemWon / 2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
+                        }
+                        subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
+                    });
+                }
+            }
+
+            const labelTitle = titles[key] || '지출 항목';
+
+            expenseContainer.innerHTML += `
+                <div class="accordion-item" id="acc-flow-${key}">
+                    <div class="accordion-header" onclick="window.toggleFlowAccordion('${key}')">
+                        <span class="accordion-title">${labelTitle}</span>
+                        <div class="accordion-val">
+                            <span style="${key === 'variable_expense' ? 'color:var(--expense-color);' : ''}">${displayVal}</span>
+                            <span class="accordion-icon">▾</span>
+                        </div>
+                    </div>
+                    <div class="accordion-content">${subItemsHtml}</div>
+                </div>`;
         });
 
-        let store = null;
-        let currentMonth = '2026-08';
-        let currentTab = 'all';
+        const savingsKeys = ['savings', 'reserve'];
 
-        const FIRESTORE_DOC_ID = 'gotgan_data_v1';
-
-        function debounce(fn, ms){
-            let t = null;
-            return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-        }
-
-        async function persistStore(){
-            try {
-                await setDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
-                    store: store,
-                    categoryList: categoryList,
-                    carryoverSettings: carryoverSettings
-                });
-                showToast('저장되었습니다.');
-            } catch(e) { 
-                console.error('저장 실패:', e); 
-                showToast('저장에 실패했습니다 (권한 확인 필요)', true);
-            }
-        }
-        const schedulePersistStore = debounce(persistStore, 500);
-
-        async function loadAll(){
-            try {
-                const docSnap = await getDoc(doc(db, "gotgan", FIRESTORE_DOC_ID));
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (data.store) store = data.store;
-                    if (data.categoryList) categoryList = data.categoryList;
-                    if (data.carryoverSettings) carryoverSettings = { ...carryoverSettings, ...data.carryoverSettings };
-                }
-            } catch(e) { console.error('불러오기 실패:', e); }
-
-            if (!store) {
-                store = {};
-                ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
-                    store[m] = DEFAULT_MONTH_DATA();
-                });
-            }
-        }
-
-        async function init() {
-            // Firebase 익명 로그인 실행 (권한 문제 해결)
-            const authBadge = document.getElementById('auth-status-badge');
-            try {
-                await signInAnonymously(auth);
-                authBadge.innerText = '연결됨';
-                authBadge.style.background = '#c6f6d5';
-                authBadge.style.color = '#22543d';
-            } catch (err) {
-                console.error("익명 로그인 실패:", err);
-                authBadge.innerText = '인증 실패';
-                authBadge.style.background = '#fed7d7';
-                authBadge.style.color = '#742a2a';
-            }
-
-            await fetchExchangeRate();
-            await loadAll();
-            if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        savingsKeys.forEach(key => {
+            const allItems = categories[key] || defaultCats[key] || [];
+            const items = currentTab === 'all' ? allItems : allItems.filter(item => (item.owner || 'shared') !== (currentTab === 'bora' ? 'sang' : 'bora'));
+            const sumWon = sumCatForTab(allItems, currentTab);
+            let subItemsHtml = items.length === 0 ? '<div style="font-size:12px; color:var(--text-sub);">등록된 내역이 없습니다.</div>' : '';
             
-            document.getElementById('global-month').value = currentMonth;
-            
-            const expToggle = document.getElementById('carryover-expense-toggle');
-            const boraToggle = document.getElementById('carryover-bora-toggle');
-            const sangToggle = document.getElementById('carryover-sang-toggle');
-            const livingToggle = document.getElementById('carryover-living-toggle');
-            const savToggle = document.getElementById('carryover-savings-toggle');
-            const resToggle = document.getElementById('carryover-reserve-toggle');
-            
-            if(expToggle) expToggle.checked = carryoverSettings.expense === true;
-            if(boraToggle) boraToggle.checked = carryoverSettings.bora_personal === true;
-            if(sangToggle) sangToggle.checked = carryoverSettings.sang_personal !== false;
-            if(livingToggle) livingToggle.checked = carryoverSettings.living === true;
-            if(savToggle) savToggle.checked = carryoverSettings.savings !== false;
-            if(resToggle) resToggle.checked = carryoverSettings.reserve !== false;
-
-            renderCategorySettings();
-            render();
-        }
-
-        function updateCarryoverSettings() {
-            const expToggle = document.getElementById('carryover-expense-toggle');
-            const boraToggle = document.getElementById('carryover-bora-toggle');
-            const sangToggle = document.getElementById('carryover-sang-toggle');
-            const livingToggle = document.getElementById('carryover-living-toggle');
-            const savToggle = document.getElementById('carryover-savings-toggle');
-            const resToggle = document.getElementById('carryover-reserve-toggle');
-            
-            carryoverSettings = {
-                expense: expToggle ? expToggle.checked : false,
-                bora_personal: boraToggle ? boraToggle.checked : false,
-                sang_personal: sangToggle ? sangToggle.checked : true,
-                living: livingToggle ? livingToggle.checked : false,
-                savings: savToggle ? savToggle.checked : true,
-                reserve: resToggle ? resToggle.checked : true
-            };
-            persistStore();
-        }
-        window.updateCarryoverSettings = updateCarryoverSettings;
-
-        function toggleIncomeCard() {
-            const body = document.getElementById('income-body-container');
-            const icon = document.getElementById('income-toggle-icon');
-            if (body.classList.contains('collapsed')) {
-                body.classList.remove('collapsed');
-                icon.innerText = '접기 ▴';
-            } else {
-                body.classList.add('collapsed');
-                icon.innerText = '펼치기 ▾';
-            }
-        }
-        window.toggleIncomeCard = toggleIncomeCard;
-
-        function sumCat(items) { return (items || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0); }
-
-        function sumCatForTab(items, tab) {
-            return (items || []).reduce((acc, item) => {
-                const amt = Number(item.amount) || 0;
-                if (tab === 'all') return acc + amt;
+            items.forEach(item => {
+                const itemWon = Number(item.amount || 0);
                 const owner = item.owner || 'shared';
-                if (owner === tab) return acc + amt;
-                if (owner === 'shared') return acc + (amt / 2);
-                return acc; 
-            }, 0);
-        }
-
-        function formatAmount(won) { return `${Math.round(won).toLocaleString()}원`; }
-
-        function renderInputsOnly() {
-            const d = store[currentMonth] || DEFAULT_MONTH_DATA();
-            const container = document.getElementById('income-field-container');
-            if (!container) return;
-            
-            const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
-
-            if (currentTab === 'all') {
-                container.innerHTML = `
-                    <div class="income-input-card">
-                        <span class="income-input-label">보라 월급</span>
-                        <div class="income-input-flex">
-                            <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
-                            <span class="income-unit">원</span>
-                        </div>
-                    </div>
-                    <div class="income-input-card">
-                        <span class="income-input-label">보라 기타 수당</span>
-                        <div class="income-input-flex">
-                            <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
-                            <span class="income-unit">원</span>
-                        </div>
-                    </div>
-                    <div class="income-input-card">
-                        <span class="income-input-label">상훈 월급</span>
-                        <div class="income-input-flex">
-                            <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
-                            <span class="income-unit">원</span>
-                        </div>
-                    </div>
-                    <div class="income-input-card">
-                        <span class="income-input-label">해외출장 수당 ($)</span>
-                        <div class="income-input-flex">
-                            <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
-                            <span class="income-unit">$</span>
-                        </div>
-                    </div>
-                    <div class="exchange-sub-info">💡 적용 환율: $1 = ${Math.round(usdRate).toLocaleString()}원 (약 ${formatAmount(tripWonTotal)})</div>`;
-            } else if (currentTab === 'bora') {
-                container.innerHTML = `
-                    <div class="income-input-card">
-                        <span class="income-input-label">보라 월급</span>
-                        <div class="income-input-flex">
-                            <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
-                            <span class="income-unit">원</span>
-                        </div>
-                    </div>
-                    <div class="income-input-card">
-                        <span class="income-input-label">보라 기타 수당</span>
-                        <div class="income-input-flex">
-                            <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
-                            <span class="income-unit">원</span>
-                        </div>
-                    </div>`;
-            } else {
-                container.innerHTML = `
-                    <div class="income-input-card">
-                        <span class="income-input-label">상훈 월급</span>
-                        <div class="income-input-flex">
-                            <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
-                            <span class="income-unit">원</span>
-                        </div>
-                    </div>
-                    <div class="income-input-card">
-                        <span class="income-input-label">해외출장 수당 ($)</span>
-                        <div class="income-input-flex">
-                            <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
-                            <span class="income-unit">$</span>
-                        </div>
-                    </div>
-                    <div class="exchange-sub-info">💡 적용 환율: $1 = ${Math.round(usdRate).toLocaleString()}원 (약 ${formatAmount(tripWonTotal)})</div>`;
-            }
-        }
-
-        function handleIncomeInput(key, inputEl) {
-            const rawNum = parseNumberString(inputEl.value);
-            if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-            store[currentMonth][key] = rawNum;
-            
-            inputEl.value = rawNum ? rawNum.toLocaleString() : '';
-            
-            schedulePersistStore();
-            updateKPIAndChartsOnly();
-        }
-        window.handleIncomeInput = handleIncomeInput;
-
-        function updateKPIAndChartsOnly() {
-            const d = store[currentMonth] || DEFAULT_MONTH_DATA();
-            const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
-            const boraWonTotal = (d.bora || 0) + (d.bora_extra || 0);
-            const sangWonTotal = (d.sang || 0);
-            const totalIncWon = boraWonTotal + sangWonTotal + tripWonTotal;
-
-            const expSum = sumCat(d.categories.expense);
-            const boraExp = sumCat(d.categories.bora_personal);
-            const sangExp = sumCat(d.categories.sang_personal);
-            const livSum = sumCat(d.categories.living);
-            const varSum = sumCat(d.categories.variable_expense);
-            const savForTab = sumCatForTab(d.categories.savings, currentTab);
-            const resForTab = sumCatForTab(d.categories.reserve, currentTab);
-
-            const sharedExpenseHalf = (expSum + livSum) / 2;
-
-            let activeIncomeWon = totalIncWon;
-            let activeExpenseWon = expSum + boraExp + sangExp + livSum + varSum;
-
-            if (currentTab === 'bora') {
-                activeIncomeWon = boraWonTotal;
-                activeExpenseWon = boraExp + sharedExpenseHalf; 
-                document.getElementById('kpi-target-label').innerText = '보라 개인 잔액';
-            } else if (currentTab === 'sang') {
-                activeIncomeWon = sangWonTotal + tripWonTotal;
-                activeExpenseWon = sangExp + sharedExpenseHalf; 
-                document.getElementById('kpi-target-label').innerText = '상훈 개인 잔액';
-            } else {
-                document.getElementById('kpi-target-label').innerText = '우리 곳간 총 추가 저축 가능액';
-            }
-
-            const activeSavingsWon = Math.max(activeIncomeWon - activeExpenseWon - savForTab - resForTab, 0);
-
-            document.getElementById('kpi-income').innerText = formatAmount(activeIncomeWon);
-            document.getElementById('kpi-expense').innerText = formatAmount(activeExpenseWon);
-            document.getElementById('kpi-savings').innerText = formatAmount(activeSavingsWon);
-
-            const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
-            const savPct = activeIncomeWon > 0 ? Math.min(Math.round((activeSavingsWon / activeIncomeWon) * 100), 100 - expPct) : 0;
-
-            document.getElementById('bar-exp-pct').style.width = `${expPct}%`;
-            document.getElementById('bar-sav-pct').style.width = `${savPct}%`;
-            document.getElementById('lbl-exp-pct').innerText = `${expPct}%`;
-            document.getElementById('lbl-sav-pct').innerText = `${savPct}%`;
-
-            document.getElementById('ai-advice-text').innerHTML = `고정지출 및 생활비를 제외하고 남은 예산 중 <b style="font-weight:700;">${formatAmount(activeSavingsWon)}</b>을 추가 저축할 수 있습니다.`;
-
-            renderChartAndMonthly();
-        }
-
-        function render() {
-            renderInputsOnly();
-            const d = store[currentMonth] || DEFAULT_MONTH_DATA();
-            updateKPIAndChartsOnly();
-            renderSplitAccordions(d);
-        }
-
-        function renderSplitAccordions(d) {
-            const expenseContainer = document.getElementById('expense-accordion-container');
-            const savingsContainer = document.getElementById('savings-accordion-container');
-            
-            expenseContainer.innerHTML = '';
-            savingsContainer.innerHTML = '';
-
-            const categories = d.categories;
-            const titles = d.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
-            const defaultCats = DEFAULT_MONTH_DATA().categories;
-
-            const expenseKeys = ['expense', 'bora_personal', 'sang_personal', 'living', 'variable_expense'];
-
-            expenseKeys.forEach(key => {
-                if (currentTab === 'bora' && key === 'sang_personal') return;
-                if (currentTab === 'sang' && key === 'bora_personal') return;
-
-                const items = categories[key] || defaultCats[key] || [];
-                let sumWon = sumCat(items);
-                let subItemsHtml = '';
-
-                let displayVal = formatAmount(sumWon);
-                if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
-                    displayVal = `${formatAmount(sumWon / 2)}`;
+                let subDetail = `${itemWon.toLocaleString()}원`;
+                if (currentTab !== 'all' && owner === 'shared') {
+                    subDetail = `${(itemWon/2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
                 }
-
-                if (key === 'variable_expense') {
-                    if (items.length === 0) {
-                        subItemsHtml += `<div style="font-size:12px; color:var(--text-sub); padding:4px 0;">등록된 내역이 없습니다.</div>`;
-                    } else {
-                        items.forEach(item => {
-                            const catTag = item.category ? `[${item.category}] ` : '';
-                            subItemsHtml += `
-                                <div class="sub-item-row">
-                                    <span style="color:var(--text-main); font-weight:500;">${formatKoreanDate(item.date)} ${catTag}${item.name || '내역'}</span>
-                                    <span style="color:var(--expense-color); font-weight:700;">-${Number(item.amount || 0).toLocaleString()}원</span>
-                                </div>`;
-                        });
-                    }
-                } else {
-                    if (items.length === 0) {
-                        subItemsHtml = '<div style="font-size:12px; color:var(--text-sub);">등록된 내역이 없습니다.</div>';
-                    } else {
-                        items.forEach(item => {
-                            const itemWon = Number(item.amount || 0);
-                            let subDetail = `${itemWon.toLocaleString()}원`;
-                            if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
-                                subDetail = `${(itemWon / 2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
-                            }
-                            subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
-                        });
-                    }
-                }
-
-                const labelTitle = titles[key] || '지출 항목';
-
-                expenseContainer.innerHTML += `
-                    <div class="accordion-item" id="acc-flow-${key}">
-                        <div class="accordion-header" onclick="window.toggleFlowAccordion('${key}')">
-                            <span class="accordion-title">${labelTitle}</span>
-                            <div class="accordion-val">
-                                <span style="${key === 'variable_expense' ? 'color:var(--expense-color);' : ''}">${displayVal}</span>
-                                <span class="accordion-icon">▾</span>
-                            </div>
-                        </div>
-                        <div class="accordion-content">${subItemsHtml}</div>
-                    </div>`;
+                subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
             });
 
-            const savingsKeys = ['savings', 'reserve'];
+            const labelTitle = titles[key] || '저축 항목';
 
-            savingsKeys.forEach(key => {
-                const allItems = categories[key] || defaultCats[key] || [];
-                const items = currentTab === 'all' ? allItems : allItems.filter(item => (item.owner || 'shared') !== (currentTab === 'bora' ? 'sang' : 'bora'));
-                const sumWon = sumCatForTab(allItems, currentTab);
-                let subItemsHtml = items.length === 0 ? '<div style="font-size:12px; color:var(--text-sub);">등록된 내역이 없습니다.</div>' : '';
-                
-                items.forEach(item => {
-                    const itemWon = Number(item.amount || 0);
-                    const owner = item.owner || 'shared';
-                    let subDetail = `${itemWon.toLocaleString()}원`;
-                    if (currentTab !== 'all' && owner === 'shared') {
-                        subDetail = `${(itemWon/2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
-                    }
-                    subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
-                });
-
-                const labelTitle = titles[key] || '저축 항목';
-
-                savingsContainer.innerHTML += `
-                    <div class="accordion-item" id="acc-flow-${key}">
-                        <div class="accordion-header" onclick="window.toggleFlowAccordion('${key}')">
-                            <span class="accordion-title">${labelTitle}</span>
-                            <div class="accordion-val">
-                                <span style="color:var(--savings-color);">${formatAmount(sumWon)}</span>
-                                <span class="accordion-icon">▾</span>
-                            </div>
+            savingsContainer.innerHTML += `
+                <div class="accordion-item" id="acc-flow-${key}">
+                    <div class="accordion-header" onclick="window.toggleFlowAccordion('${key}')">
+                        <span class="accordion-title">${labelTitle}</span>
+                        <div class="accordion-val">
+                            <span style="color:var(--savings-color);">${formatAmount(sumWon)}</span>
+                            <span class="accordion-icon">▾</span>
                         </div>
-                        <div class="accordion-content">${subItemsHtml}</div>
-                    </div>`;
-            });
-        }
+                    </div>
+                    <div class="accordion-content">${subItemsHtml}</div>
+                </div>`;
+        });
+    }
 
-        function toggleFlowAccordion(key) {
-            const item = document.getElementById(`acc-flow-${key}`);
-            if(item) item.classList.toggle('open');
-        }
-        window.toggleFlowAccordion = toggleFlowAccordion;
+    function toggleFlowAccordion(key) {
+        const item = document.getElementById(`acc-flow-${key}`);
+        if(item) item.classList.toggle('open');
+    }
+    window.toggleFlowAccordion = toggleFlowAccordion;
 
-        function renderChartAndMonthly() {
-            const months = Object.keys(store).sort();
-            const chartContainer = document.getElementById('chart-bars');
-            const listContainer = document.getElementById('monthly-accordion-list');
+    function renderChartAndMonthly() {
+        const months = Object.keys(store).sort();
+        const chartContainer = document.getElementById('chart-bars');
+        const listContainer = document.getElementById('monthly-accordion-list');
+        
+        if(!chartContainer || !listContainer) return;
+
+        chartContainer.innerHTML = '';
+        listContainer.innerHTML = '';
+
+        let maxVal = 1;
+        months.forEach(m => {
+            const d = store[m] || DEFAULT_MONTH_DATA();
+            const expWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
+            const tripWon = Math.round((d.trip_usd || 0) * usdRate);
+            const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + tripWon;
+            const savWon = sumCat(d.categories.savings) + Math.max(incWon - expWon - sumCat(d.categories.savings) - sumCat(d.categories.reserve), 0);
+            if (expWon > maxVal) maxVal = expWon;
+            if (savWon > maxVal) maxVal = savWon;
+        });
+
+        months.forEach(m => {
+            const d = store[m] || DEFAULT_MONTH_DATA();
+            const tripWon = Math.round((d.trip_usd || 0) * usdRate);
+            const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + tripWon;
             
-            if(!chartContainer || !listContainer) return;
-
-            chartContainer.innerHTML = '';
-            listContainer.innerHTML = '';
-
-            let maxVal = 1;
-            months.forEach(m => {
-                const d = store[m] || DEFAULT_MONTH_DATA();
-                const expWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
-                const tripWon = Math.round((d.trip_usd || 0) * usdRate);
-                const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + tripWon;
-                const savWon = sumCat(d.categories.savings) + Math.max(incWon - expWon - sumCat(d.categories.savings) - sumCat(d.categories.reserve), 0);
-                if (expWon > maxVal) maxVal = expWon;
-                if (savWon > maxVal) maxVal = savWon;
-            });
-
-            months.forEach(m => {
-                const d = store[m] || DEFAULT_MONTH_DATA();
-                const tripWon = Math.round((d.trip_usd || 0) * usdRate);
-                const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + tripWon;
-                
-                const totalExpWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
-                
-                const fixedSavingsSum = sumCat(d.categories.savings);
-                const reserveSum = sumCat(d.categories.reserve);
-                const addSavings = Math.max(incWon - totalExpWon - fixedSavingsSum - reserveSum, 0);
-                const totalSavWon = fixedSavingsSum + addSavings;
-
-                const expHeight = maxVal > 0 ? Math.max(Math.round((totalExpWon / maxVal) * 100), 4) : 0;
-                const savHeight = maxVal > 0 ? Math.max(Math.round((totalSavWon / maxVal) * 100), 4) : 0;
-
-                chartContainer.innerHTML += `
-                    <div class="bar-col">
-                        <div class="bar-pair">
-                            <div class="bar-wrapper"><div class="bar-fill-exp" style="height:${expHeight}%;"></div></div>
-                            <div class="bar-wrapper"><div class="bar-fill-sav" style="height:${savHeight}%;"></div></div>
-                        </div>
-                        <div class="bar-label">${m.split('-')[1]}월</div>
-                    </div>`;
-
-                listContainer.innerHTML += `
-                    <div class="accordion-item" id="acc-${m}">
-                        <div class="accordion-header" onclick="window.toggleAccordion('${m}')">
-                            <div>
-                                <div style="font-size:13px; font-weight:700;">2026년 ${m.split('-')[1]}월</div>
-                                <div style="font-size:11px; color:var(--text-sub); margin-top:2px;">수입 ${formatAmount(incWon)}</div>
-                            </div>
-                            <div style="text-align:right;">
-                                <div style="font-size:12px; font-weight:700; color:var(--expense-color);">지출 ${formatAmount(totalExpWon)}</div>
-                                <div style="font-size:12px; font-weight:700; color:var(--savings-color);">${formatAmount(totalSavWon)} 저축</div>
-                            </div>
-                        </div>
-                        <div class="accordion-content">
-                            <div class="sub-item-row"><span>총 수입액</span><span>${formatAmount(incWon)}</span></div>
-                            <div class="sub-item-row"><span>총 지출액</span><span>${formatAmount(totalExpWon)}</span></div>
-                            <div class="sub-item-row"><span>총 저축액 (고정+추가)</span><span>${formatAmount(totalSavWon)}</span></div>
-                            <div class="sub-item-row"><span>변동 지출 건수</span><span>${(d.categories.variable_expense || []).length}건</span></div>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        function toggleAccordion(m) { document.getElementById(`acc-${m}`).classList.toggle('open'); }
-        window.toggleAccordion = toggleAccordion;
-
-        function openModal(type) {
-            const modal = document.getElementById('custom-modal');
-            const titleEl = document.getElementById('modal-title-text');
-            const subtabsEl = document.getElementById('modal-subtabs-container');
-            const bodyEl = document.getElementById('modal-body-content');
-            const saveBtn = document.getElementById('modal-save-btn');
-
-            if (type === 'expense') {
-                titleEl.innerText = '💸 지출 항목 편집';
-                subtabsEl.innerHTML = `
-                    <button class="modal-subtab-btn active" onclick="window.switchModalTab('expense', this)">공통고정</button>
-                    <button class="modal-subtab-btn" onclick="window.switchModalTab('bora_personal', this)">보라지출</button>
-                    <button class="modal-subtab-btn" onclick="window.switchModalTab('sang_personal', this)">상훈지출</button>
-                    <button class="modal-subtab-btn" onclick="window.switchModalTab('living', this)">공동생활</button>
-                    <button class="modal-subtab-btn" onclick="window.switchModalTab('variable_expense', this)">변동지출</button>
-                `;
-                bodyEl.innerHTML = renderExpenseModalHTML();
-                saveBtn.onclick = saveExpenseModal;
-            } else if (type === 'savings') {
-                titleEl.innerText = '💰 저축 항목 편집';
-                subtabsEl.innerHTML = `
-                    <button class="modal-subtab-btn active" onclick="window.switchModalTab('savings', this)">고정저축</button>
-                    <button class="modal-subtab-btn" onclick="window.switchModalTab('reserve', this)">비상금</button>
-                `;
-                bodyEl.innerHTML = renderSavingsModalHTML();
-                saveBtn.onclick = saveSavingsModal;
-            }
-
-            modal.classList.add('open');
-        }
-        window.openModal = openModal;
-
-        function closeModal() {
-            document.getElementById('custom-modal').classList.remove('open');
-        }
-        window.closeModal = closeModal;
-
-        function switchModalTab(catKey, btnEl) {
-            document.querySelectorAll('.modal-subtab-btn').forEach(btn => btn.classList.remove('active'));
-            btnEl.classList.add('active');
-
-            document.querySelectorAll('#custom-modal .cat-group').forEach(grp => grp.classList.remove('active'));
-            const targetGrp = document.getElementById(`modal-group-${catKey}`);
-            if(targetGrp) targetGrp.classList.add('active');
-        }
-        window.switchModalTab = switchModalTab;
-
-        function handleModalNumInput(inputEl) {
-            const rawNum = parseNumberString(inputEl.value);
-            inputEl.value = rawNum ? rawNum.toLocaleString() : '';
-        }
-        window.handleModalNumInput = handleModalNumInput;
-
-        function renderExpenseModalHTML() {
-            const targetData = store[currentMonth] || DEFAULT_MONTH_DATA();
-            const cats = targetData.categories;
-            const titles = targetData.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
+            const totalExpWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
             
-            const expenseSections = [
-                { key: 'expense', defaultLabel: '공통 고정지출' },
-                { key: 'bora_personal', defaultLabel: '보라 개인 지출' },
-                { key: 'sang_personal', defaultLabel: '상훈 개인 지출' },
-                { key: 'living', defaultLabel: '공동 생활비' },
-                { key: 'variable_expense', defaultLabel: '변동 지출' }
-            ];
+            const fixedSavingsSum = sumCat(d.categories.savings);
+            const reserveSum = sumCat(d.categories.reserve);
+            const addSavings = Math.max(incWon - totalExpWon - fixedSavingsSum - reserveSum, 0);
+            const totalSavWon = fixedSavingsSum + addSavings;
 
-            let html = '';
-            expenseSections.forEach((sec, idx) => {
-                const k = sec.key;
-                if(!cats[k]) cats[k] = [];
-                const currentTitle = titles[k] || sec.defaultLabel;
-                const isActive = idx === 0 ? 'active' : '';
+            const expHeight = maxVal > 0 ? Math.max(Math.round((totalExpWon / maxVal) * 100), 4) : 0;
+            const savHeight = maxVal > 0 ? Math.max(Math.round((totalSavWon / maxVal) * 100), 4) : 0;
 
-                if (k === 'variable_expense') {
-                    html += `
-                        <div class="cat-group ${isActive}" id="modal-group-${k}" data-expense-cat="${k}">
-                            <div class="cat-title-box">
-                                <div class="cat-title-label-top">그룹 타이틀</div>
-                                <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
-                            </div>
-                            <div class="modal-rows-container">`;
-                    cats[k].forEach((item, rowIdx) => {
-                        const currentCat = item.category || (categoryList[0] || '식비');
-                        let optionsHtml = categoryList.map(cat => `<option value="${cat}" ${cat === currentCat ? 'selected' : ''}>${cat}</option>`).join('');
-                        html += `
-                            <div class="sub-row">
-                                <input type="date" value="${item.date || ''}" class="inp-date">
-                                <select class="inp-cat">${optionsHtml}</select>
-                                <input type="text" value="${item.name || ''}" class="inp-name" placeholder="내용">
-                                <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-                                <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
-                            </div>`;
-                    });
-                    html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 변동 지출 항목 추가</button></div>`;
-                } else {
-                    html += `
-                        <div class="cat-group ${isActive}" id="modal-group-${k}" data-expense-cat="${k}">
-                            <div class="cat-title-box">
-                                <div class="cat-title-label-top">그룹 타이틀</div>
-                                <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
-                            </div>
-                            <div class="modal-rows-container">`;
-                    cats[k].forEach((item, rowIdx) => {
-                        html += `
-                            <div class="sub-row">
-                                <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
-                                <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-                                <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
-                            </div>`;
-                    });
-                    html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 고정 지출 항목 추가</button></div>`;
-                }
-            });
-            return html;
+            chartContainer.innerHTML += `
+                <div class="bar-col">
+                    <div class="bar-pair">
+                        <div class="bar-wrapper"><div class="bar-fill-exp" style="height:${expHeight}%;"></div></div>
+                        <div class="bar-wrapper"><div class="bar-fill-sav" style="height:${savHeight}%;"></div></div>
+                    </div>
+                    <div class="bar-label">${m.split('-')[1]}월</div>
+                </div>`;
+
+            listContainer.innerHTML += `
+                <div class="accordion-item" id="acc-${m}">
+                    <div class="accordion-header" onclick="window.toggleAccordion('${m}')">
+                        <div>
+                            <div style="font-size:13px; font-weight:700;">2026년 ${m.split('-')[1]}월</div>
+                            <div style="font-size:11px; color:var(--text-sub); margin-top:2px;">수입 ${formatAmount(incWon)}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:12px; font-weight:700; color:var(--expense-color);">지출 ${formatAmount(totalExpWon)}</div>
+                            <div style="font-size:12px; font-weight:700; color:var(--savings-color);">${formatAmount(totalSavWon)} 저축</div>
+                        </div>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="sub-item-row"><span>총 수입액</span><span>${formatAmount(incWon)}</span></div>
+                        <div class="sub-item-row"><span>총 지출액</span><span>${formatAmount(totalExpWon)}</span></div>
+                        <div class="sub-item-row"><span>총 저축액 (고정+추가)</span><span>${formatAmount(totalSavWon)}</span></div>
+                        <div class="sub-item-row"><span>변동 지출 건수</span><span>${(d.categories.variable_expense || []).length}건</span></div>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function toggleAccordion(m) { document.getElementById(`acc-${m}`).classList.toggle('open'); }
+    window.toggleAccordion = toggleAccordion;
+
+    function openModal(type) {
+        const modal = document.getElementById('custom-modal');
+        const titleEl = document.getElementById('modal-title-text');
+        const subtabsEl = document.getElementById('modal-subtabs-container');
+        const bodyEl = document.getElementById('modal-body-content');
+        const saveBtn = document.getElementById('modal-save-btn');
+
+        if (type === 'expense') {
+            titleEl.innerText = '💸 지출 항목 편집';
+            subtabsEl.innerHTML = `
+                <button class="modal-subtab-btn active" onclick="window.switchModalTab('expense', this)">공통고정</button>
+                <button class="modal-subtab-btn" onclick="window.switchModalTab('bora_personal', this)">보라지출</button>
+                <button class="modal-subtab-btn" onclick="window.switchModalTab('sang_personal', this)">상훈지출</button>
+                <button class="modal-subtab-btn" onclick="window.switchModalTab('living', this)">공동생활</button>
+                <button class="modal-subtab-btn" onclick="window.switchModalTab('variable_expense', this)">변동지출</button>
+            `;
+            bodyEl.innerHTML = renderExpenseModalHTML();
+            saveBtn.onclick = saveExpenseModal;
+        } else if (type === 'savings') {
+            titleEl.innerText = '💰 저축 항목 편집';
+            subtabsEl.innerHTML = `
+                <button class="modal-subtab-btn active" onclick="window.switchModalTab('savings', this)">고정저축</button>
+                <button class="modal-subtab-btn" onclick="window.switchModalTab('reserve', this)">비상금</button>
+            `;
+            bodyEl.innerHTML = renderSavingsModalHTML();
+            saveBtn.onclick = saveSavingsModal;
         }
 
-        function addExpenseSubModal(k) {
-            const groupEl = document.getElementById(`modal-group-${k}`);
-            const rowsContainer = groupEl.querySelector('.modal-rows-container');
-            const newRow = document.createElement('div');
-            newRow.className = 'sub-row';
+        modal.classList.add('open');
+    }
+    window.openModal = openModal;
+
+    function closeModal() {
+        document.getElementById('custom-modal').classList.remove('open');
+    }
+    window.closeModal = closeModal;
+
+    function switchModalTab(catKey, btnEl) {
+        document.querySelectorAll('.modal-subtab-btn').forEach(btn => btn.classList.remove('active'));
+        btnEl.classList.add('active');
+
+        document.querySelectorAll('#custom-modal .cat-group').forEach(grp => grp.classList.remove('active'));
+        const targetGrp = document.getElementById(`modal-group-${catKey}`);
+        if(targetGrp) targetGrp.classList.add('active');
+    }
+    window.switchModalTab = switchModalTab;
+
+    function handleModalNumInput(inputEl) {
+        const rawNum = parseNumberString(inputEl.value);
+        inputEl.value = rawNum ? rawNum.toLocaleString() : '';
+    }
+    window.handleModalNumInput = handleModalNumInput;
+
+    function renderExpenseModalHTML() {
+        const targetData = store[currentMonth] || DEFAULT_MONTH_DATA();
+        const cats = targetData.categories;
+        const titles = targetData.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
+        
+        const expenseSections = [
+            { key: 'expense', defaultLabel: '공통 고정지출' },
+            { key: 'bora_personal', defaultLabel: '보라 개인 지출' },
+            { key: 'sang_personal', defaultLabel: '상훈 개인 지출' },
+            { key: 'living', defaultLabel: '공동 생활비' },
+            { key: 'variable_expense', defaultLabel: '변동 지출' }
+        ];
+
+        let html = '';
+        expenseSections.forEach((sec, idx) => {
+            const k = sec.key;
+            if(!cats[k]) cats[k] = [];
+            const currentTitle = titles[k] || sec.defaultLabel;
+            const isActive = idx === 0 ? 'active' : '';
 
             if (k === 'variable_expense') {
-                const today = new Date().toISOString().split('T')[0];
-                let optionsHtml = categoryList.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-                newRow.innerHTML = `
-                    <input type="date" value="${today}" class="inp-date">
-                    <select class="inp-cat">${optionsHtml}</select>
-                    <input type="text" value="" class="inp-name" placeholder="내용">
-                    <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-                    <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
-            } else {
-                newRow.innerHTML = `
-                    <input type="text" value="" class="inp-name" placeholder="항목명">
-                    <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-                    <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
-            }
-            rowsContainer.appendChild(newRow);
-        }
-        window.addExpenseSubModal = addExpenseSubModal;
-
-        function renderSavingsModalHTML() {
-            const targetData = store[currentMonth] || DEFAULT_MONTH_DATA();
-            const cats = targetData.categories;
-            const titles = targetData.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
-            
-            const savingsSections = [
-                { key: 'savings', defaultLabel: '고정 저축' },
-                { key: 'reserve', defaultLabel: '비상금 (남겨둘 돈)' }
-            ];
-
-            let html = '';
-            savingsSections.forEach((sec, idx) => {
-                const k = sec.key;
-                if(!cats[k]) cats[k] = [];
-                const currentTitle = titles[k] || sec.defaultLabel;
-                const isActive = idx === 0 ? 'active' : '';
-
                 html += `
-                    <div class="cat-group ${isActive}" id="modal-group-${k}" data-savings-cat="${k}">
+                    <div class="cat-group ${isActive}" id="modal-group-${k}" data-expense-cat="${k}">
                         <div class="cat-title-box">
                             <div class="cat-title-label-top">그룹 타이틀</div>
                             <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
                         </div>
                         <div class="modal-rows-container">`;
-                
                 cats[k].forEach((item, rowIdx) => {
-                    const owner = item.owner || 'shared';
-                    const ownerSelectHtml = k === 'savings' ? `
-                        <select class="inp-owner">
-                            <option value="shared" ${owner==='shared'?'selected':''}>공통</option>
-                            <option value="bora" ${owner==='bora'?'selected':''}>보라</option>
-                            <option value="sang" ${owner==='sang'?'selected':''}>상훈</option>
-                        </select>` : '';
+                    const currentCat = item.category || (categoryList[0] || '식비');
+                    let optionsHtml = categoryList.map(cat => `<option value="${cat}" ${cat === currentCat ? 'selected' : ''}>${cat}</option>`).join('');
                     html += `
                         <div class="sub-row">
-                            ${ownerSelectHtml}
+                            <input type="date" value="${item.date || ''}" class="inp-date">
+                            <select class="inp-cat">${optionsHtml}</select>
+                            <input type="text" value="${item.name || ''}" class="inp-name" placeholder="내용">
+                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                            <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
+                        </div>`;
+                });
+                html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 변동 지출 항목 추가</button></div>`;
+            } else {
+                html += `
+                    <div class="cat-group ${isActive}" id="modal-group-${k}" data-expense-cat="${k}">
+                        <div class="cat-title-box">
+                            <div class="cat-title-label-top">그룹 타이틀</div>
+                            <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
+                        </div>
+                        <div class="modal-rows-container">`;
+                cats[k].forEach((item, rowIdx) => {
+                    html += `
+                        <div class="sub-row">
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
                 });
-                html += `</div><button class="add-row-btn" onclick="window.addSavingsSubModal('${k}')">+ 저축 항목 추가</button></div>`;
-            });
-            return html;
-        }
+                html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 고정 지출 항목 추가</button></div>`;
+            }
+        });
+        return html;
+    }
 
-        function addSavingsSubModal(k) {
-            const groupEl = document.getElementById(`modal-group-${k}`);
-            const rowsContainer = groupEl.querySelector('.modal-rows-container');
-            const newRow = document.createElement('div');
-            newRow.className = 'sub-row';
+    function addExpenseSubModal(k) {
+        const groupEl = document.getElementById(`modal-group-${k}`);
+        const rowsContainer = groupEl.querySelector('.modal-rows-container');
+        const newRow = document.createElement('div');
+        newRow.className = 'sub-row';
 
-            const ownerSelectHtml = k === 'savings' ? `
-                <select class="inp-owner">
-                    <option value="shared" selected>공통</option>
-                    <option value="bora">보라</option>
-                    <option value="sang">상훈</option>
-                </select>` : '';
-
+        if (k === 'variable_expense') {
+            const today = new Date().toISOString().split('T')[0];
+            let optionsHtml = categoryList.map(cat => `<option value="${cat}">${cat}</option>`).join('');
             newRow.innerHTML = `
-                ${ownerSelectHtml}
+                <input type="date" value="${today}" class="inp-date">
+                <select class="inp-cat">${optionsHtml}</select>
+                <input type="text" value="" class="inp-name" placeholder="내용">
+                <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
+        } else {
+            newRow.innerHTML = `
                 <input type="text" value="" class="inp-name" placeholder="항목명">
                 <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
-            rowsContainer.appendChild(newRow);
         }
-        window.addSavingsSubModal = addSavingsSubModal;
+        rowsContainer.appendChild(newRow);
+    }
+    window.addExpenseSubModal = addExpenseSubModal;
 
-        function removeSubModalRow(btn) {
-            btn.closest('.sub-row').remove();
-        }
-        window.removeSubModalRow = removeSubModalRow;
+    function renderSavingsModalHTML() {
+        const targetData = store[currentMonth] || DEFAULT_MONTH_DATA();
+        const cats = targetData.categories;
+        const titles = targetData.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
+        
+        const savingsSections = [
+            { key: 'savings', defaultLabel: '고정 저축' },
+            { key: 'reserve', defaultLabel: '비상금 (남겨둘 돈)' }
+        ];
 
-        function saveExpenseModal() {
-            document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
-                const k = group.getAttribute('data-expense-cat');
-                if (!k) return;
-                const titleInp = group.querySelector('.cat-title-inp');
-                const rows = group.querySelectorAll('.sub-row');
+        let html = '';
+        savingsSections.forEach((sec, idx) => {
+            const k = sec.key;
+            if(!cats[k]) cats[k] = [];
+            const currentTitle = titles[k] || sec.defaultLabel;
+            const isActive = idx === 0 ? 'active' : '';
 
-                if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
-                const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
-                store[currentMonth].sectionTitles[k] = newTitle;
-
-                const updated = [];
-                rows.forEach(row => {
-                    if (k === 'variable_expense') {
-                        const dateInp = row.querySelector('.inp-date');
-                        const catInp = row.querySelector('.inp-cat');
-                        const nameInp = row.querySelector('.inp-name');
-                        const amountInp = row.querySelector('.inp-amount');
-                        const wonAmount = parseNumberString(amountInp.value);
-                        if (nameInp.value.trim() !== '' || wonAmount > 0) {
-                            updated.push({
-                                date: dateInp ? dateInp.value : '',
-                                category: catInp ? catInp.value : (categoryList[0] || '식비'),
-                                name: nameInp.value.trim() || '지출',
-                                amount: wonAmount
-                            });
-                        }
-                    } else {
-                        const nameInp = row.querySelector('.inp-name');
-                        const amountInp = row.querySelector('.inp-amount');
-                        if (nameInp.value.trim() !== '') {
-                            updated.push({
-                                name: nameInp.value.trim() || '항목',
-                                amount: parseNumberString(amountInp.value)
-                            });
-                        }
-                    }
-                });
-                store[currentMonth].categories[k] = updated;
-
-                // 버그 수정: 이월 설정이 켜져 있을 때만 미래 달로 금액 및 제목이 이월되도록 분기 처리
-                const isCarryover = (k === 'expense' && carryoverSettings.expense === true) ||
-                                   (k === 'bora_personal' && carryoverSettings.bora_personal === true) ||
-                                   (k === 'sang_personal' && carryoverSettings.sang_personal === true) ||
-                                   (k === 'living' && carryoverSettings.living === true);
-
-                Object.keys(store).forEach(m => {
-                    if (m > currentMonth) {
-                        if(!store[m].sectionTitles) store[m].sectionTitles = {};
-                        
-                        // 이월 설정이 켜져있을 때만 타이틀도 함께 이월 (꺼져있으면 현재 달만 변경)
-                        if (isCarryover) {
-                            store[m].sectionTitles[k] = newTitle;
-                            if (k !== 'variable_expense') {
-                                store[m].categories[k] = JSON.parse(JSON.stringify(updated));
-                            }
-                        }
-                    }
-                });
+            html += `
+                <div class="cat-group ${isActive}" id="modal-group-${k}" data-savings-cat="${k}">
+                    <div class="cat-title-box">
+                        <div class="cat-title-label-top">그룹 타이틀</div>
+                        <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
+                    </div>
+                    <div class="modal-rows-container">`;
+            
+            cats[k].forEach((item, rowIdx) => {
+                const owner = item.owner || 'shared';
+                const ownerSelectHtml = k === 'savings' ? `
+                    <select class="inp-owner">
+                        <option value="shared" ${owner==='shared'?'selected':''}>공통</option>
+                        <option value="bora" ${owner==='bora'?'selected':''}>보라</option>
+                        <option value="sang" ${owner==='sang'?'selected':''}>상훈</option>
+                    </select>` : '';
+                html += `
+                    <div class="sub-row">
+                        ${ownerSelectHtml}
+                        <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
+                        <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                        <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
+                    </div>`;
             });
+            html += `</div><button class="add-row-btn" onclick="window.addSavingsSubModal('${k}')">+ 저축 항목 추가</button></div>`;
+        });
+        return html;
+    }
 
-            persistStore();
-            render();
-            closeModal();
-        }
+    function addSavingsSubModal(k) {
+        const groupEl = document.getElementById(`modal-group-${k}`);
+        const rowsContainer = groupEl.querySelector('.modal-rows-container');
+        const newRow = document.createElement('div');
+        newRow.className = 'sub-row';
 
-        function saveSavingsModal() {
-            document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
-                const k = group.getAttribute('data-savings-cat');
-                if (!k) return;
-                const titleInp = group.querySelector('.cat-title-inp');
-                const rows = group.querySelectorAll('.sub-row');
+        const ownerSelectHtml = k === 'savings' ? `
+            <select class="inp-owner">
+                <option value="shared" selected>공통</option>
+                <option value="bora">보라</option>
+                <option value="sang">상훈</option>
+            </select>` : '';
 
-                if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
-                const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
-                store[currentMonth].sectionTitles[k] = newTitle;
+        newRow.innerHTML = `
+            ${ownerSelectHtml}
+            <input type="text" value="" class="inp-name" placeholder="항목명">
+            <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+            <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
+        rowsContainer.appendChild(newRow);
+    }
+    window.addSavingsSubModal = addSavingsSubModal;
 
-                const updated = [];
-                rows.forEach(row => {
+    function removeSubModalRow(btn) {
+        btn.closest('.sub-row').remove();
+    }
+    window.removeSubModalRow = removeSubModalRow;
+
+    function saveExpenseModal() {
+        document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
+            const k = group.getAttribute('data-expense-cat');
+            if (!k) return;
+            const titleInp = group.querySelector('.cat-title-inp');
+            const rows = group.querySelectorAll('.sub-row');
+
+            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
+            const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
+            store[currentMonth].sectionTitles[k] = newTitle;
+
+            const updated = [];
+            rows.forEach(row => {
+                if (k === 'variable_expense') {
+                    const dateInp = row.querySelector('.inp-date');
+                    const catInp = row.querySelector('.inp-cat');
                     const nameInp = row.querySelector('.inp-name');
                     const amountInp = row.querySelector('.inp-amount');
-                    const ownerSel = row.querySelector('.inp-owner');
-
+                    const wonAmount = parseNumberString(amountInp.value);
+                    if (nameInp.value.trim() !== '' || wonAmount > 0) {
+                        updated.push({
+                            date: dateInp ? dateInp.value : '',
+                            category: catInp ? catInp.value : (categoryList[0] || '식비'),
+                            name: nameInp.value.trim() || '지출',
+                            amount: wonAmount
+                        });
+                    }
+                } else {
+                    const nameInp = row.querySelector('.inp-name');
+                    const amountInp = row.querySelector('.inp-amount');
                     if (nameInp.value.trim() !== '') {
                         updated.push({
                             name: nameInp.value.trim() || '항목',
-                            amount: parseNumberString(amountInp.value),
-                            owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared' ) : 'shared'
+                            amount: parseNumberString(amountInp.value)
                         });
                     }
-                });
-                store[currentMonth].categories[k] = updated;
+                }
+            });
+            store[currentMonth].categories[k] = updated;
 
-                const isCarryoverEnabled = (k === 'savings' && carryoverSettings.savings === true) || (k === 'reserve' && carryoverSettings.reserve === true);
+            // 이월 설정 확인
+            const isCarryover = (k === 'expense' && carryoverSettings.expense === true) ||
+                               (k === 'bora_personal' && carryoverSettings.bora_personal === true) ||
+                               (k === 'sang_personal' && carryoverSettings.sang_personal === true) ||
+                               (k === 'living' && carryoverSettings.living === true);
 
-                Object.keys(store).forEach(m => {
-                    if (m > currentMonth) {
-                        if(!store[m].sectionTitles) store[m].sectionTitles = {};
-                        
-                        // 이월 설정이 켜져 있을 때만 미래 달에 반영
-                        if (isCarryoverEnabled) {
-                            store[m].sectionTitles[k] = newTitle;
+            Object.keys(store).forEach(m => {
+                if (m > currentMonth) {
+                    if(!store[m].sectionTitles) store[m].sectionTitles = {};
+                    
+                    if (isCarryover) {
+                        // 이월이 켜져 있을 때만 미래 달에 동기화
+                        store[m].sectionTitles[k] = newTitle;
+                        if (k !== 'variable_expense') {
                             store[m].categories[k] = JSON.parse(JSON.stringify(updated));
                         }
+                    } else {
+                        // 이월이 꺼져 있으면 미래 달 자동 반영을 막음 (필요시 기존 데이터 유지 또는 분리)
                     }
-                });
+                }
             });
+        });
 
+        persistStore();
+        render();
+        closeModal();
+    }
+
+    function saveSavingsModal() {
+        document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
+            const k = group.getAttribute('data-savings-cat');
+            if (!k) return;
+            const titleInp = group.querySelector('.cat-title-inp');
+            const rows = group.querySelectorAll('.sub-row');
+
+            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
+            const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
+            store[currentMonth].sectionTitles[k] = newTitle;
+
+            const updated = [];
+            rows.forEach(row => {
+                const nameInp = row.querySelector('.inp-name');
+                const amountInp = row.querySelector('.inp-amount');
+                const ownerSel = row.querySelector('.inp-owner');
+
+                if (nameInp.value.trim() !== '') {
+                    updated.push({
+                        name: nameInp.value.trim() || '항목',
+                        amount: parseNumberString(amountInp.value),
+                        owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared' ) : 'shared'
+                    });
+                }
+            });
+            store[currentMonth].categories[k] = updated;
+
+            const isCarryoverEnabled = (k === 'savings' && carryoverSettings.savings === true) || (k === 'reserve' && carryoverSettings.reserve === true);
+
+            Object.keys(store).forEach(m => {
+                if (m > currentMonth) {
+                    if(!store[m].sectionTitles) store[m].sectionTitles = {};
+                    
+                    if (isCarryoverEnabled) {
+                        // 이월이 켜져 있을 때만 미래 달에 반영
+                        store[m].sectionTitles[k] = newTitle;
+                        store[m].categories[k] = JSON.parse(JSON.stringify(updated));
+                    } else {
+                        // 이월이 꺼져 있으면 미래 달 자동 반영을 막음
+                    }
+                }
+            });
+        });
+
+        persistStore();
+        render();
+        closeModal();
+    }
+
+    function renderCategorySettings() {
+        const container = document.getElementById('setting-category-tags');
+        if (!container) return;
+        container.innerHTML = categoryList.map((cat, idx) => `
+            <div class="category-tag">
+                ${cat}
+                <span onclick="window.removeCategorySetting(${idx})">&times;</span>
+            </div>
+        `).join('');
+    }
+
+    function addCategorySetting() {
+        const input = document.getElementById('new-cat-input');
+        const val = input.value.trim();
+        if (val && !categoryList.includes(val)) {
+            categoryList.push(val);
             persistStore();
-            render();
-            closeModal();
-        }
-
-        function renderCategorySettings() {
-            const container = document.getElementById('setting-category-tags');
-            if (!container) return;
-            container.innerHTML = categoryList.map((cat, idx) => `
-                <div class="category-tag">
-                    ${cat}
-                    <span onclick="window.removeCategorySetting(${idx})">&times;</span>
-                </div>
-            `).join('');
-        }
-
-        function addCategorySetting() {
-            const input = document.getElementById('new-cat-input');
-            const val = input.value.trim();
-            if (val && !categoryList.includes(val)) {
-                categoryList.push(val);
-                persistStore();
-                input.value = '';
-                renderCategorySettings();
-            }
-        }
-        window.addCategorySetting = addCategorySetting;
-
-        function removeCategorySetting(index) {
-            if (categoryList.length <= 1) {
-                alert('최소 1개의 카테고리는 등록되어 있어야 합니다.');
-                return;
-            }
-            categoryList.splice(index, 1);
-            persistStore();
+            input.value = '';
             renderCategorySettings();
         }
-        window.removeCategorySetting = removeCategorySetting;
+    }
+    window.addCategorySetting = addCategorySetting;
 
-        function setMemberTab(tab, btnEl) {
-            currentTab = tab;
-            document.querySelectorAll('.tab-pill-btn').forEach(btn => btn.classList.remove('active'));
-            if(btnEl) btnEl.classList.add('active');
+    function removeCategorySetting(index) {
+        if (categoryList.length <= 1) {
+            alert('최소 1개의 카테고리는 등록되어 있어야 합니다.');
+            return;
+        }
+        categoryList.splice(index, 1);
+        persistStore();
+        renderCategorySettings();
+    }
+    window.removeCategorySetting = removeCategorySetting;
+
+    function setMemberTab(tab, btnEl) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-pill-btn').forEach(btn => btn.classList.remove('active'));
+        if(btnEl) btnEl.classList.add('active');
+        render();
+    }
+    window.setMemberTab = setMemberTab;
+
+    function changeMonth(m) {
+        currentMonth = m;
+        if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
+        render();
+    }
+    window.changeMonth = changeMonth;
+
+    function navigate(page, btn) {
+        document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.gnb-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`page-${page}`).classList.add('active');
+        if(btn) btn.classList.add('active');
+
+        const memberTabBar = document.getElementById('member-tab-bar');
+        const headerMonthWrapper = document.getElementById('header-month-wrapper');
+
+        if (page === 'dashboard') {
+            memberTabBar.style.display = 'flex';
+            headerMonthWrapper.style.display = 'block';
+        } else if (page === 'monthly') {
+            memberTabBar.style.display = 'none';
+            headerMonthWrapper.style.display = 'block';
+        } else {
+            memberTabBar.style.display = 'none';
+            headerMonthWrapper.style.display = 'none';
+        }
+    }
+    window.navigate = navigate;
+
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
+        const a = document.createElement('a'); a.href = dataStr; a.download = `gotgan_backup_2026.json`; a.click();
+    }
+    window.exportData = exportData;
+
+    async function resetData() {
+        if(confirm('모든 데이터를 처음 상태로 초기화하시겠습니까?')) {
+            try { await deleteDoc(doc(db, "gotgan", FIRESTORE_DOC_ID)); } catch(e){}
+            categoryList = DEFAULT_CATEGORIES.slice();
+            
+            store = {};
+            ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
+                store[m] = DEFAULT_MONTH_DATA();
+            });
+
+            renderCategorySettings();
             render();
         }
-        window.setMemberTab = setMemberTab;
+    }
+    window.resetData = resetData;
 
-        function changeMonth(m) {
-            currentMonth = m;
-            if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
-            render();
-        }
-        window.changeMonth = changeMonth;
-
-        function navigate(page, btn) {
-            document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.gnb-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`page-${page}`).classList.add('active');
-            if(btn) btn.classList.add('active');
-
-            const memberTabBar = document.getElementById('member-tab-bar');
-            const headerMonthWrapper = document.getElementById('header-month-wrapper');
-
-            if (page === 'dashboard') {
-                memberTabBar.style.display = 'flex';
-                headerMonthWrapper.style.display = 'block';
-            } else if (page === 'monthly') {
-                memberTabBar.style.display = 'none';
-                headerMonthWrapper.style.display = 'block';
-            } else {
-                memberTabBar.style.display = 'none';
-                headerMonthWrapper.style.display = 'none';
-            }
-        }
-        window.navigate = navigate;
-
-        function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
-            const a = document.createElement('a'); a.href = dataStr; a.download = `gotgan_backup_2026.json`; a.click();
-        }
-        window.exportData = exportData;
-
-        async function resetData() {
-            if(confirm('모든 데이터를 처음 상태로 초기화하시겠습니까?')) {
-                try { await deleteDoc(doc(db, "gotgan", FIRESTORE_DOC_ID)); } catch(e){}
-                categoryList = DEFAULT_CATEGORIES.slice();
-                
-                store = {};
-                ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
-                    store[m] = DEFAULT_MONTH_DATA();
-                });
-
-                renderCategorySettings();
-                render();
-            }
-        }
-        window.resetData = resetData;
-
-        window.onload = init;
-    </script>
+    window.onload = init;
+</script>
 </body>
 </html>
