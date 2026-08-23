@@ -2,1359 +2,1683 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>우리 곳간</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <style>
         :root {
-            --bg-main: #f4f6f8;
+            --bg-color: #f4f6f8;
             --card-bg: #ffffff;
-            --text-main: #191f28;
-            --text-sub: #8b95a1;
-            --border: #f2f4f6;
-            --border-deep: #e5e8eb;
-            --accent: #3182f6;
-            --accent-light: #e8f3ff;
-            --expense-color: #f04452;
-            --savings-color: #20c997;
+            --primary: #1a202c;
+            --text-main: #2d3748;
+            --text-sub: #718096;
+            --border-color: #e2e8f0;
+            --accent: #3182ce;
+            --expense-color: #e53e3e;
+            --savings-color: #2b6cb0;
+            --radius-main: 16px;
+            --radius-sub: 10px;
+            --shadow-sm: 0 2px 5px rgba(0,0,0,0.04);
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #e5e8eb; color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-        /* 비밀번호 잠금 화면 */
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 480px;
+            background-color: var(--bg-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            padding-bottom: 90px;
+        }
+
+        /* Lock Screen */
         #lock-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff;
-            z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #ffffff;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
         }
-        .lock-box { width: 100%; max-width: 320px; text-align: center; }
-        .lock-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; color: var(--text-main); }
-        .lock-desc { font-size: 13px; color: var(--text-sub); margin-bottom: 24px; font-weight: 400; }
-        .lock-input { width: 100%; padding: 12px; font-size: 20px; text-align: center; border: 1px solid var(--border-deep); border-radius: 12px; margin-bottom: 12px; font-weight: 600; letter-spacing: 6px; background: var(--bg-main); outline: none; }
+        .lock-card {
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+        }
+        .lock-title {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+        .lock-sub {
+            font-size: 13px;
+            color: var(--text-sub);
+            margin-bottom: 24px;
+        }
+        .lock-input {
+            width: 100%;
+            padding: 14px;
+            border-radius: var(--radius-sub);
+            border: 1px solid var(--border-color);
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 6px;
+            outline: none;
+            margin-bottom: 12px;
+            background: #f8fafc;
+        }
         .lock-input:focus { border-color: var(--accent); background: #fff; }
-        .lock-btn { width: 100%; padding: 13px; background: var(--accent); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
-        .lock-error { font-size: 12px; color: var(--expense-color); margin-top: 10px; min-height: 16px; font-weight: 500; }
-
-        .app-container {
-            width: 100%; max-width: 440px; background-color: var(--bg-main); min-height: 100vh; position: relative;
-            box-shadow: 0 0 25px rgba(0,0,0,0.04); padding-bottom: 70px;
+        .lock-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sub);
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
         }
+        .lock-error { color: var(--expense-color); font-size: 12px; margin-top: 10px; min-height: 16px; }
 
+        /* Header */
         header {
-            background-color: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px);
-            padding: 12px 16px; position: sticky; top: 0; z-index: 50; display: flex; flex-direction: column; gap: 10px;
-            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: rgba(244, 246, 248, 0.95);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            padding: 16px 20px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
-        .header-top { display: flex; justify-content: space-between; align-items: center; }
-        .header-title { font-size: 17px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
-        .month-select { border: none; background: var(--bg-main); padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-main); outline: none; }
-
-        /* 알약 스타일 탭 */
-        .tab-pill-container { display: flex; background: var(--border); padding: 3px; border-radius: 10px; }
-        .tab-pill-btn { flex: 1; padding: 7px 0; border: none; background: transparent; font-size: 12px; font-weight: 500; color: var(--text-sub); border-radius: 7px; cursor: pointer; transition: all 0.2s ease; text-align: center; }
-        .tab-pill-btn.active { background: #fff; color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-
-        .summary-card { padding: 20px; background: #fff; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
-        .summary-title { font-size: 12px; color: var(--text-sub); font-weight: 500; margin-bottom: 4px; }
-        .summary-main { font-size: 24px; font-weight: 700; color: var(--savings-color); margin-bottom: 14px; }
-
-        .progress-container { background: var(--bg-main); height: 6px; border-radius: 3px; overflow: hidden; margin-bottom: 6px; display: flex; }
-        .progress-bar-exp { background: var(--expense-color); height: 100%; transition: width 0.3s; }
-        .progress-bar-sav { background: var(--savings-color); height: 100%; transition: width 0.3s; }
-        .progress-legend { display: flex; justify-content: space-between; font-size: 11px; font-weight: 500; color: var(--text-sub); margin-bottom: 16px; }
-
-        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .kpi-box { background: var(--bg-main); padding: 12px; border-radius: 10px; }
-        .kpi-box-title { font-size: 11px; color: var(--text-sub); font-weight: 500; }
-        .kpi-box-val { font-size: 14px; font-weight: 600; margin-top: 4px; }
-        .kpi-box-val.expense { color: var(--expense-color); }
-
-        .card { background: #fff; margin: 0 12px 10px 12px; padding: 16px; border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .card-title { font-size: 14px; font-weight: 600; color: var(--text-main); }
-        .btn-link { font-size: 12px; color: var(--accent); font-weight: 500; cursor: pointer; background: none; border: none; }
-
-        .section-tag { font-size: 11px; font-weight: 600; color: var(--text-sub); margin: 16px 16px 6px 16px; text-transform: uppercase; letter-spacing: 0.5px; }
-
-        .income-input-card { background: var(--bg-main); border-radius: 10px; padding: 10px 12px; }
-        .income-input-label { font-size: 11px; color: var(--text-sub); font-weight: 500; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
-        .income-input-flex { display: flex; align-items: center; gap: 8px; }
-        .income-input-flex input { flex: 1; padding: 8px 10px; border: 1px solid var(--border-deep); border-radius: 8px; font-size: 15px; font-weight: 600; background: #fff; outline: none; text-align: right; }
-        .income-input-flex input:focus { border-color: var(--accent); }
-        .income-unit { font-size: 12px; font-weight: 600; color: var(--text-main); white-space: nowrap; }
-
-        .ai-advice-box { background: var(--accent-light); border-radius: 12px; padding: 14px; margin-top: 14px; }
-        .ai-advice-title { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
-        .ai-advice-body { font-size: 12px; color: #1c529f; line-height: 1.4; font-weight: 400; }
-
-        /* 아코디언 스타일 */
-        .accordion-item { background: var(--bg-main); border-radius: 10px; margin-bottom: 8px; padding: 0 12px; transition: background 0.2s; }
-        .accordion-item:last-child { margin-bottom: 0; }
-        .accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; cursor: pointer; user-select: none; }
-        .accordion-title { font-size: 13px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
-
-        .accordion-val { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; color: var(--text-main); }
-        .accordion-icon { font-size: 10px; color: var(--text-sub); transition: transform 0.2s; }
-        .accordion-item.open .accordion-icon { transform: rotate(180deg); }
-        .accordion-content { display: none; padding: 4px 0 12px 0; border-top: 1px dashed var(--border-deep); margin-top: 2px; }
-        .accordion-item.open .accordion-content { display: block; }
+        .logo { font-size: 19px; font-weight: 800; color: var(--primary); }
         
-        .sub-item-row { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 0; color: var(--text-sub); }
-        .sub-item-row span:last-child { font-weight: 600; color: var(--text-main); }
-
-        /* 모달 팝업 스타일 */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.4); z-index: 1000;
-            display: none; justify-content: center; align-items: flex-end;
-            backdrop-filter: blur(2px);
+        .month-select-wrapper {
+            position: relative;
+            display: inline-block;
         }
-        .modal-overlay.open { display: flex; }
-        .modal-card {
-            background: #fff; width: 100%; max-width: 440px; height: 85vh; max-height: 650px;
-            border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; flex-direction: column; overflow: hidden;
-            box-shadow: 0 -10px 25px rgba(0,0,0,0.06);
-            animation: modalUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        .month-select-wrapper select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            border: 1px solid var(--border-color);
+            background: white;
+            padding: 6px 30px 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+            outline: none;
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
         }
-        @keyframes modalUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
+        .month-select-wrapper::after {
+            content: "▾";
+            font-size: 11px;
+            color: var(--text-sub);
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
         }
-        .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fff; }
-        .modal-title { font-size: 15px; font-weight: 700; color: var(--text-main); }
-        .modal-close { background: var(--bg-main); border: none; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; cursor: pointer; color: var(--text-sub); display: flex; align-items: center; justify-content: center; }
-        
-        .modal-subtabs { display: flex; background: var(--bg-main); padding: 4px; border-bottom: 1px solid var(--border); overflow-x: auto; gap: 4px; }
-        .modal-subtab-btn { padding: 6px 10px; border: none; background: transparent; font-size: 11px; font-weight: 500; color: var(--text-sub); border-radius: 6px; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
-        .modal-subtab-btn.active { background: #fff; color: var(--accent); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 
-        .modal-body { padding: 16px; overflow-y: auto; flex: 1; background: var(--bg-main); }
-        .modal-footer { padding: 12px 16px; border-top: 1px solid var(--border); background: #fff; display: flex; gap: 8px; }
+        /* Member Tab Bar */
+        .member-tab-bar {
+            display: flex;
+            padding: 0 20px 14px;
+            gap: 8px;
+        }
+        .tab-pill-btn {
+            flex: 1;
+            padding: 10px 0;
+            border: none;
+            background: #e2e8f0;
+            color: #4a5568;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-pill-btn.active { background: var(--primary); color: white; }
 
-        .cat-group { display: none; background: transparent; }
-        .cat-group.active { display: block; }
-        
-        .cat-title-box { background: #fff; border: 1px solid var(--border-deep); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
-        .cat-title-label-top { font-size: 11px; font-weight: 600; color: var(--text-sub); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
-        .cat-title-input-wrapper { display: flex; align-items: center; gap: 8px; background: var(--bg-main); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-deep); }
-        .cat-title-input-wrapper:focus-within { border-color: var(--accent); }
-        .cat-title-inp { flex: 1; border: none; background: transparent; outline: none; font-size: 13px; font-weight: 600; color: var(--text-main); }
-        
-        .sub-row { display: flex; align-items: center; gap: 6px; background: #fff; padding: 8px 10px; border: 1px solid var(--border-deep); border-radius: 10px; margin-bottom: 8px; }
-        .sub-row:focus-within { border-color: var(--accent); }
-        .sub-row input, .sub-row select { border: none; background: transparent; outline: none; font-size: 12px; color: var(--text-main); }
-        .sub-row input[type="date"].inp-date { width: 95px; font-size: 11px; color: var(--text-sub); background: var(--bg-main); padding: 4px; border-radius: 6px; }
-        .sub-row select.inp-cat { width: 70px; font-size: 11px; font-weight: 600; color: var(--text-main); background: var(--bg-main); padding: 4px; border-radius: 6px; border: 1px solid var(--border-deep); }
-        .sub-row input[type="text"].inp-name { flex: 1; min-width: 0; font-weight: 500; }
-        .sub-row input[type="text"].inp-amount { width: 95px; flex-shrink: 0; text-align: right; font-weight: 600; }
-        .sub-row button { width: 24px; height: 24px; flex-shrink: 0; border: none; background: var(--bg-main); border-radius: 50%; color: var(--text-sub); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; }
-
-        .add-row-btn { width: 100%; padding: 11px; background: #fff; border: 1px dashed var(--border-deep); color: var(--text-sub); border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; margin-top: 4px; }
-
-        /* 월별 데이터 페이지 스타일 */
-        .chart-legend { display: flex; justify-content: flex-end; gap: 10px; font-size: 11px; font-weight: 500; margin-bottom: 6px; }
-        .chart-legend span { display: flex; align-items: center; gap: 4px; }
-        .dot-exp { width: 8px; height: 8px; background: var(--expense-color); border-radius: 2px; }
-        .dot-sav { width: 8px; height: 8px; background: var(--savings-color); border-radius: 2px; }
-
-        .chart-container { display: flex; align-items: flex-end; justify-content: space-between; height: 120px; padding: 10px 5px 0; margin-top: 5px; border-bottom: 1px solid var(--border); overflow-x: auto; gap: 8px; }
-        .bar-col { flex: 1; min-width: 32px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-        .bar-pair { display: flex; gap: 3px; align-items: flex-end; height: 80px; }
-        .bar-wrapper { width: 8px; background: var(--bg-main); height: 100%; border-radius: 3px; display: flex; align-items: flex-end; overflow: hidden; }
-        .bar-fill-exp { width: 100%; background: var(--expense-color); border-radius: 3px; }
-        .bar-fill-sav { width: 100%; background: var(--savings-color); border-radius: 3px; }
-        .bar-label { font-size: 10px; color: var(--text-sub); font-weight: 500; white-space: nowrap; }
-
-        .month-accordion { background: #fff; border-radius: 12px; margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
-        .month-header { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-        .month-details { display: none; padding: 14px 16px; background: var(--bg-main); border-top: 1px solid var(--border); font-size: 12px; }
-        .month-accordion.open .month-details { display: block; }
-
-        /* 설정 페이지 */
-        .setting-section-title { font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 8px; }
-        .setting-input-group { display: flex; gap: 8px; margin-bottom: 10px; }
-        .setting-input-group input { flex: 1; padding: 10px 12px; border: 1px solid var(--border-deep); border-radius: 8px; font-size: 13px; outline: none; background: var(--bg-main); }
-        .category-tag-container { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-        .category-tag { background: var(--bg-main); border: 1px solid var(--border-deep); color: var(--text-main); padding: 5px 10px; border-radius: 16px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-        .category-tag span { cursor: pointer; color: var(--expense-color); font-weight: 700; font-size: 12px; }
-
-        /* 토글 스위치 UI 추가 */
-        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
-        .toggle-row:last-child { border-bottom: none; }
-        .toggle-label { font-size: 12px; font-weight: 500; color: var(--text-main); }
-        .toggle-switch { position: relative; display: inline-block; width: 42px; height: 22px; }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 22px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--accent); }
-        input:checked + .slider:before { transform: translateX(20px); }
-
-        .gnb { position: fixed; bottom: 0; width: 100%; max-width: 440px; background: #fff; display: flex; border-top: 1px solid var(--border); height: 56px; z-index: 100; }
-        .gnb-btn { flex: 1; border: none; background: none; font-size: 11px; color: var(--text-sub); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .gnb-btn.active { color: var(--accent); font-weight: 600; }
-        .gnb-btn span { font-size: 16px; margin-bottom: 2px; }
-
+        /* Page Layout */
+        .page-content { padding: 0 20px; flex: 1; }
         .page-view { display: none; }
         .page-view.active { display: block; }
 
-        .btn-action { width: 100%; padding: 12px; background: var(--text-main); color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        /* Card System */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius-main);
+            padding: 18px 20px;
+            margin-bottom: 14px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Income Card */
+        .income-header-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        .income-body { margin-top: 12px; border-top: 1px dashed var(--border-color); padding-top: 8px; }
+        .income-body.collapsed { display: none; }
+        
+        .income-input-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f7fafc;
+        }
+        .income-input-card:last-child { border-bottom: none; }
+        .income-input-label { font-size: 13px; font-weight: 600; color: var(--text-sub); }
+        .income-input-flex { display: flex; align-items: center; gap: 4px; }
+        .income-input-flex input {
+            width: 110px;
+            border: none;
+            background: #f8fafc;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary);
+            text-align: right;
+            outline: none;
+        }
+        .income-input-flex input:focus { background: #edf2f7; }
+        .income-unit { font-size: 13px; font-weight: 600; color: var(--text-sub); }
+        .exchange-sub-info { font-size: 11px; color: var(--accent); text-align: right; padding-top: 4px; font-weight: 600; }
+
+        /* Summary KPI Card */
+        .kpi-main { text-align: center; padding: 4px 0 14px; }
+        .kpi-label { font-size: 12px; color: var(--text-sub); font-weight: 600; margin-bottom: 4px; }
+        .kpi-val { font-size: 26px; font-weight: 800; color: #2b6cb0; }
+        .kpi-sub-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: var(--radius-sub);
+        }
+        .kpi-sub-item { text-align: center; }
+        .kpi-sub-item .sub-lbl { font-size: 11px; color: var(--text-sub); margin-bottom: 2px; }
+        .kpi-sub-item .sub-val { font-size: 14px; font-weight: 700; }
+
+        .progress-bar-container {
+            height: 8px;
+            background: #edf2f7;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            margin: 14px 0 6px;
+        }
+        .bar-fill-exp { background: var(--expense-color); transition: width 0.3s, height 0.3s; }
+        .bar-fill-sav { background: #3182ce; transition: width 0.3s, height 0.3s; }
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-sub);
+        }
+
+        /* Accordion List */
+        .accordion-item { border-bottom: 1px solid #edf2f7; }
+        .accordion-item:last-child { border-bottom: none; }
+        .accordion-header {
+            padding: 12px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .accordion-title { font-size: 13px; font-weight: 600; color: var(--text-main); }
+        .accordion-val { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+        .accordion-icon { font-size: 10px; color: var(--text-sub); transition: transform 0.2s; }
+        .accordion-item.open .accordion-icon { transform: rotate(180deg); }
+        
+        .accordion-content { 
+            display: none; 
+            padding: 6px 0 10px; 
+            flex-direction: column; 
+            gap: 6px; 
+            max-height: 240px; 
+            overflow-y: auto;
+        }
+        .accordion-item.open .accordion-content { display: flex; }
+        
+        .sub-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-sub);
+            padding: 8px 10px;
+            background: #f8fafc;
+            border-radius: 6px;
+        }
+
+        /* Chart Elements */
+        .chart-container {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 160px;
+            padding: 10px 5px 0;
+        }
+        .bar-col { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; height: 100%; justify-content: flex-end; }
+        .bar-pair { display: flex; gap: 4px; align-items: flex-end; height: 120px; width: 100%; justify-content: center; }
+        .bar-wrapper { width: 10px; background: #edf2f7; border-radius: 4px; height: 100%; display: flex; align-items: flex-end; overflow: hidden; }
+        .bar-wrapper .bar-fill-exp, .bar-wrapper .bar-fill-sav { width: 100%; border-radius: 4px; }
+        .bar-label { font-size: 11px; color: var(--text-sub); font-weight: 600; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-card {
+            background: white;
+            width: 100%;
+            max-width: 480px;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+            animation: slideUp 0.25s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title { font-size: 16px; font-weight: 800; color: var(--primary); }
+        .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-sub); padding: 0 4px; }
+        
+        .modal-subtabs {
+            display: flex;
+            padding: 10px 16px;
+            gap: 6px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border-color);
+            background: #f8fafc;
+            -webkit-overflow-scrolling: touch;
+        }
+        .modal-subtabs::-webkit-scrollbar { display: none; }
+        .modal-subtab-btn {
+            padding: 6px 12px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            background: white;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            color: var(--text-sub);
+            flex-shrink: 0;
+        }
+        .modal-subtab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .modal-body { padding: 16px; overflow-y: auto; flex: 1; }
+        .modal-footer { padding: 12px 16px 20px; border-top: 1px solid var(--border-color); background: white; }
+        .btn-modal-save {
+            width: 100%;
+            padding: 13px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sub);
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .cat-group { display: none; flex-direction: column; gap: 12px; }
+        .cat-group.active { display: flex; }
+        .cat-title-box {
+            background: #edf2f7;
+            padding: 10px 12px;
+            border-radius: var(--radius-sub);
+        }
+        .cat-title-label-top { font-size: 11px; font-weight: 700; color: var(--text-sub); margin-bottom: 2px; }
+        .cat-title-inp { width: 100%; border: none; background: transparent; font-size: 14px; font-weight: 700; outline: none; color: var(--primary); }
+
+        .sub-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            background: #fff;
+            padding: 4px 0;
+            width: 100%;
+            flex-wrap: nowrap;
+        }
+        .sub-row input, .sub-row select {
+            padding: 8px 6px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            box-sizing: border-box;
+            background: #fff;
+        }
+        .sub-row input:focus, .sub-row select:focus { border-color: var(--accent); }
+        
+        .sub-row .inp-name { flex: 1; min-width: 0; }
+        .sub-row .inp-amount { width: 85px; text-align: right; font-weight: 600; flex-shrink: 0; }
+        .sub-row .inp-date { width: 105px; flex-shrink: 0; }
+        .sub-row .inp-cat { width: 68px; flex-shrink: 0; }
+        .sub-row .inp-owner { width: 60px; flex-shrink: 0; }
+        .sub-row .btn-del-row {
+            border: none;
+            background: #fff5f5;
+            color: var(--expense-color);
+            width: 32px; height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .add-row-btn {
+            width: 100%;
+            padding: 10px;
+            background: #edf2f7;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary);
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        /* Settings Toggle Row */
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #edf2f7;
+        }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-label { font-size: 13px; font-weight: 600; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #cbd5e0; transition: .2s; border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+            background-color: white; transition: .2s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .category-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+        .category-tag {
+            background: #edf2f7; padding: 6px 12px; border-radius: 14px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;
+        }
+        .category-tag span { cursor: pointer; color: var(--expense-color); font-weight: 800; }
+
+        /* Bottom GNB */
+        .gnb {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 480px;
+            background: white;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+            z-index: 1000;
+        }
+        .gnb-btn {
+            background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
+            font-size: 10px; font-weight: 600; color: var(--text-sub); cursor: pointer;
+        }
+        .gnb-btn.active { color: var(--primary); font-weight: 800; }
+        .gnb-btn-icon { font-size: 18px; }
+
+        .btn-action-sm {
+            padding: 5px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
-<div id="lock-screen">
-    <div class="lock-box">
-        <div class="lock-title">🔒 우리 곳간</div>
-        <div class="lock-desc">비밀번호 4자리를 입력해주세요</div>
-        <input type="password" id="lock-input" class="lock-input" maxlength="4" placeholder="••••" onkeydown="if(event.key==='Enter') checkPassword()">
-        <button class="lock-btn" onclick="checkPassword()">확인</button>
-        <div id="lock-error" class="lock-error"></div>
-    </div>
-</div>
-
-<div class="app-container">
-    <header>
-        <div class="header-top">
-            <div class="header-title">🌾 우리 곳간</div>
-            <select id="global-month" class="month-select" onchange="changeMonth(this.value)">
-                <option value="2026-06">2026.06</option>
-                <option value="2026-07">2026.07</option>
-                <option value="2026-08" selected>2026.08</option>
-                <option value="2026-09">2026.09</option>
-                <option value="2026-10">2026.10</option>
-                <option value="2026-11">2026.11</option>
-                <option value="2026-12">2026.12</option>
-            </select>
-        </div>
-
-        <div class="tab-pill-container" id="member-tab-bar">
-            <button class="tab-pill-btn active" onclick="setMemberTab('all', this)">우리 곳간 전체</button>
-            <button class="tab-pill-btn" onclick="setMemberTab('bora', this)">보라</button>
-            <button class="tab-pill-btn" onclick="setMemberTab('sang', this)">상훈</button>
-        </div>
-    </header>
-
-    <!-- 대시보드 페이지 -->
-    <main id="page-dashboard" class="page-view active">
-        <div class="summary-card">
-            <div class="summary-title" id="kpi-target-label">우리 곳간 총 추가 저축 가능액</div>
-            <div class="summary-main" id="kpi-savings">0원</div>
-            
-            <div class="progress-container">
-                <div class="progress-bar-exp" id="bar-exp-pct"></div>
-                <div class="progress-bar-sav" id="bar-sav-pct"></div>
-            </div>
-            <div class="progress-legend">
-                <span style="color:var(--expense-color);">지출 비중: <b id="lbl-exp-pct" style="font-weight:600;">0%</b></span>
-                <span style="color:var(--savings-color);">저축 비중: <b id="lbl-sav-pct" style="font-weight:600;">0%</b></span>
-            </div>
-
-            <div class="kpi-grid">
-                <div class="kpi-box">
-                    <div class="kpi-box-title">총수입</div>
-                    <div class="kpi-box-val" id="kpi-income">0원</div>
-                </div>
-                <div class="kpi-box">
-                    <div class="kpi-box-title">총지출</div>
-                    <div class="kpi-box-val expense" id="kpi-expense">0원</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header"><span class="card-title">이번 달 수입 입력</span></div>
-            <div id="income-field-container" style="display:flex; flex-direction:column; gap:8px;"></div>
-        </div>
-
-        <div class="section-tag">💸 지출 영역</div>
-        <div class="card" style="margin-top: 0;">
-            <div class="card-header">
-                <span class="card-title">지출 항목 관리</span>
-                <button class="btn-link" onclick="openModal('expense')">고정비 수정 ⚙</button>
-            </div>
-            <div id="expense-accordion-container" style="display:flex; flex-direction:column; gap:6px;"></div>
-        </div>
-
-        <div class="section-tag">💰 저축 및 자산 영역</div>
-        <div class="card" style="margin-top: 0;">
-            <div class="card-header">
-                <span class="card-title">저축 및 잔액 배분</span>
-                <button class="btn-link" onclick="openModal('savings')">저축 항목 수정 ⚙</button>
-            </div>
-            <div id="savings-accordion-container" style="display:flex; flex-direction:column; gap:6px;"></div>
-
-            <div class="ai-advice-box">
-                <div class="ai-advice-title">💡 곳간 지킴이 한 줄 팁</div>
-                <div class="ai-advice-body" id="ai-advice-text">데이터를 불러오는 중입니다...</div>
-            </div>
-        </div>
-    </main>
-
-    <!-- 월별 데이터 페이지 -->
-    <section id="page-monthly" class="page-view" style="padding: 12px;">
-        <div class="card" style="margin:0 0 10px 0;">
-            <div class="card-title" style="margin-bottom:6px;">📊 2026년 월별 지출/저축 트렌드</div>
-            <div class="chart-legend">
-                <span><i class="dot-exp"></i>지출</span>
-                <span><i class="dot-sav"></i>저축</span>
-            </div>
-            <div class="chart-container" id="chart-bars"></div>
-        </div>
-        <div class="section-tag" style="margin: 0 0 8px 0;">월별 상세 내역</div>
-        <div id="monthly-accordion-list"></div>
-    </section>
-
-    <!-- 설정 페이지 -->
-    <section id="page-settings" class="page-view" style="padding: 12px;">
-        <!-- 선택적 이월 설정 카드 추가 -->
-        <div class="card" style="margin:0 0 10px 0;">
-            <div class="setting-section-title">🔄 월별 데이터 이월 설정</div>
-            <div style="font-size:11px; color:var(--text-sub); margin-bottom:10px;">항목 수정 시 미래 월로 자동 이월시킬 범위를 선택합니다.</div>
-            
-            <div class="toggle-row">
-                <span class="toggle-label">고정 저축 이월</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="carryover-savings-toggle" onchange="window.updateCarryoverSettings()">
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div class="toggle-row">
-                <span class="toggle-label">비상금(남겨둘 돈) 이월</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="carryover-reserve-toggle" onchange="window.updateCarryoverSettings()">
-                    <span class="slider"></span>
-                </label>
-            </div>
-        </div>
-
-        <div class="card" style="margin:0 0 10px 0;">
-            <div class="setting-section-title">🏷️ 변동 지출 카테고리 설정</div>
-            <div class="setting-input-group">
-                <input type="text" id="new-cat-input" placeholder="새 카테고리 입력 (예: 경조사)">
-                <button class="btn-action" style="width:72px; padding:10px; font-size:12px;" onclick="addCategorySetting()">추가</button>
-            </div>
-            <div class="category-tag-container" id="setting-category-tags"></div>
-        </div>
-
-        <div class="card" style="margin:0;">
-            <div class="setting-section-title">💾 데이터 관리 및 백업</div>
-            <div style="font-size:12px; color:var(--text-sub); margin-bottom:12px; line-height:1.4;">기록된 모든 가계부 데이터를 JSON으로 백업하거나 초기화할 수 있습니다.</div>
-            <button class="btn-action" onclick="exportData()">데이터 내보내기 (JSON)</button>
-            <button class="btn-action" style="background:var(--expense-color); margin-top:8px;" onclick="resetData()">전체 데이터 초기화</button>
-        </div>
-    </section>
-
-    <!-- 글로벌 네비게이션 바 -->
-    <nav class="gnb">
-        <button class="gnb-btn active" onclick="navigate('dashboard', this)"><span>⌂</span>대시보드</button>
-        <button class="gnb-btn" onclick="navigate('monthly', this)"><span>📊</span>월별 데이터</button>
-        <button class="gnb-btn" onclick="navigate('settings', this)"><span>⚙</span>설정</button>
-    </nav>
-</div>
-
-<!-- 모달 팝업 -->
-<div id="custom-modal" class="modal-overlay">
-    <div class="modal-card">
-        <div class="modal-header">
-            <span class="modal-title" id="modal-title-text">항목 수정</span>
-            <button class="modal-close" onclick="closeModal()">✕</button>
-        </div>
-        <div class="modal-subtabs" id="modal-subtabs-container"></div>
-        <div class="modal-body" id="modal-body-content"></div>
-        <div class="modal-footer">
-            <button class="btn-action" id="modal-save-btn">저장하기</button>
+    <!-- 잠금 화면 -->
+    <div id="lock-screen">
+        <div class="lock-card">
+            <div class="lock-title">🌾 우리 곳간</div>
+            <div class="lock-sub">비밀번호를 입력해 주세요.</div>
+            <input type="password" id="lock-input" class="lock-input" maxlength="4" placeholder="••••" onkeydown="if(event.key==='Enter') window.checkPassword()">
+            <button class="lock-btn" onclick="window.checkPassword()">접속하기</button>
+            <div id="lock-error" class="lock-error"></div>
         </div>
     </div>
-</div>
 
-<!-- Firebase SDK (CDN) -->
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    <div id="app-container">
+        <!-- 상단 헤더 -->
+        <header>
+            <div class="logo">🌾 우리 곳간</div>
+            <div class="month-select-wrapper" id="header-month-wrapper">
+                <select id="global-month" onchange="window.changeMonth(this.value)">
+                    <option value="2026-06">2026.06</option>
+                    <option value="2026-07">2026.07</option>
+                    <option value="2026-08" selected>2026.08</option>
+                    <option value="2026-09">2026.09</option>
+                    <option value="2026-10">2026.10</option>
+                    <option value="2026-11">2026.11</option>
+                    <option value="2026-12">2026.12</option>
+                </select>
+            </div>
+        </header>
 
-    // Firebase 설정 정보
-    const firebaseConfig = {
-        apiKey: "AIzaSyA_xbdI3K1KYa9qCYYd2SN7EJJkLcSLmE4",
-        authDomain: "shbr-family.firebaseapp.com",
-        projectId: "shbr-family",
-        storageBucket: "shbr-family.firebasestorage.app",
-        messagingSenderId: "438280523923",
-        appId: "1:438280523923:web:aa5a10883bc471b7c2fd66",
-        measurementId: "G-R0DHG7HJMR"
-    };
+        <!-- 멤버 필터 탭 -->
+        <div class="member-tab-bar" id="member-tab-bar">
+            <button class="tab-pill-btn active" onclick="window.setMemberTab('all', this)">통합</button>
+            <button class="tab-pill-btn" onclick="window.setMemberTab('bora', this)">보라</button>
+            <button class="tab-pill-btn" onclick="window.setMemberTab('sang', this)">상훈</button>
+        </div>
 
-    // Firebase 초기화
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    let usdRate = 1386; 
-
-    function checkPassword() {
-        const pwInput = document.getElementById('lock-input').value;
-        const errEl = document.getElementById('lock-error');
-        if (pwInput === '0315') {
-            document.getElementById('lock-screen').style.display = 'none';
-        } else {
-            errEl.innerText = '비밀번호가 올바르지 않습니다.';
-            document.getElementById('lock-input').value = '';
-            document.getElementById('lock-input').focus();
-        }
-    }
-    window.checkPassword = checkPassword;
-
-    function formatNumberString(val) {
-        if (!val && val !== 0) return '';
-        const num = String(val).replace(/[^0-9]/g, '');
-        return num ? Number(num).toLocaleString() : '';
-    }
-
-    function parseNumberString(str) {
-        if (!str) return 0;
-        return Number(String(str).replace(/[^0-9]/g, '')) || 0;
-    }
-
-    function formatKoreanDate(dateStr) {
-        if (!dateStr) return '날짜미상';
-        const parts = dateStr.split('-');
-        if (parts.length === 3) {
-            return `${parts[0]}. ${parts[1]}. ${parts[2]}.`;
-        }
-        return dateStr;
-    }
-
-    const DEFAULT_CATEGORIES = ['식비', '생필품', '경조사', '기타'];
-    let categoryList = DEFAULT_CATEGORIES.slice();
-    
-    // 이월 기본 옵션 설정값 (기본값 둘 다 ON)
-    let carryoverSettings = {
-        savings: true,
-        reserve: true
-    };
-
-    const DEFAULT_MONTH_DATA = () => ({
-        bora: 0, bora_extra: 0, sang: 0, trip_usd: 0, 
-        sectionTitles: {
-            expense: '공통 고정지출',
-            bora_personal: '보라 개인 지출',
-            sang_personal: '상훈 개인 지출',
-            living: '공동 생활비',
-            savings: '고정 저축',
-            reserve: '비상금 (남겨둘 돈)'
-        },
-        categories: {
-            expense: [
-                { name: '월세', amount: 0 },
-                { name: '공과금', amount: 0 },
-                { name: '식비 예산', amount: 0 }
-            ],
-            bora_personal: [
-                { name: '휴대폰비', amount: 0 },
-                { name: '보험료', amount: 0 },
-                { name: '교통비', amount: 0 },
-                { name: '후원금', amount: 0 },
-                { name: '청약', amount: 0 },
-                { name: '보라 용돈', amount: 0 }
-            ],
-            sang_personal: [
-                { name: '부모님', amount: 0 },
-                { name: '학자금 대출', amount: 0 },
-                { name: '주유비', amount: 0 },
-                { name: '휴대폰비', amount: 0 },
-                { name: '자동차보험', amount: 0 },
-                { name: '세탁비', amount: 0 },
-                { name: '가족회비', amount: 0 },
-                { name: '청사단 모임비', amount: 0 },
-                { name: '재산세', amount: 0 },
-                { name: '상훈 용돈', amount: 0 }
-            ],
-            living: [
-                { name: '공동 생활비 계획', amount: 0 }
-            ],
-            variable_expense: [],
-            savings: [
-                { name: '보라 청년계좌', amount: 0, owner: 'bora' },
-                { name: '상훈 청년계좌', amount: 0, owner: 'sang' }
-            ],
-            reserve: [
-                { name: '남겨둘 돈(비상금)', amount: 0, owner: 'shared' }
-            ]
-        }
-    });
-
-    let store = null;
-    let currentMonth = '2026-08';
-    let currentTab = 'all';
-
-    const FIRESTORE_DOC_ID = 'gotgan_data_v1';
-
-    function debounce(fn, ms){
-        let t = null;
-        return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-    }
-
-    async function persistStore(){
-        try {
-            await setDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
-                store: store,
-                categoryList: categoryList,
-                carryoverSettings: carryoverSettings
-            });
-        } catch(e) { console.error('Firestore 저장 실패:', e); }
-    }
-    const schedulePersistStore = debounce(persistStore, 500);
-
-    async function loadAll(){
-        try {
-            const docSnap = await getDoc(doc(db, "gotgan", FIRESTORE_DOC_ID));
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                if (data.store) store = data.store;
-                if (data.categoryList) categoryList = data.categoryList;
-                if (data.carryoverSettings) carryoverSettings = data.carryoverSettings;
-            }
-        } catch(e) { console.error('Firestore 불러오기 실패:', e); }
-
-        if (!store) {
-            store = {
-                '2026-06': DEFAULT_MONTH_DATA(),
-                '2026-07': DEFAULT_MONTH_DATA(),
-                '2026-08': DEFAULT_MONTH_DATA(),
-                '2026-09': DEFAULT_MONTH_DATA(),
-                '2026-10': DEFAULT_MONTH_DATA(),
-                '2026-11': DEFAULT_MONTH_DATA(),
-                '2026-12': DEFAULT_MONTH_DATA()
-            };
-        }
-
-        ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
-            if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
-        });
-
-        Object.keys(store).forEach(m => {
-            if(!store[m].sectionTitles) {
-                store[m].sectionTitles = DEFAULT_MONTH_DATA().sectionTitles;
-            }
-        });
-    }
-
-    async function fetchExchangeRate() {
-        try {
-            const res = await fetch('https://open.er-api.com/v6/latest/USD');
-            const data = await res.json();
-            if (data && data.rates && data.rates.KRW) {
-                usdRate = Math.round(data.rates.KRW);
-            }
-        } catch(e) {}
-        renderInputsOnly();
-    }
-
-    async function init() {
-        await loadAll();
-        fetchExchangeRate();
-        if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-        document.getElementById('global-month').value = currentMonth;
-        
-        // 이월 설정 스위치 UI 동기화
-        const savToggle = document.getElementById('carryover-savings-toggle');
-        const resToggle = document.getElementById('carryover-reserve-toggle');
-        if(savToggle) savToggle.checked = carryoverSettings.savings !== false;
-        if(resToggle) resToggle.checked = carryoverSettings.reserve !== false;
-
-        renderCategorySettings();
-        render();
-        setTimeout(() => {
-            const pwEl = document.getElementById('lock-input');
-            if(pwEl) pwEl.focus();
-        }, 100);
-    }
-
-    function updateCarryoverSettings() {
-        const savToggle = document.getElementById('carryover-savings-toggle');
-        const resToggle = document.getElementById('carryover-reserve-toggle');
-        carryoverSettings = {
-            savings: savToggle ? savToggle.checked : true,
-            reserve: resToggle ? resToggle.checked : true
-        };
-        persistStore();
-    }
-    window.updateCarryoverSettings = updateCarryoverSettings;
-
-    function sumCat(items) { return (items || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0); }
-
-    function sumCatForTab(items, tab) {
-        return (items || []).reduce((acc, item) => {
-            const amt = Number(item.amount) || 0;
-            if (tab === 'all') return acc + amt;
-            const owner = item.owner || 'shared';
-            if (owner === tab) return acc + amt;
-            if (owner === 'shared') return acc + (amt / 2);
-            return acc; 
-        }, 0);
-    }
-
-    function formatAmount(won) {
-        return `${Math.round(won).toLocaleString()}원`;
-    }
-
-    function renderInputsOnly() {
-        const d = store[currentMonth] || DEFAULT_MONTH_DATA();
-        const container = document.getElementById('income-field-container');
-        if (!container) return;
-        container.innerHTML = '';
-
-        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
-
-        if (currentTab === 'all') {
-            container.innerHTML = `
-                <div class="income-input-card">
-                    <span class="income-input-label">보라 월급</span>
-                    <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
-                        <span class="income-unit">원</span>
+        <div class="page-content">
+            <!-- 1. 대시보드 페이지 -->
+            <div id="page-dashboard" class="page-view active">
+                
+                <!-- 접을 수 있는 수입 카드 -->
+                <div class="card">
+                    <div class="income-header-toggle" onclick="window.toggleIncomeCard()">
+                        <span class="card-title">💵 이번 달 수입 설정</span>
+                        <span id="income-toggle-icon" style="font-size:12px; color:var(--text-sub);">펼치기 ▾</span>
+                    </div>
+                    <div class="income-body collapsed" id="income-body-container">
+                        <div id="income-field-container"></div>
                     </div>
                 </div>
-                <div class="income-input-card">
-                    <span class="income-input-label">보라 기타 수당</span>
-                    <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
-                        <span class="income-unit">원</span>
+
+                <!-- 핵심 요약 KPI 카드 -->
+                <div class="card">
+                    <div class="kpi-main">
+                        <div class="kpi-label" id="kpi-target-label">우리 곳간 총 추가 저축 가능액</div>
+                        <div class="kpi-val" id="kpi-savings">0원</div>
+                    </div>
+                    <div class="kpi-sub-grid">
+                        <div class="kpi-sub-item">
+                            <div class="sub-lbl">총 수입</div>
+                            <div class="sub-val" id="kpi-income" style="color:var(--text-main);">0원</div>
+                        </div>
+                        <div class="kpi-sub-item">
+                            <div class="sub-lbl">총 예상 지출</div>
+                            <div class="sub-val" id="kpi-expense" style="color:var(--expense-color);">0원</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div id="bar-exp-pct" class="bar-fill-exp" style="width: 0%;"></div>
+                        <div id="bar-sav-pct" class="bar-fill-sav" style="width: 0%;"></div>
+                    </div>
+                    <div class="progress-labels">
+                        <span>지출 비율 <b id="lbl-exp-pct">0%</b></span>
+                        <span>저축 가능 비율 <b id="lbl-sav-pct">0%</b></span>
                     </div>
                 </div>
-                <div class="income-input-card">
-                    <span class="income-input-label">상훈 월급</span>
-                    <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
-                        <span class="income-unit">원</span>
+
+                <!-- AI 안내 카드 -->
+                <div class="card" style="background:#ebf8ff; border-color:#bee3f8;">
+                    <div style="font-size:12px; color:#2b6cb0; line-height:1.5;" id="ai-advice-text">
+                        고정지출 및 생활비를 제외하고 남은 예산을 계산 중입니다...
                     </div>
                 </div>
-                <div class="income-input-card">
-                    <span class="income-input-label">
-                        <span>해외출장 수당</span>
-                        <span style="color:var(--accent);">[환율: ${usdRate.toLocaleString()}원/$]</span>
-                    </span>
-                    <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
-                        <span class="income-unit">$</span>
+
+                <!-- 지출 아코디언 -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">💸 지출 관리</span>
+                        <button class="btn-action-sm" onclick="window.openModal('expense')">편집 / 추가</button>
                     </div>
-                    <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toLocaleString()}원</b></div>
-                </div>`;
-        } else if (currentTab === 'bora') {
-            container.innerHTML = `
-                <div class="income-input-card">
-                    <span class="income-input-label">보라 월급</span>
-                    <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
-                        <span class="income-unit">원</span>
-                    </div>
+                    <div id="expense-accordion-container"></div>
                 </div>
-                <div class="income-input-card">
-                    <span class="income-input-label">보라 기타 수당</span>
-                    <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
-                        <span class="income-unit">원</span>
+
+                <!-- 저축 아코디언 -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">💰 고정 저축 및 자산 배분</span>
+                        <button class="btn-action-sm" onclick="window.openModal('savings')">편집 / 추가</button>
                     </div>
-                </div>`;
-        } else {
-            container.innerHTML = `
-                <div class="income-input-card">
-                    <span class="income-input-label">상훈 월급</span>
-                    <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
-                        <span class="income-unit">원</span>
-                    </div>
+                    <div id="savings-accordion-container"></div>
                 </div>
-                <div class="income-input-card">
-                    <span class="income-input-label">
-                        <span>해외출장 수당</span>
-                        <span style="color:var(--accent);">[환율: ${usdRate.toLocaleString()}원/$]</span>
-                    </span>
-                    <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
-                        <span class="income-unit">$</span>
+
+            </div>
+
+            <!-- 2. 월별 비교 페이지 -->
+            <div id="page-monthly" class="page-view">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">📊 월별 지출 vs 저축 추이</span>
                     </div>
-                    <div style="font-size:11px; color:var(--text-sub); margin-top:4px; text-align:right;">원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toLocaleString()}원</b></div>
-                </div>`;
-        }
-    }
-
-    function handleIncomeInput(key, inputEl) {
-        const rawNum = parseNumberString(inputEl.value);
-        if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-        store[currentMonth][key] = rawNum;
-        
-        inputEl.value = rawNum ? rawNum.toLocaleString() : '';
-        
-        schedulePersistStore();
-        updateKPIAndChartsOnly();
-
-        if (key === 'trip_usd') {
-            const tripWonTotal = Math.round(rawNum * usdRate);
-            const subTextEl = inputEl.parentElement.nextElementSibling;
-            if (subTextEl) {
-                subTextEl.innerHTML = `원화 환산: 약 <b style="font-weight:600;">${tripWonTotal.toLocaleString()}원</b>`;
-            }
-        }
-    }
-    window.handleIncomeInput = handleIncomeInput;
-
-    function updateKPIAndChartsOnly() {
-        const d = store[currentMonth] || DEFAULT_MONTH_DATA();
-        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
-        const boraWonTotal = (d.bora || 0) + (d.bora_extra || 0);
-        const sangWonTotal = (d.sang || 0);
-        const totalIncWon = boraWonTotal + sangWonTotal + tripWonTotal;
-
-        const expSum = sumCat(d.categories.expense);
-        const boraExp = sumCat(d.categories.bora_personal);
-        const sangExp = sumCat(d.categories.sang_personal);
-        const livSum = sumCat(d.categories.living);
-        const varSum = sumCat(d.categories.variable_expense);
-        const savForTab = sumCatForTab(d.categories.savings, currentTab);
-        const resForTab = sumCatForTab(d.categories.reserve, currentTab);
-
-        const sharedExpenseHalf = (expSum + livSum) / 2;
-
-        let activeIncomeWon = totalIncWon;
-        let activeExpenseWon = expSum + boraExp + sangExp + livSum + varSum;
-
-        if (currentTab === 'bora') {
-            activeIncomeWon = boraWonTotal;
-            activeExpenseWon = boraExp + sharedExpenseHalf; 
-            document.getElementById('kpi-target-label').innerText = '보라 개인 잔액';
-        } else if (currentTab === 'sang') {
-            activeIncomeWon = sangWonTotal + tripWonTotal;
-            activeExpenseWon = sangExp + sharedExpenseHalf; 
-            document.getElementById('kpi-target-label').innerText = '상훈 개인 잔액';
-        } else {
-            document.getElementById('kpi-target-label').innerText = '우리 곳간 총 추가 저축 가능액';
-        }
-
-        const activeSavingsWon = Math.max(activeIncomeWon - activeExpenseWon - savForTab - resForTab, 0);
-
-        document.getElementById('kpi-income').innerText = formatAmount(activeIncomeWon);
-        document.getElementById('kpi-expense').innerText = formatAmount(activeExpenseWon);
-        document.getElementById('kpi-savings').innerText = formatAmount(activeSavingsWon);
-
-        const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
-        const savPct = activeIncomeWon > 0 ? Math.min(Math.round((activeSavingsWon / activeIncomeWon) * 100), 100 - expPct) : 0;
-
-        document.getElementById('bar-exp-pct').style.width = `${expPct}%`;
-        document.getElementById('bar-sav-pct').style.width = `${savPct}%`;
-        document.getElementById('lbl-exp-pct').innerText = `${expPct}%`;
-        document.getElementById('lbl-sav-pct').innerText = `${savPct}%`;
-
-        document.getElementById('ai-advice-text').innerHTML = `고정지출 및 생활비를 제외하고 남은 예산 중 <b style="font-weight:600;">${formatAmount(activeSavingsWon)}</b>을 추가 저축할 수 있습니다.`;
-
-        renderChartAndMonthly();
-    }
-
-    function render() {
-        renderInputsOnly();
-        const d = store[currentMonth] || DEFAULT_MONTH_DATA();
-        updateKPIAndChartsOnly();
-        renderSplitAccordions(d);
-    }
-
-    function renderSplitAccordions(d) {
-        const expenseContainer = document.getElementById('expense-accordion-container');
-        const savingsContainer = document.getElementById('savings-accordion-container');
-        
-        expenseContainer.innerHTML = '';
-        savingsContainer.innerHTML = '';
-
-        const categories = d.categories;
-        const titles = d.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
-        const defaultCats = DEFAULT_MONTH_DATA().categories;
-
-        const expenseKeys = ['expense', 'bora_personal', 'sang_personal', 'living', 'variable_expense'];
-
-        expenseKeys.forEach(key => {
-            if (currentTab === 'bora' && key === 'sang_personal') return;
-            if (currentTab === 'sang' && key === 'bora_personal') return;
-
-            const items = categories[key] || defaultCats[key];
-            let sumWon = sumCat(items);
-            let subItemsHtml = '';
-
-            let displayVal = formatAmount(sumWon);
-            if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
-                const halfWon = sumWon / 2;
-                displayVal = `${formatAmount(halfWon)}`;
-            }
-
-            if (key === 'variable_expense') {
-                if (items.length === 0) {
-                    subItemsHtml += `<div style="font-size:11px; color:var(--text-sub); padding:4px 0;">등록된 내역이 없습니다.</div>`;
-                } else {
-                    items.forEach(item => {
-                        const catTag = item.category ? `[${item.category}] ` : '';
-                        subItemsHtml += `
-                            <div class="sub-item-row">
-                                <span style="color:var(--text-main); font-weight:500;">[${formatKoreanDate(item.date)}] ${catTag}${item.name || '지출내역'}</span>
-                                <span style="color:var(--expense-color); font-weight:600;">-${Number(item.amount || 0).toLocaleString()}원</span>
-                            </div>`;
-                    });
-                }
-                subItemsHtml += `
-                    <div style="margin-top:8px; text-align:right;">
-                        <button class="btn-link" onclick="openModal('expense')">변동 지출 추가하기 +</button>
-                    </div>`;
-            } else {
-                if (items.length === 0) {
-                    subItemsHtml = '<div style="font-size:11px; color:var(--text-sub);">등록된 내역이 없습니다.</div>';
-                } else {
-                    items.forEach(item => {
-                        const itemWon = Number(item.amount || 0);
-                        let subDetail = `${itemWon.toLocaleString()}원`;
-                        if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
-                            subDetail = `${(itemWon / 2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
-                        }
-                        subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
-                    });
-                }
-            }
-
-            const labelTitle = key === 'variable_expense' ? '📅 날짜별 변동 지출 (타임라인)' : (titles[key] || '지출 항목');
-
-            expenseContainer.innerHTML += `
-                <div class="accordion-item" id="acc-flow-${key}" data-key="${key}">
-                    <div class="accordion-header" onclick="window.toggleFlowAccordion('${key}')">
-                        <span class="accordion-title">${labelTitle}</span>
-                        <div class="accordion-val">
-                            <span style="${key === 'variable_expense' ? 'color:var(--expense-color);' : ''}">${displayVal}</span>
-                            <span class="accordion-icon">▾</span>
-                        </div>
+                    <div class="chart-container" id="chart-bars"></div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">📅 월별 요약</span>
                     </div>
-                    <div class="accordion-content">${subItemsHtml}</div>
-                </div>`;
-        });
+                    <div id="monthly-accordion-list"></div>
+                </div>
+            </div>
 
-        const savingsKeys = ['savings', 'reserve'];
-
-        savingsKeys.forEach(key => {
-            const allItems = categories[key] || defaultCats[key];
-            const items = currentTab === 'all' ? allItems : allItems.filter(item => (item.owner || 'shared') !== (currentTab === 'bora' ? 'sang' : 'bora'));
-            const sumWon = sumCatForTab(allItems, currentTab);
-            let subItemsHtml = items.length === 0 ? '<div style="font-size:11px; color:var(--text-sub);">등록된 내역이 없습니다.</div>' : '';
-            items.forEach(item => {
-                const itemWon = Number(item.amount || 0);
-                const owner = item.owner || 'shared';
-                let subDetail = `${itemWon.toLocaleString()}원`;
-                if (currentTab !== 'all' && owner === 'shared') {
-                    subDetail = `${(itemWon/2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
-                }
-                subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
-            });
-
-            const labelTitle = titles[key] || '저축 항목';
-
-            savingsContainer.innerHTML += `
-                <div class="accordion-item" id="acc-flow-${key}" data-key="${key}">
-                    <div class="accordion-header" onclick="window.toggleFlowAccordion('${key}')">
-                        <span class="accordion-title">${labelTitle}</span>
-                        <div class="accordion-val">
-                            <span style="color:var(--savings-color);">${formatAmount(sumWon)}</span>
-                            <span class="accordion-icon">▾</span>
-                        </div>
+            <!-- 3. 설정 페이지 -->
+            <div id="page-settings" class="page-view">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">🔄 데이터 이월 설정</span>
                     </div>
-                    <div class="accordion-content">${subItemsHtml}</div>
-                </div>`;
-        });
-    }
-
-    function toggleFlowAccordion(key) {
-        const item = document.getElementById(`acc-flow-${key}`);
-        if(item) item.classList.toggle('open');
-    }
-    window.toggleFlowAccordion = toggleFlowAccordion;
-
-    function renderChartAndMonthly() {
-        const months = Object.keys(store).sort();
-        const chartContainer = document.getElementById('chart-bars');
-        const listContainer = document.getElementById('monthly-accordion-list');
-        
-        chartContainer.innerHTML = '';
-        listContainer.innerHTML = '';
-
-        let maxVal = 1;
-        months.forEach(m => {
-            const d = store[m] || DEFAULT_MONTH_DATA();
-            const expWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
-            const savWon = sumCat(d.categories.savings) + sumCat(d.categories.reserve);
-            if (expWon > maxVal) maxVal = expWon;
-            if (savWon > maxVal) maxVal = savWon;
-        });
-
-        months.forEach(m => {
-            const d = store[m] || DEFAULT_MONTH_DATA();
-            const tripWon = Math.round((d.trip_usd || 0) * usdRate);
-            const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + tripWon;
-            const totalExpWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
-            const totalSavWon = sumCat(d.categories.savings) + Math.max(incWon - totalExpWon - sumCat(d.categories.savings) - sumCat(d.categories.reserve), 0);
-
-            const expHeight = maxVal > 0 ? Math.round((totalExpWon / maxVal) * 100) : 0;
-            const savHeight = maxVal > 0 ? Math.round((totalSavWon / maxVal) * 100) : 0;
-
-            chartContainer.innerHTML += `
-                <div class="bar-col">
-                    <div class="bar-pair">
-                        <div class="bar-wrapper"><div class="bar-fill-exp" style="height:${expHeight}%;"></div></div>
-                        <div class="bar-wrapper"><div class="bar-fill-sav" style="height:${savHeight}%;"></div></div>
-                    </div>
-                    <div class="bar-label">${m.split('-')[1]}월</div>
-                </div>`;
-
-            listContainer.innerHTML += `
-                <div class="month-accordion" id="acc-${m}">
-                    <div class="month-header" onclick="window.toggleAccordion('${m}')">
-                        <div>
-                            <div style="font-size:13px; font-weight:700; color:var(--text-main);">2026년 ${m.split('-')[1]}월</div>
-                            <div style="font-size:11px; color:var(--text-sub); margin-top:2px;">수입 ${formatAmount(incWon)}</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:12px; font-weight:600; color:var(--expense-color);">지출 ${formatAmount(totalExpWon)}</div>
-                            <div style="font-size:12px; font-weight:600; color:var(--savings-color);">${formatAmount(totalSavWon)} 저축</div>
-                        </div>
-                    </div>
-                    <div class="month-details">
-                        <div class="sub-item-row"><span>총 수입액</span><span>${formatAmount(incWon)}</span></div>
-                        <div class="sub-item-row"><span>총 지출액</span><span>${formatAmount(totalExpWon)}</span></div>
-                        <div class="sub-item-row"><span>가용 저축액</span><span>${formatAmount(totalSavWon)}</span></div>
-                        <div class="sub-item-row"><span>변동 지출 건수</span><span>${(d.categories.variable_expense || []).length}건</span></div>
-                    </div>
-                </div>`;
-        });
-    }
-
-    function toggleAccordion(m) { document.getElementById(`acc-${m}`).classList.toggle('open'); }
-    window.toggleAccordion = toggleAccordion;
-
-    function openModal(type) {
-        const modal = document.getElementById('custom-modal');
-        const titleEl = document.getElementById('modal-title-text');
-        const subtabsEl = document.getElementById('modal-subtabs-container');
-        const bodyEl = document.getElementById('modal-body-content');
-        const saveBtn = document.getElementById('modal-save-btn');
-
-        if (type === 'expense') {
-            titleEl.innerText = '💸 지출 항목 관리';
-            subtabsEl.innerHTML = `
-                <button class="modal-subtab-btn active" onclick="window.switchModalTab('expense', this)">공통고정</button>
-                <button class="modal-subtab-btn" onclick="window.switchModalTab('bora_personal', this)">보라지출</button>
-                <button class="modal-subtab-btn" onclick="window.switchModalTab('sang_personal', this)">상훈지출</button>
-                <button class="modal-subtab-btn" onclick="window.switchModalTab('living', this)">공동생활</button>
-                <button class="modal-subtab-btn" onclick="window.switchModalTab('variable_expense', this)">변동지출</button>
-            `;
-            bodyEl.innerHTML = renderExpenseModalHTML();
-            saveBtn.onclick = saveExpenseModal;
-        } else if (type === 'savings') {
-            titleEl.innerText = '💰 저축 및 자산 배분 관리';
-            subtabsEl.innerHTML = `
-                <button class="modal-subtab-btn active" onclick="window.switchModalTab('savings', this)">고정저축</button>
-                <button class="modal-subtab-btn" onclick="window.switchModalTab('reserve', this)">비상금</button>
-            `;
-            bodyEl.innerHTML = renderSavingsModalHTML();
-            saveBtn.onclick = saveSavingsModal;
-        }
-
-        modal.classList.add('open');
-    }
-    window.openModal = openModal;
-
-    function closeModal() {
-        document.getElementById('custom-modal').classList.remove('open');
-    }
-    window.closeModal = closeModal;
-
-    function switchModalTab(catKey, btnEl) {
-        document.querySelectorAll('.modal-subtab-btn').forEach(btn => btn.classList.remove('active'));
-        btnEl.classList.add('active');
-
-        document.querySelectorAll('#custom-modal .cat-group').forEach(grp => grp.classList.remove('active'));
-        const targetGrp = document.getElementById(`modal-group-${catKey}`);
-        if(targetGrp) targetGrp.classList.add('active');
-    }
-    window.switchModalTab = switchModalTab;
-
-    function renderExpenseModalHTML() {
-        const targetData = store[currentMonth] || DEFAULT_MONTH_DATA();
-        const cats = targetData.categories;
-        const titles = targetData.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
-        
-        const expenseSections = [
-            { key: 'expense', defaultLabel: '공통 고정지출' },
-            { key: 'bora_personal', defaultLabel: '보라 개인 지출' },
-            { key: 'sang_personal', defaultLabel: '상훈 개인 지출' },
-            { key: 'living', defaultLabel: '공동 생활비' },
-            { key: 'variable_expense', defaultLabel: '📅 날짜별 변동 지출' }
-        ];
-
-        let html = '';
-        expenseSections.forEach((sec, idx) => {
-            const k = sec.key;
-            if(!cats[k]) cats[k] = [];
-            const currentTitle = titles[k] || sec.defaultLabel;
-            const isActive = idx === 0 ? 'active' : '';
-
-            if (k === 'variable_expense') {
-                html += `
-                    <div class="cat-group ${isActive}" id="modal-group-${k}" data-expense-cat="${k}">
-                        <div class="cat-title-box">
-                            <div class="cat-title-label-top">📁 그룹명 (대분류 제목 변경)</div>
-                            <div class="cat-title-input-wrapper">
-                                <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="그룹 타이틀">
-                            </div>
-                        </div>
-                        <div class="modal-rows-container">`;
-                cats[k].forEach((item, rowIdx) => {
-                    const currentCat = item.category || (categoryList[0] || '식비');
-                    let optionsHtml = categoryList.map(cat => `<option value="${cat}" ${cat === currentCat ? 'selected' : ''}>${cat}</option>`).join('');
-                    html += `
-                        <div class="sub-row" data-index="${rowIdx}">
-                            <input type="date" value="${item.date || ''}" class="inp-date">
-                            <select class="inp-cat">${optionsHtml}</select>
-                            <input type="text" value="${item.name || ''}" class="inp-name" placeholder="내용">
-                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-                            <span>원</span>
-                            <button onclick="window.removeExpenseSubModal(this)">✕</button>
-                        </div>`;
-                });
-                html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 변동 지출 항목 추가</button></div>`;
-            } else {
-                html += `
-                    <div class="cat-group ${isActive}" id="modal-group-${k}" data-expense-cat="${k}">
-                        <div class="cat-title-box">
-                            <div class="cat-title-label-top">📁 그룹명 (대분류 제목 변경)</div>
-                            <div class="cat-title-input-wrapper">
-                                <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="그룹 타이틀">
-                            </div>
-                        </div>
-                        <div class="modal-rows-container">`;
-                cats[k].forEach((item, rowIdx) => {
-                    html += `
-                        <div class="sub-row" data-index="${rowIdx}">
-                            <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
-                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-                            <span>원</span>
-                            <button onclick="window.removeExpenseSubModal(this)">✕</button>
-                        </div>`;
-                });
-                html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 고정지출 항목 추가</button></div>`;
-            }
-        });
-        return html;
-    }
-
-    function handleModalNumInput(inputEl) {
-        const rawNum = parseNumberString(inputEl.value);
-        inputEl.value = rawNum ? rawNum.toLocaleString() : '';
-    }
-    window.handleModalNumInput = handleModalNumInput;
-
-    function addExpenseSubModal(k) {
-        const groupEl = document.getElementById(`modal-group-${k}`);
-        const rowsContainer = groupEl.querySelector('.modal-rows-container');
-        const newRow = document.createElement('div');
-        newRow.className = 'sub-row';
-
-        if (k === 'variable_expense') {
-            const today = new Date().toISOString().split('T')[0];
-            let optionsHtml = categoryList.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-            newRow.innerHTML = `
-                <input type="date" value="${today}" class="inp-date">
-                <select class="inp-cat">${optionsHtml}</select>
-                <input type="text" value="" class="inp-name" placeholder="내용">
-                <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-                <span>원</span>
-                <button onclick="window.removeExpenseSubModal(this)">✕</button>`;
-        } else {
-            newRow.innerHTML = `
-                <input type="text" value="" class="inp-name" placeholder="항목명">
-                <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-                <span>원</span>
-                <button onclick="window.removeExpenseSubModal(this)">✕</button>`;
-        }
-        rowsContainer.appendChild(newRow);
-    }
-    window.addExpenseSubModal = addExpenseSubModal;
-
-    function removeExpenseSubModal(btn) {
-        btn.closest('.sub-row').remove();
-    }
-    window.removeExpenseSubModal = removeExpenseSubModal;
-
-    function saveExpenseModal() {
-        document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
-            const k = group.getAttribute('data-expense-cat');
-            const titleInp = group.querySelector('.cat-title-inp');
-            const rows = group.querySelectorAll('.sub-row');
-
-            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
-            const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
-            store[currentMonth].sectionTitles[k] = newTitle;
-
-            const updated = [];
-            rows.forEach(row => {
-                if (k === 'variable_expense') {
-                    const dateInp = row.querySelector('.inp-date');
-                    const catInp = row.querySelector('.inp-cat');
-                    const nameInp = row.querySelector('.inp-name');
-                    const amountInp = row.querySelector('.inp-amount');
-                    const wonAmount = parseNumberString(amountInp.value);
-                    if (nameInp.value.trim() !== '' || wonAmount > 0) {
-                        updated.push({
-                            date: dateInp ? dateInp.value : '',
-                            category: catInp ? catInp.value : (categoryList[0] || '식비'),
-                            name: nameInp.value.trim() || '지출',
-                            amount: wonAmount
-                        });
-                    }
-                } else {
-                    const nameInp = row.querySelector('.inp-name');
-                    const amountInp = row.querySelector('.inp-amount');
-                    if (nameInp.value.trim() !== '') {
-                        updated.push({
-                            name: nameInp.value.trim() || '항목',
-                            amount: parseNumberString(amountInp.value)
-                        });
-                    }
-                }
-            });
-            store[currentMonth].categories[k] = updated;
-
-            Object.keys(store).forEach(m => {
-                if (m > currentMonth) {
-                    if(!store[m].sectionTitles) store[m].sectionTitles = {};
-                    store[m].sectionTitles[k] = newTitle;
-                    store[m].categories[k] = JSON.parse(JSON.stringify(updated));
-                }
-            });
-        });
-
-        persistStore();
-        render();
-        closeModal();
-    }
-
-    function renderSavingsModalHTML() {
-        const targetData = store[currentMonth] || DEFAULT_MONTH_DATA();
-        const cats = targetData.categories;
-        const titles = targetData.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
-        
-        const savingsSections = [
-            { key: 'savings', defaultLabel: '고정 저축' },
-            { key: 'reserve', defaultLabel: '비상금 (남겨둘 돈)' }
-        ];
-
-        let html = '';
-        savingsSections.forEach((sec, idx) => {
-            const k = sec.key;
-            if(!cats[k]) cats[k] = [];
-            const currentTitle = titles[k] || sec.defaultLabel;
-            const isActive = idx === 0 ? 'active' : '';
-
-            html += `
-                <div class="cat-group ${isActive}" id="modal-group-${k}" data-savings-cat="${k}">
-                    <div class="cat-title-box">
-                        <div class="cat-title-label-top">📁 그룹명 (대분류 제목 변경)</div>
-                        <div class="cat-title-input-wrapper">
-                            <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="그룹 타이틀">
-                        </div>
-                    </div>
-                    <div class="modal-rows-container">`;
-            
-            cats[k].forEach((item, rowIdx) => {
-                const owner = item.owner || 'shared';
-                const ownerSelectHtml = k === 'savings' ? `
-                    <select class="inp-cat inp-owner" style="width:55px;">
-                        <option value="shared" ${owner==='shared'?'selected':''}>공통</option>
-                        <option value="bora" ${owner==='bora'?'selected':''}>보라</option>
-                        <option value="sang" ${owner==='sang'?'selected':''}>상훈</option>
-                    </select>` : '';
-                html += `
-                    <div class="sub-row" data-index="${rowIdx}">
-                        ${ownerSelectHtml}
-                        <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
-                        <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-                        <span>원</span>
-                        <button onclick="window.removeSavingsSubModal(this)">✕</button>
-                    </div>`;
-            });
-            html += `</div><button class="add-row-btn" onclick="window.addSavingsSubModal('${k}')">+ 저축 항목 추가</button></div>`;
-        });
-        return html;
-    }
-
-    function addSavingsSubModal(k) {
-        const groupEl = document.getElementById(`modal-group-${k}`);
-        const rowsContainer = groupEl.querySelector('.modal-rows-container');
-        const newRow = document.createElement('div');
-        newRow.className = 'sub-row';
-
-        const ownerSelectHtml = k === 'savings' ? `
-            <select class="inp-cat inp-owner" style="width:55px;">
-                <option value="shared" selected>공통</option>
-                <option value="bora">보라</option>
-                <option value="sang">상훈</option>
-            </select>` : '';
-
-        newRow.innerHTML = `
-            ${ownerSelectHtml}
-            <input type="text" value="" class="inp-name" placeholder="항목명">
-            <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-            <span>원</span>
-            <button onclick="window.removeSavingsSubModal(this)">✕</button>`;
-        rowsContainer.appendChild(newRow);
-    }
-    window.addSavingsSubModal = addSavingsSubModal;
-
-    function removeSavingsSubModal(btn) {
-        btn.closest('.sub-row').remove();
-    }
-    window.removeSavingsSubModal = removeSavingsSubModal;
-
-    function saveSavingsModal() {
-        document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
-            const k = group.getAttribute('data-savings-cat');
-            const titleInp = group.querySelector('.cat-title-inp');
-            const rows = group.querySelectorAll('.sub-row');
-
-            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
-            const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
-            store[currentMonth].sectionTitles[k] = newTitle;
-
-            const updated = [];
-            rows.forEach(row => {
-                const nameInp = row.querySelector('.inp-name');
-                const amountInp = row.querySelector('.inp-amount');
-                const ownerSel = row.querySelector('.inp-owner');
-
-                if (nameInp.value.trim() !== '') {
-                    updated.push({
-                        name: nameInp.value.trim() || '항목',
-                        amount: parseNumberString(amountInp.value),
-                        owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared' ) : 'shared'
-                    });
-                }
-            });
-            store[currentMonth].categories[k] = updated;
-
-            // 👉 핵심 수정: 미래 월 이월 처리 시 설정값(carryoverSettings) 참조
-            Object.keys(store).forEach(m => {
-                if (m > currentMonth) {
-                    if(!store[m].sectionTitles) store[m].sectionTitles = {};
-                    store[m].sectionTitles[k] = newTitle;
-
-                    // 스위치 설정에 따른 이월 금액 처리
-                    const isCarryoverEnabled = (k === 'savings' && carryoverSettings.savings) || (k === 'reserve' && carryoverSettings.reserve);
+                    <div style="font-size:11px; color:var(--text-sub); margin-bottom:12px;">항목 수정 시 미래 월로 자동 적용할 범위를 지정합니다.</div>
                     
-                    if (isCarryoverEnabled) {
-                        store[m].categories[k] = JSON.parse(JSON.stringify(updated));
-                    } else {
-                        // 이월 옵션 OFF 상태면 금액을 0으로 만들어 구조만 이월
-                        store[m].categories[k] = updated.map(item => ({ ...item, amount: 0 }));
-                    }
+                    <div class="setting-row">
+                        <span class="setting-label">공통 고정지출 이월</span>
+                        <label class="switch">
+                            <input type="checkbox" id="carryover-expense-toggle" onchange="window.updateCarryoverSettings()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">보라 개인 지출 이월</span>
+                        <label class="switch">
+                            <input type="checkbox" id="carryover-bora-toggle" onchange="window.updateCarryoverSettings()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">상훈 개인 지출 이월</span>
+                        <label class="switch">
+                            <input type="checkbox" id="carryover-sang-toggle" onchange="window.updateCarryoverSettings()" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">고정 저축 이월</span>
+                        <label class="switch">
+                            <input type="checkbox" id="carryover-savings-toggle" onchange="window.updateCarryoverSettings()" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">비상금(남겨둘 돈) 이월</span>
+                        <label class="switch">
+                            <input type="checkbox" id="carryover-reserve-toggle" onchange="window.updateCarryoverSettings()" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">🏷️ 변동 지출 카테고리 관리</span>
+                    </div>
+                    <div style="display:flex; gap:6px; margin-top:8px;">
+                        <input type="text" id="new-cat-input" placeholder="새 카테고리 (예: 경조사)" style="flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; outline:none;">
+                        <button class="btn-action-sm" onclick="window.addCategorySetting()">추가</button>
+                    </div>
+                    <div class="category-tags" id="setting-category-tags"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">💾 데이터 관리</span>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="add-row-btn" style="margin:0; background:#f7fafc;" onclick="window.exportData()">데이터 내보내기 (JSON)</button>
+                        <button class="add-row-btn" style="margin:0; color:var(--expense-color); background:#fff5f5; border-color:#fed7d7;" onclick="window.resetData()">전체 초기화</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 하단 내비게이션 -->
+        <nav class="gnb">
+            <button class="gnb-btn active" onclick="window.navigate('dashboard', this)">
+                <span class="gnb-btn-icon">🏠</span>
+                <span>대시보드</span>
+            </button>
+            <button class="gnb-btn" onclick="window.navigate('monthly', this)">
+                <span class="gnb-btn-icon">📊</span>
+                <span>월별 데이터</span>
+            </button>
+            <button class="gnb-btn" onclick="window.navigate('settings', this)">
+                <span class="gnb-btn-icon">⚙️</span>
+                <span>설정</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- 수정/추가 모달 -->
+    <div class="modal-overlay" id="custom-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title-text">항목 관리</div>
+                <button class="modal-close" onclick="window.closeModal()">✕</button>
+            </div>
+            <div class="modal-subtabs" id="modal-subtabs-container"></div>
+            <div class="modal-body" id="modal-body-content"></div>
+            <div class="modal-footer">
+                <button class="btn-modal-save" id="modal-save-btn">저장하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 스크립트 영역 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_xbdI3K1KYa9qCYYd2SN7EJJkLcSLmE4",
+            authDomain: "shbr-family.firebaseapp.com",
+            projectId: "shbr-family",
+            storageBucket: "shbr-family.firebasestorage.app",
+            messagingSenderId: "438280523923",
+            appId: "1:438280523923:web:aa5a10883bc471b7c2fd66",
+            measurementId: "G-R0DHG7HJMR"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let usdRate = 1386;
+
+        async function fetchExchangeRate() {
+            try {
+                const res = await fetch('https://open.er-api.com/v6/latest/USD');
+                const data = await res.json();
+                if (data && data.rates && data.rates.KRW) {
+                    usdRate = data.rates.KRW;
                 }
-            });
+            } catch(e) {
+                console.log('환율 정보 가져오기 실패, 기본값 사용:', e);
+            }
+        }
+
+        function checkPassword() {
+            const pwInput = document.getElementById('lock-input').value;
+            const errEl = document.getElementById('lock-error');
+            if (pwInput === '0315') {
+                document.getElementById('lock-screen').style.display = 'none';
+            } else {
+                errEl.innerText = '비밀번호가 일치하지 않습니다.';
+                document.getElementById('lock-input').value = '';
+                document.getElementById('lock-input').focus();
+            }
+        }
+        window.checkPassword = checkPassword;
+
+        function formatNumberString(val) {
+            if (!val && val !== 0) return '';
+            const num = String(val).replace(/[^0-9]/g, '');
+            return num ? Number(num).toLocaleString() : '';
+        }
+
+        function parseNumberString(str) {
+            if (!str) return 0;
+            return Number(String(str).replace(/[^0-9]/g, '')) || 0;
+        }
+
+        function formatKoreanDate(dateStr) {
+            if (!dateStr) return '날짜미상';
+            const parts = dateStr.split('-');
+            return parts.length === 3 ? `${parts[0]}.${parts[1]}.${parts[2]}` : dateStr;
+        }
+
+        const DEFAULT_CATEGORIES = ['식비', '생필품', '경조사', '기타'];
+        let categoryList = DEFAULT_CATEGORIES.slice();
+        
+        let carryoverSettings = {
+            expense: false,
+            bora_personal: false,
+            sang_personal: true,
+            savings: true,
+            reserve: true
+        };
+
+        const DEFAULT_MONTH_DATA = () => ({
+            bora: 0, bora_extra: 0, sang: 0, trip_usd: 0, 
+            sectionTitles: {
+                expense: '공통 고정지출',
+                bora_personal: '보라 개인 지출',
+                sang_personal: '상훈 개인 지출',
+                living: '공동 생활비',
+                savings: '고정 저축',
+                reserve: '비상금 (남겨둘 돈)'
+            },
+            categories: {
+                expense: [{ name: '월세', amount: 0 }, { name: '공과금', amount: 0 }],
+                bora_personal: [{ name: '휴대폰비', amount: 0 }, { name: '보험료', amount: 0 }],
+                sang_personal: [{ name: '휴대폰비', amount: 0 }, { name: '주유비', amount: 0 }],
+                living: [{ name: '공동 생활비 예산', amount: 0 }],
+                variable_expense: [],
+                savings: [{ name: '보라 청년계좌', amount: 0, owner: 'bora' }, { name: '상훈 청년계좌', amount: 0, owner: 'sang' }],
+                reserve: [{ name: '남겨둘 돈', amount: 0, owner: 'shared' }]
+            }
         });
 
-        persistStore();
-        render();
-        closeModal();
-    }
+        let store = null;
+        let currentMonth = '2026-08';
+        let currentTab = 'all';
 
-    function renderCategorySettings() {
-        const container = document.getElementById('setting-category-tags');
-        if (!container) return;
-        container.innerHTML = categoryList.map((cat, idx) => `
-            <div class="category-tag">
-                ${cat}
-                <span onclick="window.removeCategorySetting(${idx})">&times;</span>
-            </div>
-        `).join('');
-    }
+        const FIRESTORE_DOC_ID = 'gotgan_data_v1';
 
-    function addCategorySetting() {
-        const input = document.getElementById('new-cat-input');
-        const val = input.value.trim();
-        if (val && !categoryList.includes(val)) {
-            categoryList.push(val);
-            persistStore();
-            input.value = '';
-            renderCategorySettings();
+        function debounce(fn, ms){
+            let t = null;
+            return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
         }
-    }
-    window.addCategorySetting = addCategorySetting;
 
-    function removeCategorySetting(index) {
-        if (categoryList.length <= 1) {
-            alert('최소 1개의 카테고리는 유지되어야 합니다.');
-            return;
+        async function persistStore(){
+            try {
+                await setDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
+                    store: store,
+                    categoryList: categoryList,
+                    carryoverSettings: carryoverSettings
+                });
+            } catch(e) { console.error('저장 실패:', e); }
         }
-        categoryList.splice(index, 1);
-        persistStore();
-        renderCategorySettings();
-    }
-    window.removeCategorySetting = removeCategorySetting;
+        const schedulePersistStore = debounce(persistStore, 500);
 
-    function setMemberTab(tab, btnEl) {
-        currentTab = tab;
-        document.querySelectorAll('.tab-pill-btn').forEach(btn => btn.classList.remove('active'));
-        if(btnEl) btnEl.classList.add('active');
-        render();
-    }
-    window.setMemberTab = setMemberTab;
+        async function loadAll(){
+            try {
+                const docSnap = await getDoc(doc(db, "gotgan", FIRESTORE_DOC_ID));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.store) store = data.store;
+                    if (data.categoryList) categoryList = data.categoryList;
+                    if (data.carryoverSettings) carryoverSettings = data.carryoverSettings;
+                }
+            } catch(e) { console.error('불러오기 실패:', e); }
 
-    function changeMonth(m) {
-        currentMonth = m;
-        if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
-        render();
-    }
-    window.changeMonth = changeMonth;
-
-    function navigate(page, btn) {
-        document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.gnb-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(`page-${page}`).classList.add('active');
-        if(btn) btn.classList.add('active');
-
-        const memberTabBar = document.getElementById('member-tab-bar');
-        if (page === 'dashboard') {
-            memberTabBar.style.display = 'flex';
-        } else {
-            memberTabBar.style.display = 'none';
+            if (!store) {
+                store = {};
+                ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
+                    store[m] = DEFAULT_MONTH_DATA();
+                });
+            }
         }
-    }
-    window.navigate = navigate;
 
-    function exportData() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
-        const a = document.createElement('a'); a.href = dataStr; a.download = `our_gotgan_2026_backup.json`; a.click();
-    }
-    window.exportData = exportData;
-
-    async function resetData() {
-        if(confirm('모든 데이터를 초기 설정으로 되돌리시겠습니까?')) {
-            try { await deleteDoc(doc(db, "gotgan", FIRESTORE_DOC_ID)); } catch(e){}
-            categoryList = DEFAULT_CATEGORIES.slice();
+        async function init() {
+            await fetchExchangeRate();
+            await loadAll();
+            if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
             
-            store = {
-                '2026-06': DEFAULT_MONTH_DATA(),
-                '2026-07': DEFAULT_MONTH_DATA(),
-                '2026-08': DEFAULT_MONTH_DATA(),
-                '2026-09': DEFAULT_MONTH_DATA(),
-                '2026-10': DEFAULT_MONTH_DATA(),
-                '2026-11': DEFAULT_MONTH_DATA(),
-                '2026-12': DEFAULT_MONTH_DATA()
-            };
+            document.getElementById('global-month').value = currentMonth;
+            
+            const expToggle = document.getElementById('carryover-expense-toggle');
+            const boraToggle = document.getElementById('carryover-bora-toggle');
+            const sangToggle = document.getElementById('carryover-sang-toggle');
+            const savToggle = document.getElementById('carryover-savings-toggle');
+            const resToggle = document.getElementById('carryover-reserve-toggle');
+            
+            if(expToggle) expToggle.checked = carryoverSettings.expense !== false;
+            if(boraToggle) boraToggle.checked = carryoverSettings.bora_personal !== false;
+            if(sangToggle) sangToggle.checked = carryoverSettings.sang_personal !== false;
+            if(savToggle) savToggle.checked = carryoverSettings.savings !== false;
+            if(resToggle) resToggle.checked = carryoverSettings.reserve !== false;
 
             renderCategorySettings();
             render();
         }
-    }
-    window.resetData = resetData;
 
-    window.onload = init;
-</script>
+        function updateCarryoverSettings() {
+            const expToggle = document.getElementById('carryover-expense-toggle');
+            const boraToggle = document.getElementById('carryover-bora-toggle');
+            const sangToggle = document.getElementById('carryover-sang-toggle');
+            const savToggle = document.getElementById('carryover-savings-toggle');
+            const resToggle = document.getElementById('carryover-reserve-toggle');
+            
+            carryoverSettings = {
+                expense: expToggle ? expToggle.checked : false,
+                bora_personal: boraToggle ? boraToggle.checked : false,
+                sang_personal: sangToggle ? sangToggle.checked : true,
+                savings: savToggle ? savToggle.checked : true,
+                reserve: resToggle ? resToggle.checked : true
+            };
+            persistStore();
+        }
+        window.updateCarryoverSettings = updateCarryoverSettings;
 
+        function toggleIncomeCard() {
+            const body = document.getElementById('income-body-container');
+            const icon = document.getElementById('income-toggle-icon');
+            if (body.classList.contains('collapsed')) {
+                body.classList.remove('collapsed');
+                icon.innerText = '접기 ▴';
+            } else {
+                body.classList.add('collapsed');
+                icon.innerText = '펼치기 ▾';
+            }
+        }
+        window.toggleIncomeCard = toggleIncomeCard;
+
+        function sumCat(items) { return (items || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0); }
+
+        function sumCatForTab(items, tab) {
+            return (items || []).reduce((acc, item) => {
+                const amt = Number(item.amount) || 0;
+                if (tab === 'all') return acc + amt;
+                const owner = item.owner || 'shared';
+                if (owner === tab) return acc + amt;
+                if (owner === 'shared') return acc + (amt / 2);
+                return acc; 
+            }, 0);
+        }
+
+        function formatAmount(won) { return `${Math.round(won).toLocaleString()}원`; }
+
+        function renderInputsOnly() {
+            const d = store[currentMonth] || DEFAULT_MONTH_DATA();
+            const container = document.getElementById('income-field-container');
+            if (!container) return;
+            
+            const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
+
+            if (currentTab === 'all') {
+                container.innerHTML = `
+                    <div class="income-input-card">
+                        <span class="income-input-label">보라 월급</span>
+                        <div class="income-input-flex">
+                            <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
+                            <span class="income-unit">원</span>
+                        </div>
+                    </div>
+                    <div class="income-input-card">
+                        <span class="income-input-label">보라 기타 수당</span>
+                        <div class="income-input-flex">
+                            <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
+                            <span class="income-unit">원</span>
+                        </div>
+                    </div>
+                    <div class="income-input-card">
+                        <span class="income-input-label">상훈 월급</span>
+                        <div class="income-input-flex">
+                            <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
+                            <span class="income-unit">원</span>
+                        </div>
+                    </div>
+                    <div class="income-input-card">
+                        <span class="income-input-label">해외출장 수당 ($)</span>
+                        <div class="income-input-flex">
+                            <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
+                            <span class="income-unit">$</span>
+                        </div>
+                    </div>
+                    <div class="exchange-sub-info">💡 적용 환율: $1 = ${Math.round(usdRate).toLocaleString()}원 (약 ${formatAmount(tripWonTotal)})</div>`;
+            } else if (currentTab === 'bora') {
+                container.innerHTML = `
+                    <div class="income-input-card">
+                        <span class="income-input-label">보라 월급</span>
+                        <div class="income-input-flex">
+                            <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
+                            <span class="income-unit">원</span>
+                        </div>
+                    </div>
+                    <div class="income-input-card">
+                        <span class="income-input-label">보라 기타 수당</span>
+                        <div class="income-input-flex">
+                            <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
+                            <span class="income-unit">원</span>
+                        </div>
+                    </div>`;
+            } else {
+                container.innerHTML = `
+                    <div class="income-input-card">
+                        <span class="income-input-label">상훈 월급</span>
+                        <div class="income-input-flex">
+                            <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
+                            <span class="income-unit">원</span>
+                        </div>
+                    </div>
+                    <div class="income-input-card">
+                        <span class="income-input-label">해외출장 수당 ($)</span>
+                        <div class="income-input-flex">
+                            <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
+                            <span class="income-unit">$</span>
+                        </div>
+                    </div>
+                    <div class="exchange-sub-info">💡 적용 환율: $1 = ${Math.round(usdRate).toLocaleString()}원 (약 ${formatAmount(tripWonTotal)})</div>`;
+            }
+        }
+
+        function handleIncomeInput(key, inputEl) {
+            const rawNum = parseNumberString(inputEl.value);
+            if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+            store[currentMonth][key] = rawNum;
+            
+            inputEl.value = rawNum ? rawNum.toLocaleString() : '';
+            
+            schedulePersistStore();
+            updateKPIAndChartsOnly();
+        }
+        window.handleIncomeInput = handleIncomeInput;
+
+        function updateKPIAndChartsOnly() {
+            const d = store[currentMonth] || DEFAULT_MONTH_DATA();
+            const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
+            const boraWonTotal = (d.bora || 0) + (d.bora_extra || 0);
+            const sangWonTotal = (d.sang || 0);
+            const totalIncWon = boraWonTotal + sangWonTotal + tripWonTotal;
+
+            const expSum = sumCat(d.categories.expense);
+            const boraExp = sumCat(d.categories.bora_personal);
+            const sangExp = sumCat(d.categories.sang_personal);
+            const livSum = sumCat(d.categories.living);
+            const varSum = sumCat(d.categories.variable_expense);
+            const savForTab = sumCatForTab(d.categories.savings, currentTab);
+            const resForTab = sumCatForTab(d.categories.reserve, currentTab);
+
+            const sharedExpenseHalf = (expSum + livSum) / 2;
+
+            let activeIncomeWon = totalIncWon;
+            let activeExpenseWon = expSum + boraExp + sangExp + livSum + varSum;
+
+            if (currentTab === 'bora') {
+                activeIncomeWon = boraWonTotal;
+                activeExpenseWon = boraExp + sharedExpenseHalf; 
+                document.getElementById('kpi-target-label').innerText = '보라 개인 잔액';
+            } else if (currentTab === 'sang') {
+                activeIncomeWon = sangWonTotal + tripWonTotal;
+                activeExpenseWon = sangExp + sharedExpenseHalf; 
+                document.getElementById('kpi-target-label').innerText = '상훈 개인 잔액';
+            } else {
+                document.getElementById('kpi-target-label').innerText = '우리 곳간 총 추가 저축 가능액';
+            }
+
+            const activeSavingsWon = Math.max(activeIncomeWon - activeExpenseWon - savForTab - resForTab, 0);
+
+            document.getElementById('kpi-income').innerText = formatAmount(activeIncomeWon);
+            document.getElementById('kpi-expense').innerText = formatAmount(activeExpenseWon);
+            document.getElementById('kpi-savings').innerText = formatAmount(activeSavingsWon);
+
+            const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
+            const savPct = activeIncomeWon > 0 ? Math.min(Math.round((activeSavingsWon / activeIncomeWon) * 100), 100 - expPct) : 0;
+
+            document.getElementById('bar-exp-pct').style.width = `${expPct}%`;
+            document.getElementById('bar-sav-pct').style.width = `${savPct}%`;
+            document.getElementById('lbl-exp-pct').innerText = `${expPct}%`;
+            document.getElementById('lbl-sav-pct').innerText = `${savPct}%`;
+
+            document.getElementById('ai-advice-text').innerHTML = `고정지출 및 생활비를 제외하고 남은 예산 중 <b style="font-weight:700;">${formatAmount(activeSavingsWon)}</b>을 추가 저축할 수 있습니다.`;
+
+            renderChartAndMonthly();
+        }
+
+        function render() {
+            renderInputsOnly();
+            const d = store[currentMonth] || DEFAULT_MONTH_DATA();
+            updateKPIAndChartsOnly();
+            renderSplitAccordions(d);
+        }
+
+        function renderSplitAccordions(d) {
+            const expenseContainer = document.getElementById('expense-accordion-container');
+            const savingsContainer = document.getElementById('savings-accordion-container');
+            
+            expenseContainer.innerHTML = '';
+            savingsContainer.innerHTML = '';
+
+            const categories = d.categories;
+            const titles = d.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
+            const defaultCats = DEFAULT_MONTH_DATA().categories;
+
+            const expenseKeys = ['expense', 'bora_personal', 'sang_personal', 'living', 'variable_expense'];
+
+            expenseKeys.forEach(key => {
+                if (currentTab === 'bora' && key === 'sang_personal') return;
+                if (currentTab === 'sang' && key === 'bora_personal') return;
+
+                const items = categories[key] || defaultCats[key] || [];
+                let sumWon = sumCat(items);
+                let subItemsHtml = '';
+
+                let displayVal = formatAmount(sumWon);
+                if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
+                    displayVal = `${formatAmount(sumWon / 2)}`;
+                }
+
+                if (key === 'variable_expense') {
+                    if (items.length === 0) {
+                        subItemsHtml += `<div style="font-size:12px; color:var(--text-sub); padding:4px 0;">등록된 내역이 없습니다.</div>`;
+                    } else {
+                        items.forEach(item => {
+                            const catTag = item.category ? `[${item.category}] ` : '';
+                            subItemsHtml += `
+                                <div class="sub-item-row">
+                                    <span style="color:var(--text-main); font-weight:500;">${formatKoreanDate(item.date)} ${catTag}${item.name || '내역'}</span>
+                                    <span style="color:var(--expense-color); font-weight:700;">-${Number(item.amount || 0).toLocaleString()}원</span>
+                                </div>`;
+                        });
+                    }
+                } else {
+                    if (items.length === 0) {
+                        subItemsHtml = '<div style="font-size:12px; color:var(--text-sub);">등록된 내역이 없습니다.</div>';
+                    } else {
+                        items.forEach(item => {
+                            const itemWon = Number(item.amount || 0);
+                            let subDetail = `${itemWon.toLocaleString()}원`;
+                            if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
+                                subDetail = `${(itemWon / 2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
+                            }
+                            subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
+                        });
+                    }
+                }
+
+                const labelTitle = titles[key] || '지출 항목';
+
+                expenseContainer.innerHTML += `
+                    <div class="accordion-item" id="acc-flow-${key}">
+                        <div class="accordion-header" onclick="window.toggleFlowAccordion('${key}')">
+                            <span class="accordion-title">${labelTitle}</span>
+                            <div class="accordion-val">
+                                <span style="${key === 'variable_expense' ? 'color:var(--expense-color);' : ''}">${displayVal}</span>
+                                <span class="accordion-icon">▾</span>
+                            </div>
+                        </div>
+                        <div class="accordion-content">${subItemsHtml}</div>
+                    </div>`;
+            });
+
+            const savingsKeys = ['savings', 'reserve'];
+
+            savingsKeys.forEach(key => {
+                const allItems = categories[key] || defaultCats[key] || [];
+                const items = currentTab === 'all' ? allItems : allItems.filter(item => (item.owner || 'shared') !== (currentTab === 'bora' ? 'sang' : 'bora'));
+                const sumWon = sumCatForTab(allItems, currentTab);
+                let subItemsHtml = items.length === 0 ? '<div style="font-size:12px; color:var(--text-sub);">등록된 내역이 없습니다.</div>' : '';
+                
+                items.forEach(item => {
+                    const itemWon = Number(item.amount || 0);
+                    const owner = item.owner || 'shared';
+                    let subDetail = `${itemWon.toLocaleString()}원`;
+                    if (currentTab !== 'all' && owner === 'shared') {
+                        subDetail = `${(itemWon/2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
+                    }
+                    subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
+                });
+
+                const labelTitle = titles[key] || '저축 항목';
+
+                savingsContainer.innerHTML += `
+                    <div class="accordion-item" id="acc-flow-${key}">
+                        <div class="accordion-header" onclick="window.toggleFlowAccordion('${key}')">
+                            <span class="accordion-title">${labelTitle}</span>
+                            <div class="accordion-val">
+                                <span style="color:var(--savings-color);">${formatAmount(sumWon)}</span>
+                                <span class="accordion-icon">▾</span>
+                            </div>
+                        </div>
+                        <div class="accordion-content">${subItemsHtml}</div>
+                    </div>`;
+            });
+        }
+
+        function toggleFlowAccordion(key) {
+            const item = document.getElementById(`acc-flow-${key}`);
+            if(item) item.classList.toggle('open');
+        }
+        window.toggleFlowAccordion = toggleFlowAccordion;
+
+        function renderChartAndMonthly() {
+            const months = Object.keys(store).sort();
+            const chartContainer = document.getElementById('chart-bars');
+            const listContainer = document.getElementById('monthly-accordion-list');
+            
+            if(!chartContainer || !listContainer) return;
+
+            chartContainer.innerHTML = '';
+            listContainer.innerHTML = '';
+
+            let maxVal = 1;
+            months.forEach(m => {
+                const d = store[m] || DEFAULT_MONTH_DATA();
+                const expWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
+                const tripWon = Math.round((d.trip_usd || 0) * usdRate);
+                const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + tripWon;
+                const savWon = sumCat(d.categories.savings) + Math.max(incWon - expWon - sumCat(d.categories.savings) - sumCat(d.categories.reserve), 0);
+                if (expWon > maxVal) maxVal = expWon;
+                if (savWon > maxVal) maxVal = savWon;
+            });
+
+            months.forEach(m => {
+                const d = store[m] || DEFAULT_MONTH_DATA();
+                const tripWon = Math.round((d.trip_usd || 0) * usdRate);
+                const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + tripWon;
+                
+                const totalExpWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
+                
+                const fixedSavingsSum = sumCat(d.categories.savings);
+                const reserveSum = sumCat(d.categories.reserve);
+                const addSavings = Math.max(incWon - totalExpWon - fixedSavingsSum - reserveSum, 0);
+                const totalSavWon = fixedSavingsSum + addSavings;
+
+                const expHeight = maxVal > 0 ? Math.max(Math.round((totalExpWon / maxVal) * 100), 4) : 0;
+                const savHeight = maxVal > 0 ? Math.max(Math.round((totalSavWon / maxVal) * 100), 4) : 0;
+
+                chartContainer.innerHTML += `
+                    <div class="bar-col">
+                        <div class="bar-pair">
+                            <div class="bar-wrapper"><div class="bar-fill-exp" style="height:${expHeight}%;"></div></div>
+                            <div class="bar-wrapper"><div class="bar-fill-sav" style="height:${savHeight}%;"></div></div>
+                        </div>
+                        <div class="bar-label">${m.split('-')[1]}월</div>
+                    </div>`;
+
+                listContainer.innerHTML += `
+                    <div class="accordion-item" id="acc-${m}">
+                        <div class="accordion-header" onclick="window.toggleAccordion('${m}')">
+                            <div>
+                                <div style="font-size:13px; font-weight:700;">2026년 ${m.split('-')[1]}월</div>
+                                <div style="font-size:11px; color:var(--text-sub); margin-top:2px;">수입 ${formatAmount(incWon)}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:12px; font-weight:700; color:var(--expense-color);">지출 ${formatAmount(totalExpWon)}</div>
+                                <div style="font-size:12px; font-weight:700; color:var(--savings-color);">${formatAmount(totalSavWon)} 저축</div>
+                            </div>
+                        </div>
+                        <div class="accordion-content">
+                            <div class="sub-item-row"><span>총 수입액</span><span>${formatAmount(incWon)}</span></div>
+                            <div class="sub-item-row"><span>총 지출액</span><span>${formatAmount(totalExpWon)}</span></div>
+                            <div class="sub-item-row"><span>총 저축액 (고정+추가)</span><span>${formatAmount(totalSavWon)}</span></div>
+                            <div class="sub-item-row"><span>변동 지출 건수</span><span>${(d.categories.variable_expense || []).length}건</span></div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function toggleAccordion(m) { document.getElementById(`acc-${m}`).classList.toggle('open'); }
+        window.toggleAccordion = toggleAccordion;
+
+        function openModal(type) {
+            const modal = document.getElementById('custom-modal');
+            const titleEl = document.getElementById('modal-title-text');
+            const subtabsEl = document.getElementById('modal-subtabs-container');
+            const bodyEl = document.getElementById('modal-body-content');
+            const saveBtn = document.getElementById('modal-save-btn');
+
+            if (type === 'expense') {
+                titleEl.innerText = '💸 지출 항목 편집';
+                subtabsEl.innerHTML = `
+                    <button class="modal-subtab-btn active" onclick="window.switchModalTab('expense', this)">공통고정</button>
+                    <button class="modal-subtab-btn" onclick="window.switchModalTab('bora_personal', this)">보라지출</button>
+                    <button class="modal-subtab-btn" onclick="window.switchModalTab('sang_personal', this)">상훈지출</button>
+                    <button class="modal-subtab-btn" onclick="window.switchModalTab('living', this)">공동생활</button>
+                    <button class="modal-subtab-btn" onclick="window.switchModalTab('variable_expense', this)">변동지출</button>
+                `;
+                bodyEl.innerHTML = renderExpenseModalHTML();
+                saveBtn.onclick = saveExpenseModal;
+            } else if (type === 'savings') {
+                titleEl.innerText = '💰 저축 항목 편집';
+                subtabsEl.innerHTML = `
+                    <button class="modal-subtab-btn active" onclick="window.switchModalTab('savings', this)">고정저축</button>
+                    <button class="modal-subtab-btn" onclick="window.switchModalTab('reserve', this)">비상금</button>
+                `;
+                bodyEl.innerHTML = renderSavingsModalHTML();
+                saveBtn.onclick = saveSavingsModal;
+            }
+
+            modal.classList.add('open');
+        }
+        window.openModal = openModal;
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.remove('open');
+        }
+        window.closeModal = closeModal;
+
+        function switchModalTab(catKey, btnEl) {
+            document.querySelectorAll('.modal-subtab-btn').forEach(btn => btn.classList.remove('active'));
+            btnEl.classList.add('active');
+
+            document.querySelectorAll('#custom-modal .cat-group').forEach(grp => grp.classList.remove('active'));
+            const targetGrp = document.getElementById(`modal-group-${catKey}`);
+            if(targetGrp) targetGrp.classList.add('active');
+        }
+        window.switchModalTab = switchModalTab;
+
+        function handleModalNumInput(inputEl) {
+            const rawNum = parseNumberString(inputEl.value);
+            inputEl.value = rawNum ? rawNum.toLocaleString() : '';
+        }
+        window.handleModalNumInput = handleModalNumInput;
+
+        function renderExpenseModalHTML() {
+            const targetData = store[currentMonth] || DEFAULT_MONTH_DATA();
+            const cats = targetData.categories;
+            const titles = targetData.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
+            
+            const expenseSections = [
+                { key: 'expense', defaultLabel: '공통 고정지출' },
+                { key: 'bora_personal', defaultLabel: '보라 개인 지출' },
+                { key: 'sang_personal', defaultLabel: '상훈 개인 지출' },
+                { key: 'living', defaultLabel: '공동 생활비' },
+                { key: 'variable_expense', defaultLabel: '변동 지출' }
+            ];
+
+            let html = '';
+            expenseSections.forEach((sec, idx) => {
+                const k = sec.key;
+                if(!cats[k]) cats[k] = [];
+                const currentTitle = titles[k] || sec.defaultLabel;
+                const isActive = idx === 0 ? 'active' : '';
+
+                if (k === 'variable_expense') {
+                    html += `
+                        <div class="cat-group ${isActive}" id="modal-group-${k}" data-expense-cat="${k}">
+                            <div class="cat-title-box">
+                                <div class="cat-title-label-top">그룹 타이틀</div>
+                                <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
+                            </div>
+                            <div class="modal-rows-container">`;
+                    cats[k].forEach((item, rowIdx) => {
+                        const currentCat = item.category || (categoryList[0] || '식비');
+                        let optionsHtml = categoryList.map(cat => `<option value="${cat}" ${cat === currentCat ? 'selected' : ''}>${cat}</option>`).join('');
+                        html += `
+                            <div class="sub-row">
+                                <input type="date" value="${item.date || ''}" class="inp-date">
+                                <select class="inp-cat">${optionsHtml}</select>
+                                <input type="text" value="${item.name || ''}" class="inp-name" placeholder="내용">
+                                <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                                <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
+                            </div>`;
+                    });
+                    html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 변동 지출 항목 추가</button></div>`;
+                } else {
+                    html += `
+                        <div class="cat-group ${isActive}" id="modal-group-${k}" data-expense-cat="${k}">
+                            <div class="cat-title-box">
+                                <div class="cat-title-label-top">그룹 타이틀</div>
+                                <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
+                            </div>
+                            <div class="modal-rows-container">`;
+                    cats[k].forEach((item, rowIdx) => {
+                        html += `
+                            <div class="sub-row">
+                                <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
+                                <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                                <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
+                            </div>`;
+                    });
+                    html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 고정 지출 항목 추가</button></div>`;
+                }
+            });
+            return html;
+        }
+
+        function addExpenseSubModal(k) {
+            const groupEl = document.getElementById(`modal-group-${k}`);
+            const rowsContainer = groupEl.querySelector('.modal-rows-container');
+            const newRow = document.createElement('div');
+            newRow.className = 'sub-row';
+
+            if (k === 'variable_expense') {
+                const today = new Date().toISOString().split('T')[0];
+                let optionsHtml = categoryList.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+                newRow.innerHTML = `
+                    <input type="date" value="${today}" class="inp-date">
+                    <select class="inp-cat">${optionsHtml}</select>
+                    <input type="text" value="" class="inp-name" placeholder="내용">
+                    <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                    <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
+            } else {
+                newRow.innerHTML = `
+                    <input type="text" value="" class="inp-name" placeholder="항목명">
+                    <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                    <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
+            }
+            rowsContainer.appendChild(newRow);
+        }
+        window.addExpenseSubModal = addExpenseSubModal;
+
+        function renderSavingsModalHTML() {
+            const targetData = store[currentMonth] || DEFAULT_MONTH_DATA();
+            const cats = targetData.categories;
+            const titles = targetData.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
+            
+            const savingsSections = [
+                { key: 'savings', defaultLabel: '고정 저축' },
+                { key: 'reserve', defaultLabel: '비상금 (남겨둘 돈)' }
+            ];
+
+            let html = '';
+            savingsSections.forEach((sec, idx) => {
+                const k = sec.key;
+                if(!cats[k]) cats[k] = [];
+                const currentTitle = titles[k] || sec.defaultLabel;
+                const isActive = idx === 0 ? 'active' : '';
+
+                html += `
+                    <div class="cat-group ${isActive}" id="modal-group-${k}" data-savings-cat="${k}">
+                        <div class="cat-title-box">
+                            <div class="cat-title-label-top">그룹 타이틀</div>
+                            <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
+                        </div>
+                        <div class="modal-rows-container">`;
+                
+                cats[k].forEach((item, rowIdx) => {
+                    const owner = item.owner || 'shared';
+                    const ownerSelectHtml = k === 'savings' ? `
+                        <select class="inp-owner">
+                            <option value="shared" ${owner==='shared'?'selected':''}>공통</option>
+                            <option value="bora" ${owner==='bora'?'selected':''}>보라</option>
+                            <option value="sang" ${owner==='sang'?'selected':''}>상훈</option>
+                        </select>` : '';
+                    html += `
+                        <div class="sub-row">
+                            ${ownerSelectHtml}
+                            <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
+                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                            <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
+                        </div>`;
+                });
+                html += `</div><button class="add-row-btn" onclick="window.addSavingsSubModal('${k}')">+ 저축 항목 추가</button></div>`;
+            });
+            return html;
+        }
+
+        function addSavingsSubModal(k) {
+            const groupEl = document.getElementById(`modal-group-${k}`);
+            const rowsContainer = groupEl.querySelector('.modal-rows-container');
+            const newRow = document.createElement('div');
+            newRow.className = 'sub-row';
+
+            const ownerSelectHtml = k === 'savings' ? `
+                <select class="inp-owner">
+                    <option value="shared" selected>공통</option>
+                    <option value="bora">보라</option>
+                    <option value="sang">상훈</option>
+                </select>` : '';
+
+            newRow.innerHTML = `
+                ${ownerSelectHtml}
+                <input type="text" value="" class="inp-name" placeholder="항목명">
+                <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
+            rowsContainer.appendChild(newRow);
+        }
+        window.addSavingsSubModal = addSavingsSubModal;
+
+        function removeSubModalRow(btn) {
+            btn.closest('.sub-row').remove();
+        }
+        window.removeSubModalRow = removeSubModalRow;
+
+        function saveExpenseModal() {
+            document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
+                const k = group.getAttribute('data-expense-cat');
+                if (!k) return;
+                const titleInp = group.querySelector('.cat-title-inp');
+                const rows = group.querySelectorAll('.sub-row');
+
+                if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
+                const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
+                store[currentMonth].sectionTitles[k] = newTitle;
+
+                const updated = [];
+                rows.forEach(row => {
+                    if (k === 'variable_expense') {
+                        const dateInp = row.querySelector('.inp-date');
+                        const catInp = row.querySelector('.inp-cat');
+                        const nameInp = row.querySelector('.inp-name');
+                        const amountInp = row.querySelector('.inp-amount');
+                        const wonAmount = parseNumberString(amountInp.value);
+                        if (nameInp.value.trim() !== '' || wonAmount > 0) {
+                            updated.push({
+                                date: dateInp ? dateInp.value : '',
+                                category: catInp ? catInp.value : (categoryList[0] || '식비'),
+                                name: nameInp.value.trim() || '지출',
+                                amount: wonAmount
+                            });
+                        }
+                    } else {
+                        const nameInp = row.querySelector('.inp-name');
+                        const amountInp = row.querySelector('.inp-amount');
+                        if (nameInp.value.trim() !== '') {
+                            updated.push({
+                                name: nameInp.value.trim() || '항목',
+                                amount: parseNumberString(amountInp.value)
+                            });
+                        }
+                    }
+                });
+                store[currentMonth].categories[k] = updated;
+
+                Object.keys(store).forEach(m => {
+                    if (m > currentMonth) {
+                        if(!store[m].sectionTitles) store[m].sectionTitles = {};
+                        store[m].sectionTitles[k] = newTitle;
+
+                        const isCarryover = (k === 'expense' && carryoverSettings.expense) ||
+                                           (k === 'bora_personal' && carryoverSettings.bora_personal) ||
+                                           (k === 'sang_personal' && carryoverSettings.sang_personal);
+
+                        if (k !== 'variable_expense' && k !== 'living' && isCarryover) {
+                            store[m].categories[k] = JSON.parse(JSON.stringify(updated));
+                        }
+                    }
+                });
+            });
+
+            persistStore();
+            render();
+            closeModal();
+        }
+
+        function saveSavingsModal() {
+            document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
+                const k = group.getAttribute('data-savings-cat');
+                if (!k) return;
+                const titleInp = group.querySelector('.cat-title-inp');
+                const rows = group.querySelectorAll('.sub-row');
+
+                if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
+                const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
+                store[currentMonth].sectionTitles[k] = newTitle;
+
+                const updated = [];
+                rows.forEach(row => {
+                    const nameInp = row.querySelector('.inp-name');
+                    const amountInp = row.querySelector('.inp-amount');
+                    const ownerSel = row.querySelector('.inp-owner');
+
+                    if (nameInp.value.trim() !== '') {
+                        updated.push({
+                            name: nameInp.value.trim() || '항목',
+                            amount: parseNumberString(amountInp.value),
+                            owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared' ) : 'shared'
+                        });
+                    }
+                });
+                store[currentMonth].categories[k] = updated;
+
+                Object.keys(store).forEach(m => {
+                    if (m > currentMonth) {
+                        if(!store[m].sectionTitles) store[m].sectionTitles = {};
+                        store[m].sectionTitles[k] = newTitle;
+
+                        const isCarryoverEnabled = (k === 'savings' && carryoverSettings.savings) || (k === 'reserve' && carryoverSettings.reserve);
+                        
+                        if (isCarryoverEnabled) {
+                            store[m].categories[k] = JSON.parse(JSON.stringify(updated));
+                        }
+                    }
+                });
+            });
+
+            persistStore();
+            render();
+            closeModal();
+        }
+
+        function renderCategorySettings() {
+            const container = document.getElementById('setting-category-tags');
+            if (!container) return;
+            container.innerHTML = categoryList.map((cat, idx) => `
+                <div class="category-tag">
+                    ${cat}
+                    <span onclick="window.removeCategorySetting(${idx})">&times;</span>
+                </div>
+            `).join('');
+        }
+
+        function addCategorySetting() {
+            const input = document.getElementById('new-cat-input');
+            const val = input.value.trim();
+            if (val && !categoryList.includes(val)) {
+                categoryList.push(val);
+                persistStore();
+                input.value = '';
+                renderCategorySettings();
+            }
+        }
+        window.addCategorySetting = addCategorySetting;
+
+        function removeCategorySetting(index) {
+            if (categoryList.length <= 1) {
+                alert('최소 1개의 카테고리는 등록되어 있어야 합니다.');
+                return;
+            }
+            categoryList.splice(index, 1);
+            persistStore();
+            renderCategorySettings();
+        }
+        window.removeCategorySetting = removeCategorySetting;
+
+        function setMemberTab(tab, btnEl) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-pill-btn').forEach(btn => btn.classList.remove('active'));
+            if(btnEl) btnEl.classList.add('active');
+            render();
+        }
+        window.setMemberTab = setMemberTab;
+
+        function changeMonth(m) {
+            currentMonth = m;
+            if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
+            render();
+        }
+        window.changeMonth = changeMonth;
+
+        function navigate(page, btn) {
+            document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.gnb-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`page-${page}`).classList.add('active');
+            if(btn) btn.classList.add('active');
+
+            const memberTabBar = document.getElementById('member-tab-bar');
+            const headerMonthWrapper = document.getElementById('header-month-wrapper');
+
+            if (page === 'dashboard') {
+                memberTabBar.style.display = 'flex';
+                headerMonthWrapper.style.display = 'block';
+            } else if (page === 'monthly') {
+                memberTabBar.style.display = 'none';
+                headerMonthWrapper.style.display = 'block';
+            } else {
+                memberTabBar.style.display = 'none';
+                headerMonthWrapper.style.display = 'none';
+            }
+        }
+        window.navigate = navigate;
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
+            const a = document.createElement('a'); a.href = dataStr; a.download = `gotgan_backup_2026.json`; a.click();
+        }
+        window.exportData = exportData;
+
+        async function resetData() {
+            if(confirm('모든 데이터를 처음 상태로 초기화하시겠습니까?')) {
+                try { await deleteDoc(doc(db, "gotgan", FIRESTORE_DOC_ID)); } catch(e){}
+                categoryList = DEFAULT_CATEGORIES.slice();
+                
+                store = {};
+                ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
+                    store[m] = DEFAULT_MONTH_DATA();
+                });
+
+                renderCategorySettings();
+                render();
+            }
+        }
+        window.resetData = resetData;
+
+        window.onload = init;
+    </script>
 </body>
 </html>
