@@ -1,792 +1,3 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>우리 곳간</title>
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-    <style>
-        :root {
-            --bg-color: #f4f6f8;
-            --card-bg: #ffffff;
-            --primary: #1a202c;
-            --text-main: #2d3748;
-            --text-sub: #718096;
-            --border-color: #e2e8f0;
-            --accent: #3182ce;
-            --expense-color: #e53e3e;
-            --savings-color: #2b6cb0;
-            --radius-main: 16px;
-            --radius-sub: 10px;
-            --shadow-sm: 0 2px 5px rgba(0,0,0,0.04);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow-x: hidden;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-        }
-
-        body {
-            display: flex;
-            justify-content: center;
-        }
-
-        #app-container {
-            width: 100%;
-            max-width: 480px;
-            background-color: var(--bg-color);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            padding-bottom: 90px;
-        }
-
-        /* Lock Screen */
-        #lock-screen {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: #ffffff;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-        }
-        .lock-card {
-            width: 100%;
-            max-width: 320px;
-            text-align: center;
-        }
-        .lock-title {
-            font-size: 22px;
-            font-weight: 800;
-            margin-bottom: 8px;
-            color: var(--primary);
-        }
-        .lock-sub {
-            font-size: 13px;
-            color: var(--text-sub);
-            margin-bottom: 24px;
-        }
-        .lock-input {
-            width: 100%;
-            padding: 14px;
-            border-radius: var(--radius-sub);
-            border: 1px solid var(--border-color);
-            font-size: 18px;
-            text-align: center;
-            letter-spacing: 6px;
-            outline: none;
-            margin-bottom: 12px;
-            background: #f8fafc;
-        }
-        .lock-input:focus { border-color: var(--accent); background: #fff; }
-        .lock-btn {
-            width: 100%;
-            padding: 14px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: var(--radius-sub);
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .lock-error { color: var(--expense-color); font-size: 12px; margin-top: 10px; min-height: 16px; }
-
-        /* Header */
-        header {
-            position: sticky;
-            top: 0;
-            background: rgba(244, 246, 248, 0.95);
-            backdrop-filter: blur(8px);
-            z-index: 100;
-            padding: 16px 20px 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .logo { font-size: 19px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 8px; }
-        
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        #auth-status-badge {
-            font-size: 11px;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-weight: 600;
-            background: #feebc8;
-            color: #744210;
-        }
-
-        .month-select-wrapper {
-            position: relative;
-            display: inline-block;
-        }
-        .month-select-wrapper select {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            border: 1px solid var(--border-color);
-            background: white;
-            padding: 6px 30px 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--text-main);
-            outline: none;
-            box-shadow: var(--shadow-sm);
-            cursor: pointer;
-        }
-        .month-select-wrapper::after {
-            content: "▾";
-            font-size: 11px;
-            color: var(--text-sub);
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            pointer-events: none;
-        }
-
-        /* Member Tab Bar */
-        .member-tab-bar {
-            display: flex;
-            padding: 0 20px 14px;
-            gap: 8px;
-        }
-        .tab-pill-btn {
-            flex: 1;
-            padding: 10px 0;
-            border: none;
-            background: #e2e8f0;
-            color: #4a5568;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .tab-pill-btn.active { background: var(--primary); color: white; }
-
-        /* Page Layout */
-        .page-content { padding: 0 20px; flex: 1; }
-        .page-view { display: none; }
-        .page-view.active { display: block; }
-
-        /* Card System */
-        .card {
-            background: var(--card-bg);
-            border-radius: var(--radius-main);
-            padding: 18px 20px;
-            margin-bottom: 14px;
-            box-shadow: var(--shadow-sm);
-            border: 1px solid var(--border-color);
-            overflow: hidden;
-        }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .card-title {
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        /* Income Card */
-        .income-header-toggle {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            user-select: none;
-        }
-        .income-body { margin-top: 12px; border-top: 1px dashed var(--border-color); padding-top: 8px; }
-        .income-body.collapsed { display: none; }
-        
-        .income-input-card {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #f7fafc;
-        }
-        .income-input-card:last-child { border-bottom: none; }
-        .income-input-label { font-size: 13px; font-weight: 600; color: var(--text-sub); }
-        .income-input-flex { display: flex; align-items: center; gap: 4px; }
-        .income-input-flex input {
-            width: 110px;
-            border: none;
-            background: #f8fafc;
-            padding: 6px 8px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--primary);
-            text-align: right;
-            outline: none;
-        }
-        .income-input-flex input:focus { background: #edf2f7; }
-        .income-unit { font-size: 13px; font-weight: 600; color: var(--text-sub); }
-        .exchange-sub-info { font-size: 11px; color: var(--accent); text-align: right; padding-top: 4px; font-weight: 600; }
-
-        /* Summary KPI Card */
-        .kpi-main { text-align: center; padding: 4px 0 14px; }
-        .kpi-label { font-size: 12px; color: var(--text-sub); font-weight: 600; margin-bottom: 4px; }
-        .kpi-val { font-size: 26px; font-weight: 800; color: #2b6cb0; }
-        .kpi-sub-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            background: #f8fafc;
-            padding: 12px;
-            border-radius: var(--radius-sub);
-        }
-        .kpi-sub-item { text-align: center; }
-        .kpi-sub-item .sub-lbl { font-size: 11px; color: var(--text-sub); margin-bottom: 2px; }
-        .kpi-sub-item .sub-val { font-size: 14px; font-weight: 700; }
-
-        .progress-bar-container {
-            height: 8px;
-            background: #edf2f7;
-            border-radius: 4px;
-            overflow: hidden;
-            display: flex;
-            margin: 14px 0 6px;
-        }
-        .bar-fill-exp { background: var(--expense-color); transition: width 0.3s, height 0.3s; }
-        .bar-fill-sav { background: #3182ce; transition: width 0.3s, height 0.3s; }
-        .progress-labels {
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-sub);
-        }
-
-        /* Accordion List */
-        .accordion-item { border-bottom: 1px solid #edf2f7; }
-        .accordion-item:last-child { border-bottom: none; }
-        .accordion-header {
-            padding: 12px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-        }
-        .accordion-title { font-size: 13px; font-weight: 600; color: var(--text-main); }
-        .accordion-val { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
-        .accordion-icon { font-size: 10px; color: var(--text-sub); transition: transform 0.2s; }
-        .accordion-item.open .accordion-icon { transform: rotate(180deg); }
-        
-        .accordion-content { 
-            display: none; 
-            padding: 6px 0 10px; 
-            flex-direction: column; 
-            gap: 6px; 
-            max-height: 240px; 
-            overflow-y: auto;
-        }
-        .accordion-item.open .accordion-content { display: flex; }
-        
-        .sub-item-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-            color: var(--text-sub);
-            padding: 8px 10px;
-            background: #f8fafc;
-            border-radius: 6px;
-        }
-
-        /* Chart Elements */
-        .chart-container {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            height: 160px;
-            padding: 10px 5px 0;
-        }
-        .bar-col { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; height: 100%; justify-content: flex-end; }
-        .bar-pair { display: flex; gap: 4px; align-items: flex-end; height: 120px; width: 100%; justify-content: center; }
-        .bar-wrapper { width: 10px; background: #edf2f7; border-radius: 4px; height: 100%; display: flex; align-items: flex-end; overflow: hidden; }
-        .bar-wrapper .bar-fill-exp, .bar-wrapper .bar-fill-sav { width: 100%; border-radius: 4px; }
-        .bar-label { font-size: 11px; color: var(--text-sub); font-weight: 600; }
-
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
-            display: none;
-            align-items: flex-end;
-            justify-content: center;
-        }
-        .modal-overlay.open { display: flex; }
-        .modal-card {
-            background: white;
-            width: 100%;
-            max-width: 480px;
-            border-top-left-radius: 20px;
-            border-top-right-radius: 20px;
-            max-height: 85vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
-            animation: slideUp 0.25s ease-out;
-        }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        
-        .modal-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .modal-title { font-size: 16px; font-weight: 800; color: var(--primary); }
-        .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-sub); padding: 0 4px; }
-        
-        .modal-subtabs {
-            display: flex;
-            padding: 10px 16px;
-            gap: 6px;
-            overflow-x: auto;
-            border-bottom: 1px solid var(--border-color);
-            background: #f8fafc;
-            -webkit-overflow-scrolling: touch;
-        }
-        .modal-subtabs::-webkit-scrollbar { display: none; }
-        .modal-subtab-btn {
-            padding: 6px 12px;
-            border-radius: 16px;
-            border: 1px solid var(--border-color);
-            background: white;
-            font-size: 12px;
-            font-weight: 600;
-            white-space: nowrap;
-            cursor: pointer;
-            color: var(--text-sub);
-            flex-shrink: 0;
-        }
-        .modal-subtab-btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .modal-body { padding: 16px; overflow-y: auto; flex: 1; }
-        .modal-footer { padding: 12px 16px 20px; border-top: 1px solid var(--border-color); background: white; }
-        .btn-modal-save {
-            width: 100%;
-            padding: 13px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: var(--radius-sub);
-            font-weight: 700;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .cat-group { display: none; flex-direction: column; gap: 12px; }
-        .cat-group.active { display: flex; }
-        .cat-title-box {
-            background: #edf2f7;
-            padding: 10px 12px;
-            border-radius: var(--radius-sub);
-        }
-        .cat-title-label-top { font-size: 11px; font-weight: 700; color: var(--text-sub); margin-bottom: 2px; }
-        .cat-title-inp { width: 100%; border: none; background: transparent; font-size: 14px; font-weight: 700; outline: none; color: var(--primary); }
-
-        .sub-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 8px;
-            background: #fff;
-            padding: 4px 0;
-            width: 100%;
-            flex-wrap: nowrap;
-        }
-        .sub-row input, .sub-row select {
-            padding: 8px 6px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 12px;
-            outline: none;
-            box-sizing: border-box;
-            background: #fff;
-        }
-        .sub-row input:focus, .sub-row select:focus { border-color: var(--accent); }
-        
-        .sub-row .inp-name { flex: 1; min-width: 0; }
-        .sub-row .inp-amount { width: 85px; text-align: right; font-weight: 600; flex-shrink: 0; }
-        .sub-row .inp-date { width: 105px; flex-shrink: 0; }
-        .sub-row .inp-cat { width: 68px; flex-shrink: 0; }
-        .sub-row .inp-owner { width: 60px; flex-shrink: 0; }
-        .sub-row .btn-del-row {
-            border: none;
-            background: #fff5f5;
-            color: var(--expense-color);
-            width: 32px; height: 32px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 700;
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .add-row-btn {
-            width: 100%;
-            padding: 10px;
-            background: #edf2f7;
-            border: 1px dashed var(--border-color);
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--primary);
-            cursor: pointer;
-            margin-top: 4px;
-        }
-
-        /* Settings Toggle Row */
-        .setting-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #edf2f7;
-        }
-        .setting-row:last-child { border-bottom: none; }
-        .setting-label { font-size: 13px; font-weight: 600; }
-        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider {
-            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #cbd5e0; transition: .2s; border-radius: 24px;
-        }
-        .slider:before {
-            position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
-            background-color: white; transition: .2s; border-radius: 50%;
-        }
-        input:checked + .slider { background-color: var(--accent); }
-        input:checked + .slider:before { transform: translateX(20px); }
-
-        .category-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-        .category-tag {
-            background: #edf2f7; padding: 6px 12px; border-radius: 14px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;
-        }
-        .category-tag span { cursor: pointer; color: var(--expense-color); font-weight: 800; }
-
-        /* Toast Message Notification */
-        #toast-message {
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%) translateY(20px);
-            background: rgba(26, 32, 44, 0.9);
-            color: white;
-            padding: 10px 18px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.25s ease-in-out;
-            z-index: 9999;
-        }
-        #toast-message.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        /* Bottom GNB */
-        .gnb {
-            position: fixed;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100%;
-            max-width: 480px;
-            background: white;
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-around;
-            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-            z-index: 1000;
-        }
-        .gnb-btn {
-            background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
-            font-size: 10px; font-weight: 600; color: var(--text-sub); cursor: pointer;
-        }
-        .gnb-btn.active { color: var(--primary); font-weight: 800; }
-        .gnb-btn-icon { font-size: 18px; }
-
-        .btn-action-sm {
-            padding: 5px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;
-        }
-    </style>
-</head>
-<body>
-
-    <!-- 잠금 화면 -->
-    <div id="lock-screen">
-        <div class="lock-card">
-            <div class="lock-title">🌾 우리 곳간</div>
-            <div class="lock-sub">비밀번호를 입력해 주세요.</div>
-            <input type="password" id="lock-input" class="lock-input" maxlength="4" placeholder="••••" onkeydown="if(event.key==='Enter') window.checkPassword()">
-            <button class="lock-btn" onclick="window.checkPassword()">접속하기</button>
-            <div id="lock-error" class="lock-error"></div>
-        </div>
-    </div>
-
-    <!-- 저장 상태 알림 토스트 메시지 -->
-    <div id="toast-message">저장되었습니다.</div>
-
-    <div id="app-container">
-        <!-- 상단 헤더 -->
-        <header>
-            <div class="logo">🌾 우리 곳간</div>
-            <div class="header-right">
-                <span id="auth-status-badge">인증중...</span>
-                <div class="month-select-wrapper" id="header-month-wrapper">
-                    <select id="global-month" onchange="window.changeMonth(this.value)">
-                        <option value="2026-06">2026.06</option>
-                        <option value="2026-07">2026.07</option>
-                        <option value="2026-08" selected>2026.08</option>
-                        <option value="2026-09">2026.09</option>
-                        <option value="2026-10">2026.10</option>
-                        <option value="2026-11">2026.11</option>
-                        <option value="2026-12">2026.12</option>
-                    </select>
-                </div>
-            </div>
-        </header>
-
-        <!-- 멤버 필터 탭 -->
-        <div class="member-tab-bar" id="member-tab-bar">
-            <button class="tab-pill-btn active" onclick="window.setMemberTab('all', this)">통합</button>
-            <button class="tab-pill-btn" onclick="window.setMemberTab('bora', this)">보라</button>
-            <button class="tab-pill-btn" onclick="window.setMemberTab('sang', this)">상훈</button>
-        </div>
-
-        <div class="page-content">
-            <!-- 1. 대시보드 페이지 -->
-            <div id="page-dashboard" class="page-view active">
-                
-                <!-- 접을 수 있는 수입 카드 -->
-                <div class="card">
-                    <div class="income-header-toggle" onclick="window.toggleIncomeCard()">
-                        <span class="card-title">💵 이번 달 수입 설정</span>
-                        <span id="income-toggle-icon" style="font-size:12px; color:var(--text-sub);">펼치기 ▾</span>
-                    </div>
-                    <div class="income-body collapsed" id="income-body-container">
-                        <div id="income-field-container"></div>
-                    </div>
-                </div>
-
-                <!-- 핵심 요약 KPI 카드 -->
-                <div class="card">
-                    <div class="kpi-main">
-                        <div class="kpi-label" id="kpi-target-label">우리 곳간 총 추가 저축 가능액</div>
-                        <div class="kpi-val" id="kpi-savings">0원</div>
-                    </div>
-                    <div class="kpi-sub-grid">
-                        <div class="kpi-sub-item">
-                            <div class="sub-lbl">총 수입</div>
-                            <div class="sub-val" id="kpi-income" style="color:var(--text-main);">0원</div>
-                        </div>
-                        <div class="kpi-sub-item">
-                            <div class="sub-lbl">총 예상 지출</div>
-                            <div class="sub-val" id="kpi-expense" style="color:var(--expense-color);">0원</div>
-                        </div>
-                    </div>
-                    <div class="progress-bar-container">
-                        <div id="bar-exp-pct" class="bar-fill-exp" style="width: 0%;"></div>
-                        <div id="bar-sav-pct" class="bar-fill-sav" style="width: 0%;"></div>
-                    </div>
-                    <div class="progress-labels">
-                        <span>지출 비율 <b id="lbl-exp-pct">0%</b></span>
-                        <span>저축 가능 비율 <b id="lbl-sav-pct">0%</b></span>
-                    </div>
-                </div>
-
-                <!-- AI 안내 카드 -->
-                <div class="card" style="background:#ebf8ff; border-color:#bee3f8;">
-                    <div style="font-size:12px; color:#2b6cb0; line-height:1.5;" id="ai-advice-text">
-                        고정지출 및 생활비를 제외하고 남은 예산을 계산 중입니다...
-                    </div>
-                </div>
-
-                <!-- 지출 아코디언 -->
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">💸 지출 관리</span>
-                        <button class="btn-action-sm" onclick="window.openModal('expense')">편집 / 추가</button>
-                    </div>
-                    <div id="expense-accordion-container"></div>
-                </div>
-
-                <!-- 저축 아코디언 -->
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">💰 고정 저축 및 자산 배분</span>
-                        <button class="btn-action-sm" onclick="window.openModal('savings')">편집 / 추가</button>
-                    </div>
-                    <div id="savings-accordion-container"></div>
-                </div>
-
-            </div>
-
-            <!-- 2. 월별 비교 페이지 -->
-            <div id="page-monthly" class="page-view">
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">📊 월별 지출 vs 저축 추이</span>
-                    </div>
-                    <div class="chart-container" id="chart-bars"></div>
-                </div>
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">📅 월별 요약</span>
-                    </div>
-                    <div id="monthly-accordion-list"></div>
-                </div>
-            </div>
-
-            <!-- 3. 설정 페이지 -->
-            <div id="page-settings" class="page-view">
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">🔄 데이터 이월 설정</span>
-                    </div>
-                    <div style="font-size:11px; color:var(--text-sub); margin-bottom:12px;">항목 수정 시 미래 월로 자동 적용할 범위를 지정합니다.</div>
-                    
-                    <div class="setting-row">
-                        <span class="setting-label">공통 고정지출 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-expense-toggle" onchange="window.updateCarryoverSettings()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">보라 개인 지출 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-bora-toggle" onchange="window.updateCarryoverSettings()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">상훈 개인 지출 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-sang-toggle" onchange="window.updateCarryoverSettings()" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">공동 생활비 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-living-toggle" onchange="window.updateCarryoverSettings()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">고정 저축 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-savings-toggle" onchange="window.updateCarryoverSettings()" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">비상금(남겨둘 돈) 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-reserve-toggle" onchange="window.updateCarryoverSettings()" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">🏷️ 변동 지출 카테고리 관리</span>
-                    </div>
-                    <div style="display:flex; gap:6px; margin-top:8px;">
-                        <input type="text" id="new-cat-input" placeholder="새 카테고리 (예: 경조사)" style="flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; outline:none;">
-                        <button class="btn-action-sm" onclick="window.addCategorySetting()">추가</button>
-                    </div>
-                    <div class="category-tags" id="setting-category-tags"></div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">💾 데이터 관리</span>
-                    </div>
-                    <div style="display:flex; gap:8px;">
-                        <button class="add-row-btn" style="margin:0; background:#f7fafc;" onclick="window.exportData()">데이터 내보내기 (JSON)</button>
-                        <button class="add-row-btn" style="margin:0; color:var(--expense-color); background:#fff5f5; border-color:#fed7d7;" onclick="window.resetData()">전체 초기화</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 하단 내비게이션 -->
-        <nav class="gnb">
-            <button class="gnb-btn active" onclick="window.navigate('dashboard', this)">
-                <span class="gnb-btn-icon">🏠</span>
-                <span>대시보드</span>
-            </button>
-            <button class="gnb-btn" onclick="window.navigate('monthly', this)">
-                <span class="gnb-btn-icon">📊</span>
-                <span>월별 데이터</span>
-            </button>
-            <button class="gnb-btn" onclick="window.navigate('settings', this)">
-                <span class="gnb-btn-icon">⚙️</span>
-                <span>설정</span>
-            </button>
-        </nav>
-    </div>
-
-    <!-- 수정/추가 모달 -->
-    <div class="modal-overlay" id="custom-modal">
-        <div class="modal-card">
-            <div class="modal-header">
-                <div class="modal-title" id="modal-title-text">항목 관리</div>
-                <button class="modal-close" onclick="window.closeModal()">✕</button>
-            </div>
-            <div class="modal-subtabs" id="modal-subtabs-container"></div>
-            <div class="modal-body" id="modal-body-content"></div>
-            <div class="modal-footer">
-                <button class="btn-modal-save" id="modal-save-btn">저장하기</button>
-            </div>
-        </div>
-    </div>
 <!-- 스크립트 영역 -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -812,6 +23,7 @@
     // 토스트 피드백 표시 함수
     function showToast(message, isError = false) {
         const toast = document.getElementById('toast-message');
+        if (!toast) return;
         toast.innerText = message;
         toast.style.background = isError ? 'rgba(229, 62, 62, 0.95)' : 'rgba(26, 32, 44, 0.95)';
         toast.classList.add('show');
@@ -941,25 +153,44 @@
     }
 
     async function init() {
-        // Firebase 익명 로그인 실행 (권한 문제 해결)
         const authBadge = document.getElementById('auth-status-badge');
         try {
             await signInAnonymously(auth);
-            authBadge.innerText = '연결됨';
-            authBadge.style.background = '#c6f6d5';
-            authBadge.style.color = '#22543d';
+            if(authBadge) {
+                authBadge.innerText = '연결됨';
+                authBadge.style.background = '#c6f6d5';
+                authBadge.style.color = '#22543d';
+            }
         } catch (err) {
             console.error("익명 로그인 실패:", err);
-            authBadge.innerText = '인증 실패';
-            authBadge.style.background = '#fed7d7';
-            authBadge.style.color = '#742a2a';
+            if(authBadge) {
+                authBadge.innerText = '인증 실패';
+                authBadge.style.background = '#fed7d7';
+                authBadge.style.color = '#742a2a';
+            }
         }
 
         await fetchExchangeRate();
         await loadAll();
+
+        // [수정] 상단 월 선택 드롭다운(global-month) 값과 currentMonth 연동
+        const globalMonthEl = document.getElementById('global-month');
+        if (globalMonthEl) {
+            // HTML 인풋의 값이 YYYY.MM 형식이거나 YYYY-MM 형태일 수 있으므로 포맷 보정
+            if (globalMonthEl.value) {
+                currentMonth = globalMonthEl.value.replace('.', '-');
+            } else {
+                globalMonthEl.value = currentMonth;
+            }
+            
+            globalMonthEl.onchange = (e) => {
+                currentMonth = e.target.value.replace('.', '-');
+                if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+                render();
+            };
+        }
+
         if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-        
-        document.getElementById('global-month').value = currentMonth;
         
         const expToggle = document.getElementById('carryover-expense-toggle');
         const boraToggle = document.getElementById('carryover-bora-toggle');
@@ -1002,6 +233,7 @@
     function toggleIncomeCard() {
         const body = document.getElementById('income-body-container');
         const icon = document.getElementById('income-toggle-icon');
+        if (!body || !icon) return;
         if (body.classList.contains('collapsed')) {
             body.classList.remove('collapsed');
             icon.innerText = '접기 ▴';
@@ -1133,33 +365,42 @@
         let activeIncomeWon = totalIncWon;
         let activeExpenseWon = expSum + boraExp + sangExp + livSum + varSum;
 
+        const targetLabelEl = document.getElementById('kpi-target-label');
         if (currentTab === 'bora') {
             activeIncomeWon = boraWonTotal;
             activeExpenseWon = boraExp + sharedExpenseHalf; 
-            document.getElementById('kpi-target-label').innerText = '보라 개인 잔액';
+            if(targetLabelEl) targetLabelEl.innerText = '보라 개인 잔액';
         } else if (currentTab === 'sang') {
             activeIncomeWon = sangWonTotal + tripWonTotal;
             activeExpenseWon = sangExp + sharedExpenseHalf; 
-            document.getElementById('kpi-target-label').innerText = '상훈 개인 잔액';
+            if(targetLabelEl) targetLabelEl.innerText = '상훈 개인 잔액';
         } else {
-            document.getElementById('kpi-target-label').innerText = '우리 곳간 총 추가 저축 가능액';
+            if(targetLabelEl) targetLabelEl.innerText = '우리 곳간 총 추가 저축 가능액';
         }
 
         const activeSavingsWon = Math.max(activeIncomeWon - activeExpenseWon - savForTab - resForTab, 0);
 
-        document.getElementById('kpi-income').innerText = formatAmount(activeIncomeWon);
-        document.getElementById('kpi-expense').innerText = formatAmount(activeExpenseWon);
-        document.getElementById('kpi-savings').innerText = formatAmount(activeSavingsWon);
+        const elInc = document.getElementById('kpi-income');
+        const elExp = document.getElementById('kpi-expense');
+        const elSav = document.getElementById('kpi-savings');
+        if(elInc) elInc.innerText = formatAmount(activeIncomeWon);
+        if(elExp) elExp.innerText = formatAmount(activeExpenseWon);
+        if(elSav) elSav.innerText = formatAmount(activeSavingsWon);
 
         const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
         const savPct = activeIncomeWon > 0 ? Math.min(Math.round((activeSavingsWon / activeIncomeWon) * 100), 100 - expPct) : 0;
 
-        document.getElementById('bar-exp-pct').style.width = `${expPct}%`;
-        document.getElementById('bar-sav-pct').style.width = `${savPct}%`;
-        document.getElementById('lbl-exp-pct').innerText = `${expPct}%`;
-        document.getElementById('lbl-sav-pct').innerText = `${savPct}%`;
+        const barExp = document.getElementById('bar-exp-pct');
+        const barSav = document.getElementById('bar-sav-pct');
+        const lblExp = document.getElementById('lbl-exp-pct');
+        const lblSav = document.getElementById('lbl-sav-pct');
+        if(barExp) barExp.style.width = `${expPct}%`;
+        if(barSav) barSav.style.width = `${savPct}%`;
+        if(lblExp) lblExp.innerText = `${expPct}%`;
+        if(lblSav) lblSav.innerText = `${savPct}%`;
 
-        document.getElementById('ai-advice-text').innerHTML = `고정지출 및 생활비를 제외하고 남은 예산 중 <b style="font-weight:700;">${formatAmount(activeSavingsWon)}</b>을 추가 저축할 수 있습니다.`;
+        const adviceEl = document.getElementById('ai-advice-text');
+        if(adviceEl) adviceEl.innerHTML = `고정지출 및 생활비를 제외하고 남은 예산 중 <b style="font-weight:700;">${formatAmount(activeSavingsWon)}</b>을 추가 저축할 수 있습니다.`;
 
         renderChartAndMonthly();
     }
@@ -1175,6 +416,8 @@
         const expenseContainer = document.getElementById('expense-accordion-container');
         const savingsContainer = document.getElementById('savings-accordion-container');
         
+        if (!expenseContainer || !savingsContainer) return;
+
         expenseContainer.innerHTML = '';
         savingsContainer.innerHTML = '';
 
@@ -1347,7 +590,10 @@
         });
     }
 
-    function toggleAccordion(m) { document.getElementById(`acc-${m}`).classList.toggle('open'); }
+    function toggleAccordion(m) { 
+        const el = document.getElementById(`acc-${m}`);
+        if(el) el.classList.toggle('open'); 
+    }
     window.toggleAccordion = toggleAccordion;
 
     function openModal(type) {
@@ -1356,6 +602,8 @@
         const subtabsEl = document.getElementById('modal-subtabs-container');
         const bodyEl = document.getElementById('modal-body-content');
         const saveBtn = document.getElementById('modal-save-btn');
+
+        if (!modal || !titleEl || !subtabsEl || !bodyEl || !saveBtn) return;
 
         if (type === 'expense') {
             titleEl.innerText = '💸 지출 항목 편집';
@@ -1383,7 +631,8 @@
     window.openModal = openModal;
 
     function closeModal() {
-        document.getElementById('custom-modal').classList.remove('open');
+        const modal = document.getElementById('custom-modal');
+        if(modal) modal.classList.remove('open');
     }
     window.closeModal = closeModal;
 
@@ -1431,7 +680,7 @@
                             <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
                         </div>
                         <div class="modal-rows-container">`;
-                cats[k].forEach((item, rowIdx) => {
+                cats[k].forEach((item) => {
                     const currentCat = item.category || (categoryList[0] || '식비');
                     let optionsHtml = categoryList.map(cat => `<option value="${cat}" ${cat === currentCat ? 'selected' : ''}>${cat}</option>`).join('');
                     html += `
@@ -1452,7 +701,7 @@
                             <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
                         </div>
                         <div class="modal-rows-container">`;
-                cats[k].forEach((item, rowIdx) => {
+                cats[k].forEach((item) => {
                     html += `
                         <div class="sub-row">
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
@@ -1468,6 +717,7 @@
 
     function addExpenseSubModal(k) {
         const groupEl = document.getElementById(`modal-group-${k}`);
+        if (!groupEl) return;
         const rowsContainer = groupEl.querySelector('.modal-rows-container');
         const newRow = document.createElement('div');
         newRow.className = 'sub-row';
@@ -1516,7 +766,7 @@
                     </div>
                     <div class="modal-rows-container">`;
             
-            cats[k].forEach((item, rowIdx) => {
+            cats[k].forEach((item) => {
                 const owner = item.owner || 'shared';
                 const ownerSelectHtml = k === 'savings' ? `
                     <select class="inp-owner">
@@ -1539,6 +789,7 @@
 
     function addSavingsSubModal(k) {
         const groupEl = document.getElementById(`modal-group-${k}`);
+        if (!groupEl) return;
         const rowsContainer = groupEl.querySelector('.modal-rows-container');
         const newRow = document.createElement('div');
         newRow.className = 'sub-row';
@@ -1604,7 +855,6 @@
             });
             store[currentMonth].categories[k] = updated;
 
-            // 이월 설정 확인
             const isCarryover = (k === 'expense' && carryoverSettings.expense === true) ||
                                (k === 'bora_personal' && carryoverSettings.bora_personal === true) ||
                                (k === 'sang_personal' && carryoverSettings.sang_personal === true) ||
@@ -1613,15 +863,11 @@
             Object.keys(store).forEach(m => {
                 if (m > currentMonth) {
                     if(!store[m].sectionTitles) store[m].sectionTitles = {};
-                    
                     if (isCarryover) {
-                        // 이월이 켜져 있을 때만 미래 달에 동기화
                         store[m].sectionTitles[k] = newTitle;
                         if (k !== 'variable_expense') {
                             store[m].categories[k] = JSON.parse(JSON.stringify(updated));
                         }
-                    } else {
-                        // 이월이 꺼져 있으면 미래 달 자동 반영을 막음 (필요시 기존 데이터 유지 또는 분리)
                     }
                 }
             });
@@ -1664,13 +910,9 @@
             Object.keys(store).forEach(m => {
                 if (m > currentMonth) {
                     if(!store[m].sectionTitles) store[m].sectionTitles = {};
-                    
                     if (isCarryoverEnabled) {
-                        // 이월이 켜져 있을 때만 미래 달에 반영
                         store[m].sectionTitles[k] = newTitle;
                         store[m].categories[k] = JSON.parse(JSON.stringify(updated));
-                    } else {
-                        // 이월이 꺼져 있으면 미래 달 자동 반영을 막음
                     }
                 }
             });
@@ -1694,6 +936,7 @@
 
     function addCategorySetting() {
         const input = document.getElementById('new-cat-input');
+        if (!input) return;
         const val = input.value.trim();
         if (val && !categoryList.includes(val)) {
             categoryList.push(val);
@@ -1733,21 +976,24 @@
     function navigate(page, btn) {
         document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.gnb-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(`page-${page}`).classList.add('active');
+        const targetPage = document.getElementById(`page-${page}`);
+        if(targetPage) targetPage.classList.add('active');
         if(btn) btn.classList.add('active');
 
         const memberTabBar = document.getElementById('member-tab-bar');
         const headerMonthWrapper = document.getElementById('header-month-wrapper');
 
-        if (page === 'dashboard') {
-            memberTabBar.style.display = 'flex';
-            headerMonthWrapper.style.display = 'block';
-        } else if (page === 'monthly') {
-            memberTabBar.style.display = 'none';
-            headerMonthWrapper.style.display = 'block';
-        } else {
-            memberTabBar.style.display = 'none';
-            headerMonthWrapper.style.display = 'none';
+        if (memberTabBar && headerMonthWrapper) {
+            if (page === 'dashboard') {
+                memberTabBar.style.display = 'flex';
+                headerMonthWrapper.style.display = 'block';
+            } else if (page === 'monthly') {
+                memberTabBar.style.display = 'none';
+                headerMonthWrapper.style.display = 'block';
+            } else {
+                memberTabBar.style.display = 'none';
+                headerMonthWrapper.style.display = 'none';
+            }
         }
     }
     window.navigate = navigate;
