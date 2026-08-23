@@ -687,7 +687,20 @@
                     <div class="card-header">
                         <span class="card-title">🔄 데이터 이월 설정</span>
                     </div>
-                    <div style="font-size:11px; color:var(--text-sub); margin-bottom:12px;">항목 수정 시 미래 월로 자동 적용할 범위를 지정합니다.</div>
+                    <div style="font-size:11px; color:var(--text-sub); margin-bottom:12px;">기준 월을 선택한 뒤 이월 여부를 설정하면, 해당 월의 데이터를 기준으로 이후 월에 적용합니다.</div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px;">
+                        <span class="setting-label">기준 월</span>
+                        <select id="carryover-source-month" onchange="window.changeCarryoverSourceMonth(this.value)"
+                                style="border:1px solid var(--border-color); background:white; padding:7px 30px 7px 12px; border-radius:20px; font-size:13px; font-weight:700; color:var(--text-main); outline:none;">
+                            <option value="2026-06">2026.06</option>
+                            <option value="2026-07">2026.07</option>
+                            <option value="2026-08" selected>2026.08</option>
+                            <option value="2026-09">2026.09</option>
+                            <option value="2026-10">2026.10</option>
+                            <option value="2026-11">2026.11</option>
+                            <option value="2026-12">2026.12</option>
+                        </select>
+                    </div>
                     
                     <div class="setting-row">
                         <span class="setting-label">공통 고정지출 이월</span>
@@ -791,7 +804,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyA_xbdI3K1KYa9qCYYd2SN7EJJkLcSLmE4",
@@ -900,6 +913,11 @@
     let currentMonth = '2026-08';
     let currentTab = 'all';
 
+    // 기준 월별 이월 설정
+    let monthlyCarryoverSettings = {};
+    // 미래 월의 어떤 데이터가 어느 기준 월에서 자동 이월된 것인지 기록한다.
+    let carryoverSources = {};
+
     const FIRESTORE_DOC_ID = 'gotgan_data_v1';
 
     function debounce(fn, ms){
@@ -912,7 +930,9 @@
             await setDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
                 store: store,
                 categoryList: categoryList,
-                carryoverSettings: carryoverSettings
+                carryoverSettings: carryoverSettings,
+                monthlyCarryoverSettings: monthlyCarryoverSettings,
+                carryoverSources: carryoverSources
             });
             showToast('저장되었습니다.');
         } catch(e) { 
@@ -922,6 +942,22 @@
     }
     const schedulePersistStore = debounce(persistStore, 500);
 
+    // 자동 정리/보정용 저장: 기존 문서 전체를 덮어쓰지 않고 필요한 필드만 업데이트한다.
+    async function persistStoreSilently() {
+        try {
+            await updateDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
+                store: store,
+                categoryList: categoryList,
+                carryoverSettings: carryoverSettings,
+                monthlyCarryoverSettings: monthlyCarryoverSettings,
+                carryoverSources: carryoverSources
+            });
+        } catch(e) {
+            console.error('자동 저장 실패:', e);
+        }
+    }
+
+
     async function loadAll(){
         try {
             const docSnap = await getDoc(doc(db, "gotgan", FIRESTORE_DOC_ID));
@@ -930,6 +966,8 @@
                 if (data.store) store = data.store;
                 if (data.categoryList) categoryList = data.categoryList;
                 if (data.carryoverSettings) carryoverSettings = { ...carryoverSettings, ...data.carryoverSettings };
+                if (data.monthlyCarryoverSettings) monthlyCarryoverSettings = data.monthlyCarryoverSettings;
+                if (data.carryoverSources) carryoverSources = data.carryoverSources;
             }
         } catch(e) { console.error('불러오기 실패:', e); }
 
@@ -975,6 +1013,7 @@
             globalMonthEl.onchange = (e) => {
                 currentMonth = e.target.value.replace('.', '-');
                 if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+                syncCarryoverSettingsUI();
                 render();
             };
         }
@@ -995,11 +1034,126 @@
         if(savToggle) savToggle.checked = carryoverSettings.savings !== false;
         if(resToggle) resToggle.checked = carryoverSettings.reserve !== false;
 
+        syncCarryoverSettingsUI();
         renderCategorySettings();
         render();
     }
 
-    function updateCarryoverSettings() {
+    function getCarryoverSettingsForMonth(month) {
+        return monthlyCarryoverSettings[month]
+            ? { ...carryoverSettings, ...monthlyCarryoverSettings[month] }
+            : { ...carryoverSettings };
+    }
+
+    function ensureCarryoverSources(month) {
+        if (!carryoverSources[month]) carryoverSources[month] = {};
+        return carryoverSources[month];
+    }
+
+    function syncCarryoverSettingsUI() {
+        const sourceMonthEl = document.getElementById('carryover-source-month');
+        if (sourceMonthEl) sourceMonthEl.value = currentMonth;
+
+        const settings = getCarryoverSettingsForMonth(currentMonth);
+        const map = {
+            expense: 'carryover-expense-toggle',
+            bora_personal: 'carryover-bora-toggle',
+            sang_personal: 'carryover-sang-toggle',
+            living: 'carryover-living-toggle',
+            savings: 'carryover-savings-toggle',
+            reserve: 'carryover-reserve-toggle'
+        };
+
+        Object.entries(map).forEach(([key, id]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (key === 'sang_personal' || key === 'savings' || key === 'reserve') {
+                el.checked = settings[key] !== false;
+            } else {
+                el.checked = settings[key] === true;
+            }
+        });
+    }
+
+    function changeCarryoverSourceMonth(month) {
+        if (!month) return;
+        currentMonth = month;
+        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+
+        const globalMonthEl = document.getElementById('global-month');
+        if (globalMonthEl) globalMonthEl.value = currentMonth;
+
+        syncCarryoverSettingsUI();
+        render();
+    }
+    window.changeCarryoverSourceMonth = changeCarryoverSourceMonth;
+
+    function setCarryoverSource(targetMonth, key, sourceMonth) {
+        ensureCarryoverSources(targetMonth)[key] = sourceMonth;
+    }
+
+    function clearCarryoverSource(targetMonth, key) {
+        if (!carryoverSources[targetMonth]) return;
+        delete carryoverSources[targetMonth][key];
+        if (Object.keys(carryoverSources[targetMonth]).length === 0) {
+            delete carryoverSources[targetMonth];
+        }
+    }
+
+    function applyCarryoverForSourceMonth(sourceMonth, key) {
+        const settings = getCarryoverSettingsForMonth(sourceMonth);
+        const source = store[sourceMonth];
+        if (!source || !source.categories) return;
+
+        Object.keys(store || {}).forEach(m => {
+            if (m <= sourceMonth || !store[m]) return;
+            if (!store[m].categories) store[m].categories = {};
+            if (!store[m].sectionTitles) store[m].sectionTitles = {};
+
+            if (settings[key] === true) {
+                store[m].categories[key] = JSON.parse(JSON.stringify(source.categories[key] || []));
+                store[m].sectionTitles[key] = (source.sectionTitles && source.sectionTitles[key]) || key;
+                setCarryoverSource(m, key, sourceMonth);
+            } else if (carryoverSources[m] && carryoverSources[m][key] === sourceMonth) {
+                // OFF로 바꿀 때는 이 기준 월에서 자동복사된 데이터만 제거한다.
+                store[m].categories[key] = [];
+                store[m].sectionTitles[key] = (source.sectionTitles && source.sectionTitles[key]) || key;
+                clearCarryoverSource(m, key);
+            }
+        });
+    }
+
+    // 공동 생활비 이월 OFF 상태에서 미래 월에 남아 있는 이월 데이터를 정리한다.
+    // 공동 생활비 이월 OFF 상태에서 미래 월에 남아 있는 이월 데이터를 정리한다.
+    // 실제 변경이 발생했는지 boolean으로 반환한다.
+    function clearFutureLivingCarryover() {
+        let changed = false;
+
+        Object.keys(store || {}).forEach(m => {
+            if (m > currentMonth && store[m]) {
+                if (!store[m].categories) store[m].categories = {};
+
+                const existing = store[m].categories.living;
+                if (Array.isArray(existing) && existing.length > 0) {
+                    store[m].categories.living = [];
+                    changed = true;
+                } else if (existing === undefined) {
+                    store[m].categories.living = [];
+                    changed = true;
+                }
+
+                if (!store[m].sectionTitles) store[m].sectionTitles = {};
+                if (store[m].sectionTitles.living !== '공동 생활비') {
+                    store[m].sectionTitles.living = '공동 생활비';
+                    changed = true;
+                }
+            }
+        });
+
+        return changed;
+    }
+
+    async function updateCarryoverSettings() {
         const expToggle = document.getElementById('carryover-expense-toggle');
         const boraToggle = document.getElementById('carryover-bora-toggle');
         const sangToggle = document.getElementById('carryover-sang-toggle');
@@ -1007,9 +1161,7 @@
         const savToggle = document.getElementById('carryover-savings-toggle');
         const resToggle = document.getElementById('carryover-reserve-toggle');
 
-        const previousLivingCarryover = carryoverSettings.living === true;
-
-        carryoverSettings = {
+        const settings = {
             expense: expToggle ? expToggle.checked : false,
             bora_personal: boraToggle ? boraToggle.checked : false,
             sang_personal: sangToggle ? sangToggle.checked : true,
@@ -1018,20 +1170,31 @@
             reserve: resToggle ? resToggle.checked : true
         };
 
-        // 공동 생활비 이월을 OFF로 변경하면,
-        // 현재 월 이후에 이미 이월되어 있던 미래 월의 공동 생활비 데이터를 제거한다.
-        if (previousLivingCarryover && carryoverSettings.living === false) {
-            Object.keys(store).forEach(m => {
-                if (m > currentMonth && store[m] && store[m].categories) {
-                    store[m].categories.living = [];
-                    if (store[m].sectionTitles) {
-                        store[m].sectionTitles.living = '공동 생활비';
-                    }
-                }
+        const previous = getCarryoverSettingsForMonth(currentMonth);
+        monthlyCarryoverSettings[currentMonth] = settings;
+        carryoverSettings = { ...carryoverSettings, ...settings };
+
+        // 선택한 기준 월에서 실제로 변경된 항목만 미래 월에 반영한다.
+        Object.keys(settings).forEach(key => {
+            if (previous[key] !== settings[key]) {
+                applyCarryoverForSourceMonth(currentMonth, key);
+            }
+        });
+
+        try {
+            await updateDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
+                carryoverSettings: carryoverSettings,
+                monthlyCarryoverSettings: monthlyCarryoverSettings,
+                carryoverSources: carryoverSources,
+                store: store
             });
+            showToast('저장되었습니다.');
+        } catch(e) {
+            console.error('설정 저장 실패:', e);
+            showToast('저장에 실패했습니다 (권한 확인 필요)', true);
         }
 
-        persistStore();
+        syncCarryoverSettingsUI();
         render();
     }
     window.updateCarryoverSettings = updateCarryoverSettings;
@@ -1661,22 +1824,31 @@
             });
             store[currentMonth].categories[k] = updated;
 
-            const isCarryover = (k === 'expense' && carryoverSettings.expense === true) ||
-                               (k === 'bora_personal' && carryoverSettings.bora_personal === true) ||
-                               (k === 'sang_personal' && carryoverSettings.sang_personal === true) ||
-                               (k === 'living' && carryoverSettings.living === true);
+            // 사용자가 현재 월을 직접 수정했으므로, 이 월에서 해당 항목이
+            // 다른 달에서 자동 이월된 상태라는 표시는 제거한다.
+            clearCarryoverSource(currentMonth, k);
 
-            Object.keys(store).forEach(m => {
-                if (m > currentMonth) {
-                    if(!store[m].sectionTitles) store[m].sectionTitles = {};
+            if (k !== 'variable_expense') {
+                const sourceSettings = getCarryoverSettingsForMonth(currentMonth);
+                const isCarryover = sourceSettings[k] === true;
+
+                Object.keys(store).forEach(m => {
+                    if (m > currentMonth && !store[m]) return;
+                    if (m <= currentMonth) return;
+
+                    if (!store[m].sectionTitles) store[m].sectionTitles = {};
+
                     if (isCarryover) {
                         store[m].sectionTitles[k] = newTitle;
-                        if (k !== 'variable_expense') {
-                            store[m].categories[k] = JSON.parse(JSON.stringify(updated));
-                        }
+                        store[m].categories[k] = JSON.parse(JSON.stringify(updated));
+                        setCarryoverSource(m, k, currentMonth);
+                    } else if (carryoverSources[m] && carryoverSources[m][k] === currentMonth) {
+                        store[m].categories[k] = [];
+                        store[m].sectionTitles[k] = newTitle;
+                        clearCarryoverSource(m, k);
                     }
-                }
-            });
+                });
+            }
         });
 
         persistStore();
@@ -1705,21 +1877,28 @@
                     updated.push({
                         name: nameInp.value.trim() || '항목',
                         amount: parseNumberString(amountInp.value),
-                        owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared' ) : 'shared'
+                        owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared') : 'shared'
                     });
                 }
             });
             store[currentMonth].categories[k] = updated;
+            clearCarryoverSource(currentMonth, k);
 
-            const isCarryoverEnabled = (k === 'savings' && carryoverSettings.savings === true) || (k === 'reserve' && carryoverSettings.reserve === true);
+            const sourceSettings = getCarryoverSettingsForMonth(currentMonth);
+            const isCarryoverEnabled = sourceSettings[k] === true;
 
             Object.keys(store).forEach(m => {
-                if (m > currentMonth) {
-                    if(!store[m].sectionTitles) store[m].sectionTitles = {};
-                    if (isCarryoverEnabled) {
-                        store[m].sectionTitles[k] = newTitle;
-                        store[m].categories[k] = JSON.parse(JSON.stringify(updated));
-                    }
+                if (m <= currentMonth || !store[m]) return;
+                if (!store[m].sectionTitles) store[m].sectionTitles = {};
+
+                if (isCarryoverEnabled) {
+                    store[m].sectionTitles[k] = newTitle;
+                    store[m].categories[k] = JSON.parse(JSON.stringify(updated));
+                    setCarryoverSource(m, k, currentMonth);
+                } else if (carryoverSources[m] && carryoverSources[m][k] === currentMonth) {
+                    store[m].categories[k] = [];
+                    store[m].sectionTitles[k] = newTitle;
+                    clearCarryoverSource(m, k);
                 }
             });
         });
@@ -1775,6 +1954,7 @@
     function changeMonth(m) {
         currentMonth = m;
         if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
+        syncCarryoverSettingsUI();
         render();
     }
     window.changeMonth = changeMonth;
