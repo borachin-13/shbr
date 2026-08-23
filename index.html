@@ -1006,7 +1006,9 @@
         const livingToggle = document.getElementById('carryover-living-toggle');
         const savToggle = document.getElementById('carryover-savings-toggle');
         const resToggle = document.getElementById('carryover-reserve-toggle');
-        
+
+        const previousLivingCarryover = carryoverSettings.living === true;
+
         carryoverSettings = {
             expense: expToggle ? expToggle.checked : false,
             bora_personal: boraToggle ? boraToggle.checked : false,
@@ -1015,7 +1017,22 @@
             savings: savToggle ? savToggle.checked : true,
             reserve: resToggle ? resToggle.checked : true
         };
+
+        // 공동 생활비 이월을 OFF로 변경하면,
+        // 현재 월 이후에 이미 이월되어 있던 미래 월의 공동 생활비 데이터를 제거한다.
+        if (previousLivingCarryover && carryoverSettings.living === false) {
+            Object.keys(store).forEach(m => {
+                if (m > currentMonth && store[m] && store[m].categories) {
+                    store[m].categories.living = [];
+                    if (store[m].sectionTitles) {
+                        store[m].sectionTitles.living = '공동 생활비';
+                    }
+                }
+            });
+        }
+
         persistStore();
+        render();
     }
     window.updateCarryoverSettings = updateCarryoverSettings;
 
