@@ -348,6 +348,9 @@
             justify-content: center;
         }
         .modal-overlay.open { display: flex; }
+        /* 페이지 스크롤은 항상 유지하고, 모달 내부만 스크롤 */
+        html, body { overflow-y: auto !important; }
+        .modal-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .modal-card {
             background: white;
             width: 100%;
@@ -1719,7 +1722,13 @@
 
     function closeModal() {
         const modal = document.getElementById('custom-modal');
-        if(modal) modal.classList.remove('open');
+        if (modal) modal.classList.remove('open');
+
+        // 모달 닫힌 뒤 페이지 스크롤이 잠기지 않도록 강제 복구
+        document.documentElement.style.overflowY = 'auto';
+        document.body.style.overflowY = 'auto';
+        document.documentElement.style.overflow = 'auto';
+        document.body.style.overflow = 'auto';
     }
     window.closeModal = closeModal;
 
@@ -1973,6 +1982,9 @@
         persistStore();
         render();
         closeModal();
+        // 저장 완료 후에도 스크롤 상태를 다시 보장
+        document.documentElement.style.overflowY = 'auto';
+        document.body.style.overflowY = 'auto';
     }
 
     function saveSavingsModal
@@ -2025,6 +2037,9 @@
         persistStore();
         render();
         closeModal();
+        // 저장 완료 후에도 스크롤 상태를 다시 보장
+        document.documentElement.style.overflowY = 'auto';
+        document.body.style.overflowY = 'auto';
     }
 
     /* [기능 비활성화] 기존 자동 이월 로직 보존용
