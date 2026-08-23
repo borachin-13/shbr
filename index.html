@@ -177,6 +177,17 @@
         .category-tag { background: var(--bg-main); border: 1px solid var(--border-deep); color: var(--text-main); padding: 5px 10px; border-radius: 16px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
         .category-tag span { cursor: pointer; color: var(--expense-color); font-weight: 700; font-size: 12px; }
 
+        /* 토글 스위치 UI 추가 */
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-size: 12px; font-weight: 500; color: var(--text-main); }
+        .toggle-switch { position: relative; display: inline-block; width: 42px; height: 22px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 22px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
         .gnb { position: fixed; bottom: 0; width: 100%; max-width: 440px; background: #fff; display: flex; border-top: 1px solid var(--border); height: 56px; z-index: 100; }
         .gnb-btn { flex: 1; border: none; background: none; font-size: 11px; color: var(--text-sub); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .gnb-btn.active { color: var(--accent); font-weight: 600; }
@@ -294,6 +305,27 @@
 
     <!-- 설정 페이지 -->
     <section id="page-settings" class="page-view" style="padding: 12px;">
+        <!-- 선택적 이월 설정 카드 추가 -->
+        <div class="card" style="margin:0 0 10px 0;">
+            <div class="setting-section-title">🔄 월별 데이터 이월 설정</div>
+            <div style="font-size:11px; color:var(--text-sub); margin-bottom:10px;">항목 수정 시 미래 월로 자동 이월시킬 범위를 선택합니다.</div>
+            
+            <div class="toggle-row">
+                <span class="toggle-label">고정 저축 이월</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="carryover-savings-toggle" onchange="window.updateCarryoverSettings()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <span class="toggle-label">비상금(남겨둘 돈) 이월</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="carryover-reserve-toggle" onchange="window.updateCarryoverSettings()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
         <div class="card" style="margin:0 0 10px 0;">
             <div class="setting-section-title">🏷️ 변동 지출 카테고리 설정</div>
             <div class="setting-input-group">
@@ -391,6 +423,12 @@
 
     const DEFAULT_CATEGORIES = ['식비', '생필품', '경조사', '기타'];
     let categoryList = DEFAULT_CATEGORIES.slice();
+    
+    // 이월 기본 옵션 설정값 (기본값 둘 다 ON)
+    let carryoverSettings = {
+        savings: true,
+        reserve: true
+    };
 
     const DEFAULT_MONTH_DATA = () => ({
         bora: 0, bora_extra: 0, sang: 0, trip_usd: 0, 
@@ -457,7 +495,8 @@
         try {
             await setDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
                 store: store,
-                categoryList: categoryList
+                categoryList: categoryList,
+                carryoverSettings: carryoverSettings
             });
         } catch(e) { console.error('Firestore 저장 실패:', e); }
     }
@@ -470,6 +509,7 @@
                 const data = docSnap.data();
                 if (data.store) store = data.store;
                 if (data.categoryList) categoryList = data.categoryList;
+                if (data.carryoverSettings) carryoverSettings = data.carryoverSettings;
             }
         } catch(e) { console.error('Firestore 불러오기 실패:', e); }
 
@@ -512,6 +552,13 @@
         fetchExchangeRate();
         if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         document.getElementById('global-month').value = currentMonth;
+        
+        // 이월 설정 스위치 UI 동기화
+        const savToggle = document.getElementById('carryover-savings-toggle');
+        const resToggle = document.getElementById('carryover-reserve-toggle');
+        if(savToggle) savToggle.checked = carryoverSettings.savings !== false;
+        if(resToggle) resToggle.checked = carryoverSettings.reserve !== false;
+
         renderCategorySettings();
         render();
         setTimeout(() => {
@@ -519,6 +566,17 @@
             if(pwEl) pwEl.focus();
         }, 100);
     }
+
+    function updateCarryoverSettings() {
+        const savToggle = document.getElementById('carryover-savings-toggle');
+        const resToggle = document.getElementById('carryover-reserve-toggle');
+        carryoverSettings = {
+            savings: savToggle ? savToggle.checked : true,
+            reserve: resToggle ? resToggle.checked : true
+        };
+        persistStore();
+    }
+    window.updateCarryoverSettings = updateCarryoverSettings;
 
     function sumCat(items) { return (items || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0); }
 
@@ -1180,11 +1238,21 @@
             });
             store[currentMonth].categories[k] = updated;
 
+            // 👉 핵심 수정: 미래 월 이월 처리 시 설정값(carryoverSettings) 참조
             Object.keys(store).forEach(m => {
                 if (m > currentMonth) {
                     if(!store[m].sectionTitles) store[m].sectionTitles = {};
                     store[m].sectionTitles[k] = newTitle;
-                    store[m].categories[k] = JSON.parse(JSON.stringify(updated));
+
+                    // 스위치 설정에 따른 이월 금액 처리
+                    const isCarryoverEnabled = (k === 'savings' && carryoverSettings.savings) || (k === 'reserve' && carryoverSettings.reserve);
+                    
+                    if (isCarryoverEnabled) {
+                        store[m].categories[k] = JSON.parse(JSON.stringify(updated));
+                    } else {
+                        // 이월 옵션 OFF 상태면 금액을 0으로 만들어 구조만 이월
+                        store[m].categories[k] = updated.map(item => ({ ...item, amount: 0 }));
+                    }
                 }
             });
         });
@@ -1269,7 +1337,6 @@
             try { await deleteDoc(doc(db, "gotgan", FIRESTORE_DOC_ID)); } catch(e){}
             categoryList = DEFAULT_CATEGORIES.slice();
             
-            // 👉 수정 완료: DEFAULT_STORE 오타를 해결하고 전체 월 데이터를 깔끔하게 초기화합니다.
             store = {
                 '2026-06': DEFAULT_MONTH_DATA(),
                 '2026-07': DEFAULT_MONTH_DATA(),
