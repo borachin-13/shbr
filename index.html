@@ -13,6 +13,8 @@
             --border: #e2e8f0;
             --accent: #2563eb;
             --accent-light: #eff6ff;
+            --expense-color: #dc2626;
+            --savings-color: #16a34a;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -32,15 +34,17 @@
 
         .summary-card { padding: 20px; border-bottom: 1px solid var(--border); background: #fff; }
         .summary-title { font-size: 12px; color: var(--text-sub); font-weight: 600; margin-bottom: 4px; }
-        .summary-main { font-size: 24px; font-weight: 800; color: var(--accent); margin-bottom: 12px; }
+        .summary-main { font-size: 24px; font-weight: 800; color: var(--savings-color); margin-bottom: 12px; }
 
         .progress-container { background: var(--bg-main); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 16px; }
-        .progress-bar { background: var(--accent); height: 100%; width: 0%; transition: width 0.3s; }
+        .progress-bar { background: var(--savings-color); height: 100%; width: 0%; transition: width 0.3s; }
 
         .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .kpi-box { background: var(--bg-main); padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
         .kpi-box-title { font-size: 11px; color: var(--text-sub); font-weight: 600; }
         .kpi-box-val { font-size: 15px; font-weight: 700; margin-top: 4px; }
+        .kpi-box-val.expense { color: var(--expense-color); }
+        .kpi-box-val.savings { color: var(--savings-color); }
 
         .tab-group { display: flex; border-bottom: 1px solid var(--border); background: #fff; }
         .tab-btn { flex: 1; padding: 12px 0; border: none; background: none; font-size: 13px; font-weight: 600; color: var(--text-sub); cursor: pointer; border-bottom: 2px solid transparent; }
@@ -51,6 +55,8 @@
         .card-title { font-size: 14px; font-weight: 700; }
         .btn-link { font-size: 12px; color: var(--accent); font-weight: 600; cursor: pointer; background: none; border: none; }
 
+        .section-tag { font-size: 12px; font-weight: 700; color: var(--text-sub); margin: 20px 16px 8px 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+
         .ai-advice-box { background: var(--accent-light); border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 14px; margin-top: 14px; }
         .ai-advice-title { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
         .ai-advice-body { font-size: 12px; color: #1e3a8a; line-height: 1.4; }
@@ -60,7 +66,6 @@
         .input-box input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-weight: 700; background: var(--bg-main); }
         .fx-info { font-size: 10px; color: var(--accent); font-weight: 600; margin-top: 3px; }
 
-        /* 접기/펼치기 아코디언 스타일 */
         .accordion-item { border-bottom: 1px dashed var(--border); }
         .accordion-item:last-child { border-bottom: none; }
         .accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; cursor: pointer; user-select: none; }
@@ -70,13 +75,14 @@
         .accordion-item.open .accordion-icon { transform: rotate(180deg); }
         .accordion-content { display: none; padding: 8px 12px; background: var(--bg-main); border-radius: 6px; margin-bottom: 8px; }
         .accordion-item.open .accordion-content { display: block; }
-        .sub-item-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; color: var(--text-sub); }
+        .sub-item-row { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; border-bottom: 1px solid rgba(0,0,0,0.03); color: var(--text-sub); }
+        .sub-item-row:last-child { border-bottom: none; }
         .sub-item-row span:last-child { font-weight: 600; color: var(--text-main); }
 
         .chart-container { display: flex; align-items: flex-end; justify-content: space-between; height: 120px; padding: 10px 10px 0; margin-top: 10px; border-bottom: 1px solid var(--border); }
         .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
         .bar-wrapper { width: 18px; background: var(--bg-main); height: 80px; border-radius: 4px; display: flex; align-items: flex-end; overflow: hidden; }
-        .bar-fill { width: 100%; background: var(--accent); border-radius: 4px; transition: height 0.3s ease; }
+        .bar-fill { width: 100%; background: var(--savings-color); border-radius: 4px; transition: height 0.3s ease; }
         .bar-label { font-size: 10px; color: var(--text-sub); font-weight: 600; }
 
         .month-accordion { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; background: #fff; overflow: hidden; }
@@ -85,22 +91,36 @@
         .month-details { display: none; padding: 12px 14px; background: var(--bg-main); border-top: 1px solid var(--border); font-size: 12px; }
         .month-accordion.open .month-details { display: block; }
 
+        /* 모달 공통 디자인 (헤더/풋터 Fixed 적용 구조) */
         .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0, 0, 0, 0.4); z-index: 200; justify-content: center; align-items: flex-end; }
         .modal-overlay.active { display: flex; }
-        .modal-content { width: 100%; max-width: 440px; background: #fff; border-radius: 16px 16px 0 0; padding: 20px; max-height: 80vh; overflow-y: auto; }
+        
+        .modal-content { 
+            width: 100%; max-width: 440px; background: #fff; border-radius: 16px 16px 0 0; 
+            height: 85vh; display: flex; flex-direction: column; position: relative; overflow: hidden; 
+        }
+        .modal-header-fixed { padding: 16px 20px; border-bottom: 1px solid var(--border); background: #fff; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .modal-body-scroll { flex: 1; overflow-y: auto; padding: 20px; background: var(--bg-main); }
+        .modal-footer-fixed { padding: 14px 20px; border-top: 1px solid var(--border); background: #fff; flex-shrink: 0; }
 
-        .cat-group { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+        .modal-section-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .modal-section-heading { font-size: 13px; font-weight: 800; color: var(--text-main); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+        
+        .cat-group { margin-bottom: 12px; background: var(--bg-main); padding: 10px; border-radius: 8px; border: 1px solid var(--border); }
+        .cat-group:last-child { margin-bottom: 0; }
         .cat-title { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
-        .sub-row { display: flex; gap: 8px; margin-bottom: 6px; }
-        .sub-row input[type="text"] { flex: 2; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
-        .sub-row input[type="number"] { flex: 1; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; text-align: right; font-weight: 700; }
+        
+        .sub-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; width: 100%; }
+        .sub-row input[type="text"].inp-name { flex: 1 1 auto; min-width: 0; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: #fff; }
+        .sub-row input[type="number"].inp-amount { flex: 0 0 75px; min-width: 75px; padding: 6px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; text-align: right; font-weight: 700; background: #fff; }
+        .sub-row button { flex: 0 0 24px; border: none; background: none; color: var(--text-sub); cursor: pointer; padding: 2px; font-weight: 700; text-align: center; }
 
         .gnb { position: fixed; bottom: 0; width: 100%; max-width: 440px; background: #fff; display: flex; border-top: 1px solid var(--border); height: 56px; z-index: 100; }
         .gnb-btn { flex: 1; border: none; background: none; font-size: 11px; color: var(--text-sub); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .gnb-btn.active { color: var(--accent); font-weight: 700; }
         .gnb-btn span { font-size: 16px; margin-bottom: 2px; }
 
-        .btn-action { width: 100%; padding: 11px; background: var(--text-main); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 12px; }
+        .btn-action { width: 100%; padding: 11px; background: var(--text-main); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
         .page-view { display: none; }
         .page-view.active { display: block; }
     </style>
@@ -136,7 +156,7 @@
                 </div>
                 <div class="kpi-box">
                     <div class="kpi-box-title">총지출</div>
-                    <div class="kpi-box-val" id="kpi-expense">0만원</div>
+                    <div class="kpi-box-val expense" id="kpi-expense">0만원</div>
                 </div>
             </div>
         </div>
@@ -148,17 +168,28 @@
         </div>
 
         <div class="card">
-            <div class="card-header"><span class="card-title">이번 달 수입</span></div>
+            <div class="card-header"><span class="card-title">이번 달 수입 입력</span></div>
             <div id="income-field-container"></div>
         </div>
 
-        <div class="card">
+        <!-- 1. 지출 부류 (지출 항목 관리 + 통합된 변동 생활비) -->
+        <div class="section-tag">💸 지출 영역</div>
+        <div class="card" style="margin-top: 8px;">
             <div class="card-header">
-                <span class="card-title">지출 및 배분 현황</span>
-                <button class="btn-link" onclick="openModal(currentMonth)">세부 항목 수정 ⚙</button>
+                <span class="card-title">지출 항목 관리</span>
+                <button class="btn-link" onclick="openExpenseModal(currentMonth)">고정비 수정 ⚙</button>
             </div>
-            
-            <div id="flow-accordion-container"></div>
+            <div id="expense-accordion-container"></div>
+        </div>
+
+        <!-- 2. 저축 및 자산 부류 -->
+        <div class="section-tag">💰 저축 및 자산 영역</div>
+        <div class="card" style="margin-top: 8px;">
+            <div class="card-header">
+                <span class="card-title">저축 및 잔액 배분</span>
+                <button class="btn-link" onclick="openSavingsModal(currentMonth)">저축 항목 수정 ⚙</button>
+            </div>
+            <div id="savings-accordion-container"></div>
 
             <div class="ai-advice-box">
                 <div class="ai-advice-title">💡 재무관리자 한 줄 팁</div>
@@ -181,19 +212,49 @@
         <div class="card" style="margin:0;">
             <div class="card-header"><span class="card-title">데이터 백업/복원</span></div>
             <button class="btn-action" onclick="exportData()">데이터 내보내기 (JSON)</button>
-            <button class="btn-action" style="background:#64748b;" onclick="resetData()">초기화</button>
+            <button class="btn-action" style="background:#64748b; margin-top:10px;" onclick="resetData()">초기화</button>
         </div>
     </section>
 
-    <!-- 세부 수정 모달 -->
-    <div class="modal-overlay" id="modal-editor">
+    <!-- [모달 1] 고정 및 생활비 지출 수정 팝업 -->
+    <div class="modal-overlay" id="modal-expense-editor">
         <div class="modal-content">
-            <div class="card-header">
-                <span class="card-title" id="modal-target-title">세부 지출 항목 조정</span>
-                <button class="btn-link" style="color:var(--text-sub);" onclick="closeModal()">✕ 닫기</button>
+            <div class="modal-header-fixed">
+                <span class="card-title" id="expense-modal-title">고정 지출 및 생활비 관리</span>
+                <button class="btn-link" style="color:var(--text-sub);" onclick="closeModal('modal-expense-editor')">✕ 닫기</button>
             </div>
-            <div id="category-editor-container"></div>
-            <button class="btn-action" onclick="saveCategoryDetails()">저장 및 반영</button>
+            <div class="modal-body-scroll" id="expense-editor-container"></div>
+            <div class="modal-footer-fixed">
+                <button class="btn-action" onclick="saveExpenseDetails()">지출 내역 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- [모달 2] 저축 및 비상금 전용 팝업 -->
+    <div class="modal-overlay" id="modal-savings-editor">
+        <div class="modal-content">
+            <div class="modal-header-fixed">
+                <span class="card-title" id="savings-modal-title">저축 및 잔액 배분 조정</span>
+                <button class="btn-link" style="color:var(--text-sub);" onclick="closeModal('modal-savings-editor')">✕ 닫기</button>
+            </div>
+            <div class="modal-body-scroll" id="savings-editor-container"></div>
+            <div class="modal-footer-fixed">
+                <button class="btn-action" onclick="saveSavingsDetails()">저축 내역 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- [모달 3] 변동 지출 타임라인 추가 및 관리 팝업 -->
+    <div class="modal-overlay" id="modal-variable-editor">
+        <div class="modal-content">
+            <div class="modal-header-fixed">
+                <span class="card-title">📅 날짜별 변동 지출 관리</span>
+                <button class="btn-link" style="color:var(--text-sub);" onclick="closeModal('modal-variable-editor')">✕ 닫기</button>
+            </div>
+            <div class="modal-body-scroll" id="variable-editor-container"></div>
+            <div class="modal-footer-fixed">
+                <button class="btn-action" onclick="saveVariableDetails()">변동 지출 저장</button>
+            </div>
         </div>
     </div>
 
@@ -208,7 +269,6 @@
 <script>
     let usdRate = 1380; 
 
-    // 세부 항목명 구조 정의 + 초기 금액은 모두 0
     const DEFAULT_MONTH_DATA = () => ({
         bora: 0, sang: 0, trip_usd: 0, 
         categories: {
@@ -237,12 +297,13 @@
                 { name: '재산세', amount: 0 },
                 { name: '상훈 용돈', amount: 0 }
             ],
+            living: [
+                { name: '공동 생활비 계획', amount: 0 }
+            ],
+            variable_expense: [],
             savings: [
                 { name: '보라 청년계좌', amount: 0 },
                 { name: '상훈 청년계좌', amount: 0 }
-            ],
-            living: [
-                { name: '공동 생활비 계획', amount: 0 }
             ],
             reserve: [
                 { name: '남겨둘 돈(비상금)', amount: 0 }
@@ -258,20 +319,36 @@
         '2026-12': DEFAULT_MONTH_DATA()
     };
 
-    // 저장 키값 V5로 갱신하여 최신 세부 항목 노출 구조 보장
-    let store = JSON.parse(localStorage.getItem('MY_2026_FINANCE_V5')) || DEFAULT_STORE;
+    let store = JSON.parse(localStorage.getItem('MY_2026_FINANCE_V8')) || DEFAULT_STORE;
     let currentMonth = '2026-08';
     let editingTargetMonth = '2026-08';
     let currentTab = 'all';
 
     async function fetchExchangeRate() {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const savedRateData = JSON.parse(localStorage.getItem('MY_2026_EXCHANGE_RATE'));
+
+        if (savedRateData && savedRateData.date === todayStr && savedRateData.rate) {
+            usdRate = savedRateData.rate;
+            render();
+            return;
+        }
+
         try {
             const res = await fetch('https://open.er-api.com/v6/latest/USD');
             const data = await res.json();
-            if(data && data.rates && data.rates.KRW) {
+            if (data && data.rates && data.rates.KRW) {
                 usdRate = Math.round(data.rates.KRW);
+                localStorage.setItem('MY_2026_EXCHANGE_RATE', JSON.stringify({
+                    date: todayStr,
+                    rate: usdRate
+                }));
             }
-        } catch(e) {}
+        } catch(e) {
+            if (savedRateData && savedRateData.rate) {
+                usdRate = savedRateData.rate;
+            }
+        }
         render();
     }
 
@@ -298,9 +375,10 @@
         const savSum = sumCat(d.categories.savings);
         const livSum = sumCat(d.categories.living);
         const resSum = sumCat(d.categories.reserve);
+        const varSum = sumCat(d.categories.variable_expense);
 
         let activeIncome = totalInc;
-        let activeExpense = expSum + boraExp + sangExp + savSum + livSum + resSum;
+        let activeExpense = expSum + boraExp + sangExp + livSum + varSum;
 
         if (currentTab === 'all') {
             document.getElementById('kpi-target-label').innerText = '우리 집 총 추가 저축 가능액';
@@ -329,7 +407,7 @@
                 </div>`;
         }
 
-        const activeSavings = Math.max(activeIncome - activeExpense, 0);
+        const activeSavings = Math.max(activeIncome - activeExpense - savSum - resSum, 0);
 
         document.getElementById('kpi-income').innerText = `${activeIncome.toLocaleString()}만원`;
         document.getElementById('kpi-expense').innerText = `${activeExpense.toFixed(1)}만원`;
@@ -338,56 +416,102 @@
         const pct = totalInc > 0 ? Math.min(Math.round((activeSavings / totalInc) * 100), 100) : 0;
         document.getElementById('savings-progress').style.width = `${pct}%`;
 
-        // 지출 및 배분 현황 접기/펼치기 아코디언 강제 렌더링
-        renderFlowAccordion(d.categories);
+        renderSplitAccordions(d.categories);
 
-        document.getElementById('ai-advice-text').innerHTML = `기본 고정지출/저축 배분 후 추가 저축 가능액은 <b>${activeSavings.toFixed(1)}만원</b>입니다.`;
+        document.getElementById('ai-advice-text').innerHTML = `고정지출 및 생활비를 제외하고 남은 예산 중 <b>${activeSavings.toFixed(1)}만원</b>을 추가 저축할 수 있습니다.`;
 
         renderChartAndMonthly();
     }
 
-    function renderFlowAccordion(categories) {
-        const flowContainer = document.getElementById('flow-accordion-container');
-        flowContainer.innerHTML = '';
+    function renderSplitAccordions(categories) {
+        const expenseContainer = document.getElementById('expense-accordion-container');
+        const savingsContainer = document.getElementById('savings-accordion-container');
+        
+        expenseContainer.innerHTML = '';
+        savingsContainer.innerHTML = '';
 
-        // 기본 카테고리가 비어있는 경우 디폴트 서식 적용
         const defaultCats = DEFAULT_MONTH_DATA().categories;
         const currentCats = categories || defaultCats;
 
-        const catLabels = {
-            expense: { label: '공통 고정지출', items: currentCats.expense && currentCats.expense.length ? currentCats.expense : defaultCats.expense },
-            bora_personal: { label: '보라 개인 지출 (고정+용돈)', items: currentCats.bora_personal && currentCats.bora_personal.length ? currentCats.bora_personal : defaultCats.bora_personal },
-            sang_personal: { label: '상훈 개인 지출 (고정+용돈)', items: currentCats.sang_personal && currentCats.sang_personal.length ? currentCats.sang_personal : defaultCats.sang_personal },
-            savings: { label: '고정 저축', items: currentCats.savings && currentCats.savings.length ? currentCats.savings : defaultCats.savings },
-            living: { label: '공동 생활비', items: currentCats.living && currentCats.living.length ? currentCats.living : defaultCats.living },
-            reserve: { label: '비상금 (남겨둘 돈)', items: currentCats.reserve && currentCats.reserve.length ? currentCats.reserve : defaultCats.reserve }
+        // 지출 부류 목록
+        const expenseKeys = ['expense', 'bora_personal', 'sang_personal', 'living', 'variable_expense'];
+        const expenseLabels = {
+            expense: '공통 고정지출',
+            bora_personal: '보라 개인 지출 (고정+용돈)',
+            sang_personal: '상훈 개인 지출 (고정+용돈)',
+            living: '공동 생활비',
+            variable_expense: '📅 날짜별 변동 지출 (타임라인)'
         };
 
-        Object.keys(catLabels).forEach(key => {
-            const group = catLabels[key];
-            const sum = sumCat(group.items);
-
+        expenseKeys.forEach(key => {
+            const items = currentCats[key] || defaultCats[key];
+            const sum = sumCat(items);
             let subItemsHtml = '';
-            group.items.forEach(item => {
+            
+            if (key === 'variable_expense') {
+                if (items.length === 0) {
+                    subItemsHtml += `<div style="font-size:11px; color:var(--text-sub); padding:4px 0;">등록된 내역이 없습니다.</div>`;
+                } else {
+                    items.forEach(item => {
+                        subItemsHtml += `
+                            <div class="sub-item-row">
+                                <span style="color:var(--accent); font-weight:600;">[${item.date || '날짜미상'}] ${item.name || '지출내역'}</span>
+                                <span style="color:var(--expense-color); font-weight:700;">-${(Number(item.amount) || 0).toFixed(1)}만원</span>
+                            </div>`;
+                    });
+                }
+                // 변동 지출 항목 안에서 바로 추가할 수 있는 버튼 제공
                 subItemsHtml += `
-                    <div class="sub-item-row">
-                        <span>${item.name || '항목'}</span>
-                        <span>${(Number(item.amount) || 0).toFixed(1)}만원</span>
+                    <div style="margin-top:8px; text-align:right;">
+                        <button class="btn-link" onclick="openVariableExpenseModal()">내역 추가 / 관리 +</button>
                     </div>`;
-            });
+            } else {
+                if (items.length === 0) {
+                    subItemsHtml = '<div style="font-size:11px; color:var(--text-sub);">등록된 내역이 없습니다.</div>';
+                } else {
+                    items.forEach(item => {
+                        subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${(Number(item.amount) || 0).toFixed(1)}만원</span></div>`;
+                    });
+                }
+            }
 
-            flowContainer.innerHTML += `
+            expenseContainer.innerHTML += `
                 <div class="accordion-item" id="acc-flow-${key}">
                     <div class="accordion-header" onclick="toggleFlowAccordion('${key}')">
-                        <span class="accordion-title">${group.label}</span>
+                        <span class="accordion-title">${expenseLabels[key]}</span>
                         <div class="accordion-val">
-                            <span>${sum.toFixed(1)}만원</span>
+                            <span style="${key === 'variable_expense' ? 'color:var(--expense-color);' : ''}">${sum.toFixed(1)}만원</span>
                             <span class="accordion-icon">▾</span>
                         </div>
                     </div>
-                    <div class="accordion-content">
-                        ${subItemsHtml}
+                    <div class="accordion-content">${subItemsHtml}</div>
+                </div>`;
+        });
+
+        const savingsKeys = ['savings', 'reserve'];
+        const savingsLabels = {
+            savings: '고정 저축',
+            reserve: '비상금 (남겨둘 돈)'
+        };
+
+        savingsKeys.forEach(key => {
+            const items = currentCats[key] || defaultCats[key];
+            const sum = sumCat(items);
+            let subItemsHtml = items.length === 0 ? '<div style="font-size:11px; color:var(--text-sub);">등록된 내역이 없습니다.</div>' : '';
+            items.forEach(item => {
+                subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${(Number(item.amount) || 0).toFixed(1)}만원</span></div>`;
+            });
+
+            savingsContainer.innerHTML += `
+                <div class="accordion-item" id="acc-flow-${key}">
+                    <div class="accordion-header" onclick="toggleFlowAccordion('${key}')">
+                        <span class="accordion-title">${savingsLabels[key]}</span>
+                        <div class="accordion-val">
+                            <span style="color:var(--savings-color);">${sum.toFixed(1)}만원</span>
+                            <span class="accordion-icon">▾</span>
+                        </div>
                     </div>
+                    <div class="accordion-content">${subItemsHtml}</div>
                 </div>`;
         });
     }
@@ -410,8 +534,8 @@
             const d = store[m] || DEFAULT_MONTH_DATA();
             const tripKrw = Math.round(((d.trip_usd || 0) * usdRate) / 10000);
             const inc = (d.bora || 0) + (d.sang || 0) + tripKrw;
-            const exp = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.savings) + sumCat(d.categories.living) + sumCat(d.categories.reserve);
-            const sav = Math.max(inc - exp, 0);
+            const exp = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
+            const sav = Math.max(inc - exp - sumCat(d.categories.savings) - sumCat(d.categories.reserve), 0);
             if(sav > maxSav) maxSav = sav;
         });
 
@@ -422,10 +546,12 @@
             const expSum = sumCat(d.categories.expense);
             const boraExp = sumCat(d.categories.bora_personal);
             const sangExp = sumCat(d.categories.sang_personal);
-            const totalExp = expSum + boraExp + sangExp + sumCat(d.categories.savings) + sumCat(d.categories.living) + sumCat(d.categories.reserve);
-            const sav = Math.max(inc - totalExp, 0);
+            const livSum = sumCat(d.categories.living);
+            const varExp = sumCat(d.categories.variable_expense);
+            const totalExp = expSum + boraExp + sangExp + livSum + varExp;
+            const totalSav = Math.max(inc - totalExp - sumCat(d.categories.savings) - sumCat(d.categories.reserve), 0);
 
-            const heightPct = maxSav > 0 ? Math.round((sav / maxSav) * 100) : 0;
+            const heightPct = maxSav > 0 ? Math.round((totalSav / maxSav) * 100) : 0;
             chartContainer.innerHTML += `
                 <div class="bar-col">
                     <div class="bar-wrapper"><div class="bar-fill" style="height:${heightPct}%;"></div></div>
@@ -437,20 +563,16 @@
                     <div class="month-header" onclick="toggleAccordion('${m}')">
                         <div>
                             <div style="font-size:14px; font-weight:700;">2026년 ${m.split('-')[1]}월</div>
-                            <div style="font-size:11px; color:var(--text-sub); margin-top:2px;">수입 ${inc}만 | 배정 지출 ${totalExp.toFixed(1)}만</div>
+                            <div style="font-size:11px; color:var(--text-sub); margin-top:2px;">수입 ${inc}만 | 총지출 ${totalExp.toFixed(1)}만</div>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-size:14px; font-weight:800; color:var(--accent);">${sav.toFixed(1)}만원 저축</div>
+                            <div style="font-size:14px; font-weight:800; color:var(--savings-color);">${totalSav.toFixed(1)}만원 저축</div>
                             <div style="font-size:10px; color:var(--text-sub);">상세보기 ▾</div>
                         </div>
                     </div>
                     <div class="month-details">
-                        <div class="sub-item-row"><span>공통 고정지출</span><span>${expSum.toFixed(1)}만원</span></div>
-                        <div class="sub-item-row"><span>보라 개인 지출</span><span>${boraExp.toFixed(1)}만원</span></div>
-                        <div class="sub-item-row"><span>상훈 개인 지출</span><span>${sangExp.toFixed(1)}만원</span></div>
-                        <div style="text-align:right; margin-top:8px;">
-                            <button class="btn-link" onclick="openModal('${m}')">세부 항목 수정 ⚙</button>
-                        </div>
+                        <div class="sub-item-row"><span>총 지출액</span><span>${totalExp.toFixed(1)}만원</span></div>
+                        <div class="sub-item-row"><span>변동 지출 건수</span><span>${(d.categories.variable_expense || []).length}건</span></div>
                     </div>
                 </div>`;
         });
@@ -458,78 +580,224 @@
 
     function toggleAccordion(m) { document.getElementById(`acc-${m}`).classList.toggle('open'); }
 
-    function openModal(targetMonth) {
+    // --- [모달 1] 고정 및 생활비 지출 수정 팝업 ---
+    function openExpenseModal(targetMonth) {
         editingTargetMonth = targetMonth || currentMonth;
-        document.getElementById('modal-target-title').innerText = `${editingTargetMonth} 세부 지출 항목 조정`;
-        renderModalEditor();
-        document.getElementById('modal-editor').classList.add('active');
+        document.getElementById('expense-modal-title').innerText = `${editingTargetMonth} 고정 지출 및 생활비 관리`;
+        renderExpenseEditor();
+        document.getElementById('modal-expense-editor').classList.add('active');
     }
 
-    function closeModal() { document.getElementById('modal-editor').classList.remove('active'); }
-
-    function renderModalEditor() {
+    function renderExpenseEditor() {
         const targetData = store[editingTargetMonth] || DEFAULT_MONTH_DATA();
         const cats = targetData.categories;
-        const container = document.getElementById('category-editor-container');
+        const container = document.getElementById('expense-editor-container');
         container.innerHTML = '';
 
-        const catLabels = { 
-            expense: '공통 고정지출', 
-            bora_personal: '보라 개인 지출 (고정+용돈)', 
-            sang_personal: '상훈 개인 지출 (고정+용돈)', 
-            savings: '고정 저축', 
-            living: '공동 생활비',
-            reserve: '비상금 (남겨둘 돈)' 
-        };
+        const expenseSections = [
+            { key: 'expense', label: '공통 고정지출' },
+            { key: 'bora_personal', label: '보라 개인 지출 (고정+용돈)' },
+            { key: 'sang_personal', label: '상훈 개인 지출 (고정+용돈)' },
+            { key: 'living', label: '공동 생활비' }
+        ];
 
-        Object.keys(catLabels).forEach(k => {
+        let html = `<div class="modal-section-card"><div class="modal-section-heading">💸 고정지출 및 생활비 항목</div>`;
+        
+        expenseSections.forEach(sec => {
+            const k = sec.key;
             if(!cats[k]) cats[k] = [];
-            let html = `<div class="cat-group" data-cat="${k}"><div class="cat-title">${catLabels[k]}</div>`;
+            html += `<div class="cat-group" data-expense-cat="${k}"><div class="cat-title">${sec.label}</div>`;
+            
             cats[k].forEach((item, idx) => {
                 html += `
-                    <div class="sub-row">
-                        <input type="text" value="${item.name}" class="inp-name" placeholder="항목명">
+                    <div class="sub-row" data-index="${idx}">
+                        <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
                         <input type="number" value="${item.amount !== undefined ? item.amount : ''}" class="inp-amount" placeholder="0" step="0.1">
-                        <button style="border:none; background:none; color:var(--text-sub); cursor:pointer;" onclick="removeSub('${k}', ${idx})">✕</button>
+                        <button onclick="removeExpenseSub('${k}', ${idx})">✕</button>
                     </div>`;
             });
-            html += `<button style="font-size:11px; background:none; border:none; color:var(--accent); cursor:pointer; font-weight:600;" onclick="addSub('${k}')">+ 항목 추가</button></div>`;
-            container.innerHTML += html;
+            html += `<button style="font-size:11px; background:none; border:none; color:var(--accent); cursor:pointer; font-weight:600; margin-top:6px;" onclick="addExpenseSub('${k}')">+ 항목 추가</button></div>`;
         });
+        html += `</div>`;
+        container.innerHTML = html;
     }
 
-    function addSub(k) { 
+    function addExpenseSub(k) { 
         if(!store[editingTargetMonth].categories[k]) store[editingTargetMonth].categories[k] = [];
-        store[editingTargetMonth].categories[k].push({ name: '', amount: 0 }); 
-        renderModalEditor(); 
+        store[editingTargetMonth].categories[k].push({ name: '', amount: 0 });
+        renderExpenseEditor(); 
     }
     
-    function removeSub(k, i) { store[editingTargetMonth].categories[k].splice(i, 1); renderModalEditor(); }
+    function removeExpenseSub(k, i) { store[editingTargetMonth].categories[k].splice(i, 1); renderExpenseEditor(); }
 
-    function saveCategoryDetails() {
-        document.querySelectorAll('.cat-group').forEach(group => {
-            const k = group.getAttribute('data-cat');
-            const names = group.querySelectorAll('.inp-name');
-            const amounts = group.querySelectorAll('.inp-amount');
+    function saveExpenseDetails() {
+        document.querySelectorAll('#expense-editor-container .cat-group').forEach(group => {
+            const k = group.getAttribute('data-expense-cat');
+            const rows = group.querySelectorAll('.sub-row');
 
             const updated = [];
-            names.forEach((inp, i) => { 
-                if(inp.value.trim() !== '') {
-                    updated.push({ name: inp.value || '항목', amount: Number(amounts[i].value) || 0 }); 
+            rows.forEach(row => {
+                const nameInp = row.querySelector('.inp-name');
+                const amountInp = row.querySelector('.inp-amount');
+
+                if (nameInp.value.trim() !== '') {
+                    updated.push({
+                        name: nameInp.value.trim() || '항목',
+                        amount: Number(amountInp.value) || 0
+                    });
                 }
             });
             store[editingTargetMonth].categories[k] = updated;
         });
 
-        localStorage.setItem('MY_2026_FINANCE_V5', JSON.stringify(store));
+        localStorage.setItem('MY_2026_FINANCE_V8', JSON.stringify(store));
         render();
-        closeModal();
+        closeModal('modal-expense-editor');
     }
+
+    // --- [모달 3] 변동 지출 타임라인 관리 전용 팝업 ---
+    function openVariableExpenseModal(targetMonth) {
+        editingTargetMonth = targetMonth || currentMonth;
+        renderVariableEditor();
+        document.getElementById('modal-variable-editor').classList.add('active');
+    }
+
+    function renderVariableEditor() {
+        const targetData = store[editingTargetMonth] || DEFAULT_MONTH_DATA();
+        const items = targetData.categories.variable_expense || [];
+        const container = document.getElementById('variable-editor-container');
+        
+        let html = `<div class="modal-section-card"><div class="modal-section-heading">📅 날짜별 변동 지출 내역 관리</div>`;
+        html += `<div class="cat-group" data-expense-cat="variable_expense">`;
+        
+        items.forEach((item, idx) => {
+            html += `
+                <div class="sub-row" data-index="${idx}">
+                    <input type="text" value="${item.date || ''}" class="inp-date" placeholder="날짜" style="flex:0 0 60px; padding:6px 4px; border:1px solid var(--border); border-radius:6px; font-size:11px; text-align:center; background:#fff;">
+                    <input type="text" value="${item.name || ''}" class="inp-name" placeholder="지출 내용">
+                    <input type="number" value="${item.amount !== undefined ? item.amount : ''}" class="inp-amount" placeholder="0" step="0.1">
+                    <button onclick="removeVariableSub(${idx})">✕</button>
+                </div>`;
+        });
+        html += `<button style="font-size:11px; background:none; border:none; color:var(--accent); cursor:pointer; font-weight:600; margin-top:6px;" onclick="addVariableSub()">+ 변동 지출 추가</button></div></div>`;
+        container.innerHTML = html;
+    }
+
+    function addVariableSub() {
+        if(!store[editingTargetMonth].categories.variable_expense) store[editingTargetMonth].categories.variable_expense = [];
+        store[editingTargetMonth].categories.variable_expense.push({ date: '', name: '', amount: 0 });
+        renderVariableEditor();
+    }
+
+    function removeVariableSub(i) {
+        store[editingTargetMonth].categories.variable_expense.splice(i, 1);
+        renderVariableEditor();
+    }
+
+    function saveVariableDetails() {
+        const group = document.querySelector('#variable-editor-container .cat-group');
+        const rows = group.querySelectorAll('.sub-row');
+        const updated = [];
+
+        rows.forEach(row => {
+            const dateInp = row.querySelector('.inp-date');
+            const nameInp = row.querySelector('.inp-name');
+            const amountInp = row.querySelector('.inp-amount');
+
+            if (nameInp.value.trim() !== '' || Number(amountInp.value) > 0) {
+                updated.push({
+                    date: dateInp ? dateInp.value.trim() : '',
+                    name: nameInp.value.trim() || '변동 지출',
+                    amount: Number(amountInp.value) || 0
+                });
+            }
+        });
+
+        store[editingTargetMonth].categories.variable_expense = updated;
+        localStorage.setItem('MY_2026_FINANCE_V8', JSON.stringify(store));
+        render();
+        closeModal('modal-variable-editor');
+    }
+
+    // --- [모달 2] 저축 및 비상금 전용 팝업 ---
+    function openSavingsModal(targetMonth) {
+        editingTargetMonth = targetMonth || currentMonth;
+        document.getElementById('savings-modal-title').innerText = `${editingTargetMonth} 저축 항목 관리`;
+        renderSavingsEditor();
+        document.getElementById('modal-savings-editor').classList.add('active');
+    }
+
+    function renderSavingsEditor() {
+        const targetData = store[editingTargetMonth] || DEFAULT_MONTH_DATA();
+        const cats = targetData.categories;
+        const container = document.getElementById('savings-editor-container');
+        container.innerHTML = '';
+
+        const savingsSections = [
+            { key: 'savings', label: '고정 저축' },
+            { key: 'reserve', label: '비상금 (남겨둘 돈)' }
+        ];
+
+        let html = `<div class="modal-section-card"><div class="modal-section-heading">💰 저축 및 자산 영역</div>`;
+        
+        savingsSections.forEach(sec => {
+            const k = sec.key;
+            if(!cats[k]) cats[k] = [];
+            html += `<div class="cat-group" data-savings-cat="${k}"><div class="cat-title">${sec.label}</div>`;
+            
+            cats[k].forEach((item, idx) => {
+                html += `
+                    <div class="sub-row" data-index="${idx}">
+                        <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
+                        <input type="number" value="${item.amount !== undefined ? item.amount : ''}" class="inp-amount" placeholder="0" step="0.1">
+                        <button onclick="removeSavingsSub('${k}', ${idx})">✕</button>
+                    </div>`;
+            });
+            html += `<button style="font-size:11px; background:none; border:none; color:var(--accent); cursor:pointer; font-weight:600; margin-top:6px;" onclick="addSavingsSub('${k}')">+ 항목 추가</button></div>`;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+    }
+
+    function addSavingsSub(k) { 
+        if(!store[editingTargetMonth].categories[k]) store[editingTargetMonth].categories[k] = [];
+        store[editingTargetMonth].categories[k].push({ name: '', amount: 0 });
+        renderSavingsEditor(); 
+    }
+    
+    function removeSavingsSub(k, i) { store[editingTargetMonth].categories[k].splice(i, 1); renderSavingsEditor(); }
+
+    function saveSavingsDetails() {
+        document.querySelectorAll('#savings-editor-container .cat-group').forEach(group => {
+            const k = group.getAttribute('data-savings-cat');
+            const rows = group.querySelectorAll('.sub-row');
+
+            const updated = [];
+            rows.forEach(row => {
+                const nameInp = row.querySelector('.inp-name');
+                const amountInp = row.querySelector('.inp-amount');
+
+                if (nameInp.value.trim() !== '') {
+                    updated.push({
+                        name: nameInp.value.trim() || '항목',
+                        amount: Number(amountInp.value) || 0
+                    });
+                }
+            });
+            store[editingTargetMonth].categories[k] = updated;
+        });
+
+        localStorage.setItem('MY_2026_FINANCE_V8', JSON.stringify(store));
+        render();
+        closeModal('modal-savings-editor');
+    }
+
+    function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
 
     function updateIncome(k, v) {
         if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         store[currentMonth][k] = Number(v) || 0;
-        localStorage.setItem('MY_2026_FINANCE_V5', JSON.stringify(store));
+        localStorage.setItem('MY_2026_FINANCE_V8', JSON.stringify(store));
         render();
     }
 
@@ -561,7 +829,7 @@
 
     function resetData() {
         if(confirm('모든 데이터를 초기 설정으로 되돌리시겠습니까?')) {
-            localStorage.removeItem('MY_2026_FINANCE_V5');
+            localStorage.removeItem('MY_2026_FINANCE_V8');
             store = JSON.parse(JSON.stringify(DEFAULT_STORE));
             render();
         }
