@@ -31,30 +31,29 @@
 
         html {
             width: 100%;
-            min-height: 100%;
-            overflow-x: hidden;
-            overflow-y: auto;
+            height: 100%;
+            overflow: hidden;
             background-color: var(--bg-color);
-            scrollbar-gutter: stable;
         }
 
         body {
             width: 100%;
-            min-height: 100vh;
+            height: 100%;
             margin: 0;
-            overflow-x: hidden;
-            overflow-y: auto;
+            overflow: hidden;
             background-color: var(--bg-color);
             color: var(--text-main);
-            scrollbar-gutter: stable;
         }
 
         #app-container {
             width: 100%;
             max-width: 480px;
+            height: 100vh;
             min-height: 100vh;
-            height: auto;
             margin: 0 auto;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-gutter: stable;
             background-color: var(--bg-color);
             display: block;
             position: relative;
@@ -697,73 +696,6 @@
 
             <!-- 3. 설정 페이지 -->
             <div id="page-settings" class="page-view">
-<!-- [기능 비활성화] 데이터 이월 설정
-
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">🔄 데이터 이월 설정</span>
-                    </div>
-                    <div style="font-size:11px; color:var(--text-sub); margin-bottom:12px;">기준 월을 선택한 뒤 이월 여부를 설정하면, 해당 월의 데이터를 기준으로 이후 월에 적용합니다.</div>
-                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px;">
-                        <span class="setting-label">기준 월</span>
-                        <select id="carryover-source-month" onchange="window.changeCarryoverSourceMonth(this.value)"
-                                style="border:1px solid var(--border-color); background:white; padding:7px 30px 7px 12px; border-radius:20px; font-size:13px; font-weight:700; color:var(--text-main); outline:none;">
-                            <option value="2026-06">2026.06</option>
-                            <option value="2026-07">2026.07</option>
-                            <option value="2026-08" selected>2026.08</option>
-                            <option value="2026-09">2026.09</option>
-                            <option value="2026-10">2026.10</option>
-                            <option value="2026-11">2026.11</option>
-                            <option value="2026-12">2026.12</option>
-                        </select>
-                    </div>
-                    
-                    <div class="setting-row">
-                        <span class="setting-label">공통 고정지출 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-expense-toggle" onchange="window.updateCarryoverSettings()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">보라 개인 지출 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-bora-toggle" onchange="window.updateCarryoverSettings()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">상훈 개인 지출 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-sang-toggle" onchange="window.updateCarryoverSettings()" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">공동 생활비 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-living-toggle" onchange="window.updateCarryoverSettings()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">고정 저축 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-savings-toggle" onchange="window.updateCarryoverSettings()" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">비상금(남겨둘 돈) 이월</span>
-                        <label class="switch">
-                            <input type="checkbox" id="carryover-reserve-toggle" onchange="window.updateCarryoverSettings()" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-
-                
-끝: 데이터 이월 설정 -->
 <div class="card">
                     <div class="card-header">
                         <span class="card-title">🏷️ 변동 지출 카테고리 관리</span>
@@ -822,7 +754,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyA_xbdI3K1KYa9qCYYd2SN7EJJkLcSLmE4",
@@ -896,18 +828,9 @@
 
     const DEFAULT_CATEGORIES = ['식비', '생필품', '경조사', '기타'];
     let categoryList = DEFAULT_CATEGORIES.slice();
-    
-    let carryoverSettings = {
-        expense: false,
-        bora_personal: false,
-        sang_personal: true,
-        living: false,
-        savings: true,
-        reserve: true
-    };
 
     const DEFAULT_MONTH_DATA = () => ({
-        bora: 0, bora_extra: 0, sang: 0, trip_usd: 0, 
+        bora: 0, bora_extra: 0, sang: 0, trip_usd: 0,
         sectionTitles: {
             expense: '공통 고정지출',
             bora_personal: '보라 개인 지출',
@@ -927,126 +850,167 @@
         }
     });
 
-    let store = null;
+    let store = {};
     let currentMonth = '2026-08';
     let currentTab = 'all';
 
-    // 기준 월별 이월 설정
-    let monthlyCarryoverSettings = {};
-    // 미래 월의 어떤 데이터가 어느 기준 월에서 자동 이월된 것인지 기록한다.
-    let carryoverSources = {};
+    // 이월 기능은 최종 버전에서 제거했다. 월별 데이터는 서로 독립적이다.
+    const LEGACY_DOC_ID = 'gotgan_data_v1';
+    const META_DOC_ID = 'settings_v1';
+    // 기존 Firebase 보안 규칙을 그대로 사용할 수 있도록 같은 gotgan 컬렉션 안에서 분리한다.
+    const MONTH_COLLECTION = 'gotgan';
+    const META_COLLECTION = 'gotgan';
+    const BASE_MONTHS = ['2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12'];
+    const monthSaveQueues = new Map();
 
-    const FIRESTORE_DOC_ID = 'gotgan_data_v1';
-
-    function debounce(fn, ms){
-        let t = null;
-        return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    function getMonthKeys() {
+        const select = document.getElementById('global-month');
+        const fromUi = select ? Array.from(select.options).map(o => o.value.replace('.', '-')) : [];
+        const fromStore = Object.keys(store || {});
+        return Array.from(new Set([...BASE_MONTHS, ...fromUi, ...fromStore])).filter(Boolean).sort();
     }
 
-    async function persistStore(){
-        try {
-            await setDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
-                store: store,
-                categoryList: categoryList,
-                carryoverSettings: carryoverSettings,
-                monthlyCarryoverSettings: monthlyCarryoverSettings,
-                carryoverSources: carryoverSources
+    function cloneData(value) {
+        return JSON.parse(JSON.stringify(value));
+    }
+
+    function queueMonthWrite(month, writer) {
+        const previous = monthSaveQueues.get(month) || Promise.resolve();
+        const next = previous.catch(() => {}).then(writer);
+        monthSaveQueues.set(month, next.finally(() => {
+            if (monthSaveQueues.get(month) === next) monthSaveQueues.delete(month);
+        }));
+        return next;
+    }
+
+    function expandPatch(patch) {
+        const result = {};
+        Object.entries(patch).forEach(([path, value]) => {
+            const parts = path.split('.');
+            let cursor = result;
+            parts.forEach((part, index) => {
+                if (index === parts.length - 1) {
+                    cursor[part] = value;
+                } else {
+                    cursor[part] = cursor[part] || {};
+                    cursor = cursor[part];
+                }
             });
-            showToast('저장되었습니다.');
-        } catch(e) { 
-            console.error('저장 실패:', e); 
-            showToast('저장에 실패했습니다 (권한 확인 필요)', true);
-        }
-    }
-    const schedulePersistStore = debounce(persistStore, 500);
-
-    // 자동 정리/보정용 저장: 기존 문서 전체를 덮어쓰지 않고 필요한 필드만 업데이트한다.
-    async function persistStoreSilently() {
-        try {
-            await updateDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
-                store: store,
-                categoryList: categoryList,
-                carryoverSettings: carryoverSettings,
-                monthlyCarryoverSettings: monthlyCarryoverSettings,
-                carryoverSources: carryoverSources
-            });
-        } catch(e) {
-            console.error('자동 저장 실패:', e);
-        }
+        });
+        return result;
     }
 
-
-    async function loadAll(){
-        try {
-            const docSnap = await getDoc(doc(db, "gotgan", FIRESTORE_DOC_ID));
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                if (data.store) store = data.store;
-                if (data.categoryList) categoryList = data.categoryList;
-                if (data.carryoverSettings) carryoverSettings = { ...carryoverSettings, ...data.carryoverSettings };
-                if (data.monthlyCarryoverSettings) monthlyCarryoverSettings = data.monthlyCarryoverSettings;
-                if (data.carryoverSources) carryoverSources = data.carryoverSources;
-            }
-        } catch(e) { console.error('불러오기 실패:', e); }
-
-        if (!store) {
-            store = {};
-            ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
-                store[m] = DEFAULT_MONTH_DATA();
-            });
-        }
-    }
-
-    /* [기능 비활성화] migrateLegacyCarryoverSettings 보존용
-    function migrateLegacyCarryoverSettings() {
-        // 이전 버전은 carryoverSettings 하나만 저장했으므로,
-        // 월별 설정이 없으면 현재 기준 월에 기존 설정을 최초 기준값으로 등록한다.
-        if (!monthlyCarryoverSettings || Object.keys(monthlyCarryoverSettings).length === 0) {
-            monthlyCarryoverSettings = {};
-        }
-
-        if (!monthlyCarryoverSettings[currentMonth]) {
-            monthlyCarryoverSettings[currentMonth] = { ...carryoverSettings };
-        }
-    }
-    */
-
-
-    // [일회성 데이터 정리]
-    // 이월 기능을 비활성화하면서 과거에 중복 저장된 공통 고정지출을 정리한다.
-    // 2026.06의 값을 남기고 2026.07~2026.09의 중복값만 비운다.
-    async function cleanupLegacySharedExpenseDuplicates() {
-        if (!store) return;
-
-        const sourceMonth = '2026-06';
-        const duplicateMonths = ['2026-07', '2026-08', '2026-09'];
-        let changed = false;
-
-        duplicateMonths.forEach(month => {
-            if (!store[month] || !store[month].categories) return;
-
-            const current = store[month].categories.expense;
-            if (Array.isArray(current) && current.length > 0) {
-                store[month].categories.expense = [];
-                if (!store[month].sectionTitles) store[month].sectionTitles = {};
-                store[month].sectionTitles.expense = '공통 고정지출';
-                changed = true;
+    async function saveMonthPatch(month, patch, successMessage = '저장되었습니다.') {
+        if (!month) return false;
+        const safeMonth = month;
+        return queueMonthWrite(safeMonth, async () => {
+            const ref = doc(db, MONTH_COLLECTION, `month_${safeMonth}`);
+            try {
+                const snap = await getDoc(ref);
+                const expanded = expandPatch(patch);
+                if (!snap.exists()) {
+                    const base = cloneData(store[safeMonth] || DEFAULT_MONTH_DATA());
+                    await setDoc(ref, {
+                        ...base,
+                        ...expanded,
+                        createdAt: Date.now(),
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                } else {
+                    await setDoc(ref, {
+                        ...expanded,
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                }
+                showToast(successMessage);
+                return true;
+            } catch (e) {
+                console.error('월별 데이터 저장 실패:', e);
+                showToast('저장에 실패했습니다. 인터넷 연결을 확인해주세요.', true);
+                return false;
             }
         });
+    }
 
-        if (changed) {
-            try {
-                await setDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
-                    store: store,
-                    categoryList: categoryList,
-                    carryoverSettings: carryoverSettings
-                });
-                console.log('과거 중복 공통 고정지출 데이터를 정리했습니다.');
-            } catch (e) {
-                console.error('과거 중복 데이터 정리 저장 실패:', e);
-            }
+
+    async function saveCategoryList() {
+        try {
+            await setDoc(doc(db, META_COLLECTION, META_DOC_ID), {
+                categoryList: categoryList,
+                updatedAt: Date.now()
+            }, { merge: true });
+            showToast('저장되었습니다.');
+            return true;
+        } catch (e) {
+            console.error('설정 저장 실패:', e);
+            showToast('설정 저장에 실패했습니다.', true);
+            return false;
         }
     }
+
+    async function loadAll() {
+        let legacyStore = null;
+        let legacyCategories = null;
+        let categoryLoaded = false;
+
+        // 새 구조를 먼저 읽는다.
+        try {
+            const metaSnap = await getDoc(doc(db, META_COLLECTION, META_DOC_ID));
+            if (metaSnap.exists()) {
+                const meta = metaSnap.data();
+                if (Array.isArray(meta.categoryList) && meta.categoryList.length) { categoryList = meta.categoryList; categoryLoaded = true; }
+            }
+        } catch (e) {
+            console.error('설정 불러오기 실패:', e);
+        }
+
+        try {
+            const legacySnap = await getDoc(doc(db, 'gotgan', LEGACY_DOC_ID));
+            if (legacySnap.exists()) {
+                const legacy = legacySnap.data();
+                legacyStore = legacy.store || null;
+                legacyCategories = Array.isArray(legacy.categoryList) ? legacy.categoryList : null;
+                if (!categoryLoaded && legacyCategories && legacyCategories.length) { categoryList = legacyCategories; categoryLoaded = true; }
+            }
+        } catch (e) {
+            console.error('기존 데이터 확인 실패:', e);
+        }
+
+        store = {};
+        const months = Array.from(new Set([...BASE_MONTHS, ...Object.keys(legacyStore || {})])).sort();
+        for (const month of months) {
+            try {
+                const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${month}`));
+                if (snap.exists()) {
+                    store[month] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
+                    if (!store[month].categories) store[month].categories = DEFAULT_MONTH_DATA().categories;
+                    continue;
+                }
+
+                // 새 문서가 없을 때만 구버전 데이터를 해당 월 문서로 안전하게 1회 이관한다.
+                if (legacyStore && legacyStore[month]) {
+                    const migrated = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacyStore[month]) };
+                    if (!migrated.categories) migrated.categories = DEFAULT_MONTH_DATA().categories;
+                    store[month] = migrated;
+                    await setDoc(doc(db, MONTH_COLLECTION, `month_${month}`), {
+                        ...cloneData(migrated),
+                        migratedFromLegacy: true,
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                }
+            } catch (e) {
+                console.error(`${month} 불러오기 실패:`, e);
+            }
+        }
+
+        if (!categoryLoaded && legacyCategories && legacyCategories.length) { categoryList = legacyCategories; categoryLoaded = true; }
+        if (!categoryList.length) categoryList = DEFAULT_CATEGORIES.slice();
+
+        for (const month of BASE_MONTHS) {
+            if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
+        }
+    }
+
 
     async function init() {
         const authBadge = document.getElementById('auth-status-badge');
@@ -1058,7 +1022,7 @@
                 authBadge.style.color = '#22543d';
             }
         } catch (err) {
-            console.error("익명 로그인 실패:", err);
+            console.error('익명 로그인 실패:', err);
             if(authBadge) {
                 authBadge.innerText = '인증 실패';
                 authBadge.style.background = '#fed7d7';
@@ -1068,268 +1032,22 @@
 
         await fetchExchangeRate();
         await loadAll();
-        await cleanupLegacySharedExpenseDuplicates();
 
-        // 이전 버전 데이터 마이그레이션
-
-        // 저장된 월별 이월 설정으로 기존 데이터를 먼저 재정리
-
-        // 정리된 결과와 마이그레이션된 설정을 저장
-
-        // [수정] 상단 월 선택 드롭다운(global-month) 값과 currentMonth 연동
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) {
-            // HTML 인풋의 값이 YYYY.MM 형식이거나 YYYY-MM 형태일 수 있으므로 포맷 보정
-            if (globalMonthEl.value) {
-                currentMonth = globalMonthEl.value.replace('.', '-');
-            } else {
-                globalMonthEl.value = currentMonth;
-            }
-            
-            globalMonthEl.onchange = (e) => {
+            if (globalMonthEl.value) currentMonth = globalMonthEl.value.replace('.', '-');
+            else globalMonthEl.value = currentMonth;
+            globalMonthEl.onchange = async (e) => {
                 currentMonth = e.target.value.replace('.', '-');
                 if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-
                 render();
             };
         }
 
         if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-        
-        const expToggle = document.getElementById('carryover-expense-toggle');
-        const boraToggle = document.getElementById('carryover-bora-toggle');
-        const sangToggle = document.getElementById('carryover-sang-toggle');
-        const livingToggle = document.getElementById('carryover-living-toggle');
-        const savToggle = document.getElementById('carryover-savings-toggle');
-        const resToggle = document.getElementById('carryover-reserve-toggle');
-        
-        if(expToggle) expToggle.checked = carryoverSettings.expense === true;
-        if(boraToggle) boraToggle.checked = carryoverSettings.bora_personal === true;
-        if(sangToggle) sangToggle.checked = carryoverSettings.sang_personal !== false;
-        if(livingToggle) livingToggle.checked = carryoverSettings.living === true;
-        if(savToggle) savToggle.checked = carryoverSettings.savings !== false;
-        if(resToggle) resToggle.checked = carryoverSettings.reserve !== false;
-
         renderCategorySettings();
         render();
     }
-
-    /* [기능 비활성화] getCarryoverSettingsForMonth 보존용
-    function getCarryoverSettingsForMonth(month) {
-        return monthlyCarryoverSettings[month]
-            ? { ...carryoverSettings, ...monthlyCarryoverSettings[month] }
-            : { ...carryoverSettings };
-    }
-    */
-
-    // 저장된 월별 이월 설정을 기준으로 전체 월 데이터를 다시 맞춘다.
-    // 각 항목은 가장 최근에 명시된 기준 월의 ON/OFF를 따른다.
-    /* [기능 비활성화] reconcileAllCarryovers 보존용
-    function reconcileAllCarryovers() {
-        if (!store) return;
-
-        const months = Object.keys(store).sort();
-        const keys = ['expense', 'bora_personal', 'sang_personal', 'living', 'savings', 'reserve'];
-
-        keys.forEach(key => {
-            let activeSourceMonth = null;
-            let carryEnabled = false;
-
-            months.forEach(month => {
-                const monthSettings = monthlyCarryoverSettings[month];
-                if (monthSettings && Object.prototype.hasOwnProperty.call(monthSettings, key)) {
-                    activeSourceMonth = month;
-                    carryEnabled = monthSettings[key] === true;
-                }
-
-                if (!activeSourceMonth || month === activeSourceMonth || !store[activeSourceMonth]) return;
-
-                if (!store[month].categories) store[month].categories = {};
-                if (!store[month].sectionTitles) store[month].sectionTitles = {};
-
-                if (carryEnabled) {
-                    store[month].categories[key] =
-                        JSON.parse(JSON.stringify(store[activeSourceMonth].categories[key] || []));
-                    store[month].sectionTitles[key] =
-                        (store[activeSourceMonth].sectionTitles && store[activeSourceMonth].sectionTitles[key]) || key;
-                    setCarryoverSource(month, key, activeSourceMonth);
-                } else {
-                    store[month].categories[key] = [];
-                    store[month].sectionTitles[key] =
-                        (store[activeSourceMonth].sectionTitles && store[activeSourceMonth].sectionTitles[key]) || key;
-                    clearCarryoverSource(month, key);
-                }
-            });
-        });
-    }
-    */
-
-    /* [기능 비활성화] ensureCarryoverSources 보존용
-    function ensureCarryoverSources(month) {
-        if (!carryoverSources[month]) carryoverSources[month] = {};
-        return carryoverSources[month];
-    }
-    */
-
-    /* [기능 비활성화] syncCarryoverSettingsUI 보존용
-    function syncCarryoverSettingsUI() {
-        const sourceMonthEl = document.getElementById('carryover-source-month');
-        if (sourceMonthEl) sourceMonthEl.value = currentMonth;
-
-        const settings = getCarryoverSettingsForMonth(currentMonth);
-        const map = {
-            expense: 'carryover-expense-toggle',
-            bora_personal: 'carryover-bora-toggle',
-            sang_personal: 'carryover-sang-toggle',
-            living: 'carryover-living-toggle',
-            savings: 'carryover-savings-toggle',
-            reserve: 'carryover-reserve-toggle'
-        };
-
-        Object.entries(map).forEach(([key, id]) => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            if (key === 'sang_personal' || key === 'savings' || key === 'reserve') {
-                el.checked = settings[key] !== false;
-            } else {
-                el.checked = settings[key] === true;
-            }
-        });
-    }
-    */
-
-    /* [기능 비활성화] changeCarryoverSourceMonth 보존용
-    function changeCarryoverSourceMonth(month) {
-        if (!month) return;
-        currentMonth = month;
-        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-
-        const globalMonthEl = document.getElementById('global-month');
-        if (globalMonthEl) globalMonthEl.value = currentMonth;
-
-        render();
-    }
-    window.changeCarryoverSourceMonth = changeCarryoverSourceMonth;
-    */
-
-    /* [기능 비활성화] setCarryoverSource 보존용
-    function setCarryoverSource(targetMonth, key, sourceMonth) {
-        ensureCarryoverSources(targetMonth)[key] = sourceMonth;
-    }
-    */
-
-    /* [기능 비활성화] clearCarryoverSource 보존용
-    function clearCarryoverSource(targetMonth, key) {
-        if (!carryoverSources[targetMonth]) return;
-        delete carryoverSources[targetMonth][key];
-        if (Object.keys(carryoverSources[targetMonth]).length === 0) {
-            delete carryoverSources[targetMonth];
-        }
-    }
-    */
-
-    /* [기능 비활성화] applyCarryoverForSourceMonth 보존용
-    function applyCarryoverForSourceMonth(sourceMonth, key) {
-        const settings = getCarryoverSettingsForMonth(sourceMonth);
-        const source = store[sourceMonth];
-        if (!source || !source.categories) return;
-
-        Object.keys(store || {}).forEach(m => {
-            if (m <= sourceMonth || !store[m]) return;
-            if (!store[m].categories) store[m].categories = {};
-            if (!store[m].sectionTitles) store[m].sectionTitles = {};
-
-            if (settings[key] === true) {
-                store[m].categories[key] = JSON.parse(JSON.stringify(source.categories[key] || []));
-                store[m].sectionTitles[key] = (source.sectionTitles && source.sectionTitles[key]) || key;
-                setCarryoverSource(m, key, sourceMonth);
-            } else {
-                // OFF이면 출처 메타데이터 유무와 관계없이
-                // 기준 월 이후의 해당 항목을 모두 비운다.
-                store[m].categories[key] = [];
-                store[m].sectionTitles[key] = (source.sectionTitles && source.sectionTitles[key]) || key;
-                clearCarryoverSource(m, key);
-            }
-        });
-    }
-    */
-
-    // 공동 생활비 이월 OFF 상태에서 미래 월에 남아 있는 이월 데이터를 정리한다.
-    // 공동 생활비 이월 OFF 상태에서 미래 월에 남아 있는 이월 데이터를 정리한다.
-    // 실제 변경이 발생했는지 boolean으로 반환한다.
-    /* [기능 비활성화] clearFutureLivingCarryover 보존용
-    function clearFutureLivingCarryover() {
-        let changed = false;
-
-        Object.keys(store || {}).forEach(m => {
-            if (m > currentMonth && store[m]) {
-                if (!store[m].categories) store[m].categories = {};
-
-                const existing = store[m].categories.living;
-                if (Array.isArray(existing) && existing.length > 0) {
-                    store[m].categories.living = [];
-                    changed = true;
-                } else if (existing === undefined) {
-                    store[m].categories.living = [];
-                    changed = true;
-                }
-
-                if (!store[m].sectionTitles) store[m].sectionTitles = {};
-                if (store[m].sectionTitles.living !== '공동 생활비') {
-                    store[m].sectionTitles.living = '공동 생활비';
-                    changed = true;
-                }
-            }
-        });
-
-        return changed;
-    }
-    */
-
-    /* [기능 비활성화] updateCarryoverSettings 보존용
-    async function updateCarryoverSettings() {
-        const expToggle = document.getElementById('carryover-expense-toggle');
-        const boraToggle = document.getElementById('carryover-bora-toggle');
-        const sangToggle = document.getElementById('carryover-sang-toggle');
-        const livingToggle = document.getElementById('carryover-living-toggle');
-        const savToggle = document.getElementById('carryover-savings-toggle');
-        const resToggle = document.getElementById('carryover-reserve-toggle');
-
-        const settings = {
-            expense: expToggle ? expToggle.checked : false,
-            bora_personal: boraToggle ? boraToggle.checked : false,
-            sang_personal: sangToggle ? sangToggle.checked : true,
-            living: livingToggle ? livingToggle.checked : false,
-            savings: savToggle ? savToggle.checked : true,
-            reserve: resToggle ? resToggle.checked : true
-        };
-
-        monthlyCarryoverSettings[currentMonth] = { ...settings };
-        carryoverSettings = { ...carryoverSettings, ...settings };
-
-        // 기준 월의 현재 설정을 모든 항목에 다시 적용한다.
-        // OFF였더라도 기존에 남아 있는 미래 데이터를 정리한다.
-        Object.keys(settings).forEach(key => {
-            applyCarryoverForSourceMonth(currentMonth, key);
-        });
-
-        try {
-            await updateDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
-                carryoverSettings: carryoverSettings,
-                monthlyCarryoverSettings: monthlyCarryoverSettings,
-                carryoverSources: carryoverSources,
-                store: store
-            });
-            showToast('저장되었습니다.');
-        } catch(e) {
-            console.error('설정 저장 실패:', e);
-            showToast('저장에 실패했습니다 (권한 확인 필요)', true);
-        }
-
-        render();
-    }
-    window.updateCarryoverSettings = updateCarryoverSettings;
-    */
 
     function toggleIncomeCard() {
         const body = document.getElementById('income-body-container');
@@ -1438,11 +1156,14 @@
         const rawNum = parseNumberString(inputEl.value);
         if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         store[currentMonth][key] = rawNum;
-        
         inputEl.value = rawNum ? rawNum.toLocaleString() : '';
-        
-        schedulePersistStore();
         updateKPIAndChartsOnly();
+
+        // 월급은 해당 필드만 서버에 저장한다. 다른 기기의 최신 월급/지출을 덮어쓰지 않는다.
+        saveMonthPatch(currentMonth, {
+            [key]: rawNum,
+            updatedAt: Date.now()
+        });
     }
     window.handleIncomeInput = handleIncomeInput;
 
@@ -1926,28 +1647,28 @@
     }
     window.removeSubModalRow = removeSubModalRow;
 
-    /* [기능 비활성화] 기존 자동 이월 로직 보존용
     function restorePageScroll() {
-        // 모달이 닫힌 뒤 페이지 스크롤을 브라우저 기본 상태로 복구
+        // 모달 종료 후 페이지 스크롤 잠금이 남지 않도록 복구한다.
         document.documentElement.style.removeProperty('overflow');
         document.documentElement.style.removeProperty('overflow-y');
         document.body.style.removeProperty('overflow');
         document.body.style.removeProperty('overflow-y');
-
-        // 혹시 남아 있는 잠금 class도 제거
         document.documentElement.classList.remove('modal-open', 'no-scroll', 'overflow-hidden');
         document.body.classList.remove('modal-open', 'no-scroll', 'overflow-hidden');
     }
     window.restorePageScroll = restorePageScroll;
 
     function saveExpenseModal() {
+        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        const changedPatch = {};
+
         document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
             const k = group.getAttribute('data-expense-cat');
             if (!k) return;
             const titleInp = group.querySelector('.cat-title-inp');
             const rows = group.querySelectorAll('.sub-row');
-
             if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
+
             const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
             store[currentMonth].sectionTitles[k] = newTitle;
 
@@ -1958,8 +1679,8 @@
                     const catInp = row.querySelector('.inp-cat');
                     const nameInp = row.querySelector('.inp-name');
                     const amountInp = row.querySelector('.inp-amount');
-                    const wonAmount = parseNumberString(amountInp.value);
-                    if (nameInp.value.trim() !== '' || wonAmount > 0) {
+                    const wonAmount = parseNumberString(amountInp ? amountInp.value : '');
+                    if ((nameInp && nameInp.value.trim() !== '') || wonAmount > 0) {
                         updated.push({
                             date: dateInp ? dateInp.value : '',
                             category: catInp ? catInp.value : (categoryList[0] || '식비'),
@@ -1970,113 +1691,37 @@
                 } else {
                     const nameInp = row.querySelector('.inp-name');
                     const amountInp = row.querySelector('.inp-amount');
-                    if (nameInp.value.trim() !== '') {
+                    if (nameInp && nameInp.value.trim() !== '') {
                         updated.push({
                             name: nameInp.value.trim() || '항목',
-                            amount: parseNumberString(amountInp.value)
-                        });
-                    }
-                }
-            });
-            store[currentMonth].categories[k] = updated;
-
-            // 사용자가 현재 월을 직접 수정했으므로, 이 월에서 해당 항목이
-            // 다른 달에서 자동 이월된 상태라는 표시는 제거한다.
-            clearCarryoverSource(currentMonth, k);
-
-            if (k !== 'variable_expense') {
-                const sourceSettings = getCarryoverSettingsForMonth(currentMonth);
-                const isCarryover = sourceSettings[k] === true;
-
-                Object.keys(store).forEach(m => {
-                    if (m > currentMonth && !store[m]) return;
-                    if (m <= currentMonth) return;
-
-                    if (!store[m].sectionTitles) store[m].sectionTitles = {};
-
-                    if (isCarryover) {
-                        store[m].sectionTitles[k] = newTitle;
-                        store[m].categories[k] = JSON.parse(JSON.stringify(updated));
-                        setCarryoverSource(m, k, currentMonth);
-                    } else {
-                        store[m].categories[k] = [];
-                        store[m].sectionTitles[k] = newTitle;
-                        clearCarryoverSource(m, k);
-                    }
-                });
-            }
-        });
-        closeModal();
-        restorePageScroll();
-        persistStore();
-        render();
-        restorePageScroll();
-
-        // 저장 완료 후에도 스크롤 상태를 다시 보장
-    }
-
-    function saveSavingsModal
-    */
-
-    // 월별 데이터는 서로 독립적으로 저장한다.
-    function saveExpenseModal() {
-        document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
-            const k = group.getAttribute('data-expense-cat');
-            if (!k) return;
-
-            const titleInp = group.querySelector('.cat-title-inp');
-            const rows = group.querySelectorAll('.sub-row');
-
-            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
-            const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
-            store[currentMonth].sectionTitles[k] = newTitle;
-
-            const updated = [];
-            rows.forEach(row => {
-                if (k === 'variable_expense') {
-                    const dateInp = row.querySelector('.inp-date');
-                    const catInp = row.querySelector('.inp-cat');
-                    const nameInp = row.querySelector('.inp-name');
-                    const amountInp = row.querySelector('.inp-amount');
-                    const wonAmount = parseNumberString(amountInp.value);
-                    if (nameInp.value.trim() !== '' || wonAmount > 0) {
-                        updated.push({
-                            date: dateInp ? dateInp.value : '',
-                            category: catInp ? catInp.value : (categoryList[0] || '식비'),
-                            name: nameInp.value.trim() || '지출',
-                            amount: wonAmount
-                        });
-                    }
-                } else {
-                    const nameInp = row.querySelector('.inp-name');
-                    const amountInp = row.querySelector('.inp-amount');
-                    if (nameInp.value.trim() !== '') {
-                        updated.push({
-                            name: nameInp.value.trim() || '항목',
-                            amount: parseNumberString(amountInp.value)
+                            amount: parseNumberString(amountInp ? amountInp.value : '')
                         });
                     }
                 }
             });
 
             store[currentMonth].categories[k] = updated;
+            changedPatch[`categories.${k}`] = cloneData(updated);
+            changedPatch[`sectionTitles.${k}`] = newTitle;
         });
 
-        persistStore();
-        render();
         closeModal();
-        // 저장 완료 후에도 스크롤 상태를 다시 보장
+        restorePageScroll();
+        render();
+        saveMonthPatch(currentMonth, { ...changedPatch, updatedAt: Date.now() });
     }
 
-    /* [기능 비활성화] 기존 자동 이월 로직 보존용
     function saveSavingsModal() {
+        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        const changedPatch = {};
+
         document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
             const k = group.getAttribute('data-savings-cat');
             if (!k) return;
             const titleInp = group.querySelector('.cat-title-inp');
             const rows = group.querySelectorAll('.sub-row');
-
             if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
+
             const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
             store[currentMonth].sectionTitles[k] = newTitle;
 
@@ -2085,81 +1730,24 @@
                 const nameInp = row.querySelector('.inp-name');
                 const amountInp = row.querySelector('.inp-amount');
                 const ownerSel = row.querySelector('.inp-owner');
-
-                if (nameInp.value.trim() !== '') {
+                if (nameInp && nameInp.value.trim() !== '') {
                     updated.push({
                         name: nameInp.value.trim() || '항목',
-                        amount: parseNumberString(amountInp.value),
-                        owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared') : 'shared'
-                    });
-                }
-            });
-            store[currentMonth].categories[k] = updated;
-            clearCarryoverSource(currentMonth, k);
-
-            const sourceSettings = getCarryoverSettingsForMonth(currentMonth);
-            const isCarryoverEnabled = sourceSettings[k] === true;
-
-            Object.keys(store).forEach(m => {
-                if (m <= currentMonth || !store[m]) return;
-                if (!store[m].sectionTitles) store[m].sectionTitles = {};
-
-                if (isCarryoverEnabled) {
-                    store[m].sectionTitles[k] = newTitle;
-                    store[m].categories[k] = JSON.parse(JSON.stringify(updated));
-                    setCarryoverSource(m, k, currentMonth);
-                } else {
-                    store[m].categories[k] = [];
-                    store[m].sectionTitles[k] = newTitle;
-                    clearCarryoverSource(m, k);
-                }
-            });
-        });
-        closeModal();
-        restorePageScroll();
-        persistStore();
-        render();
-        restorePageScroll();
-
-    }
-
-    function renderCategorySettings
-    */
-
-    // 월별 저축 데이터도 서로 독립적으로 저장한다.
-    function saveSavingsModal() {
-        document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
-            const k = group.getAttribute('data-savings-cat');
-            if (!k) return;
-
-            const titleInp = group.querySelector('.cat-title-inp');
-            const rows = group.querySelectorAll('.sub-row');
-
-            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
-            const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
-            store[currentMonth].sectionTitles[k] = newTitle;
-
-            const updated = [];
-            rows.forEach(row => {
-                const nameInp = row.querySelector('.inp-name');
-                const amountInp = row.querySelector('.inp-amount');
-                const ownerSel = row.querySelector('.inp-owner');
-
-                if (nameInp.value.trim() !== '') {
-                    updated.push({
-                        name: nameInp.value.trim() || '항목',
-                        amount: parseNumberString(amountInp.value),
+                        amount: parseNumberString(amountInp ? amountInp.value : ''),
                         owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared') : 'shared'
                     });
                 }
             });
 
             store[currentMonth].categories[k] = updated;
+            changedPatch[`categories.${k}`] = cloneData(updated);
+            changedPatch[`sectionTitles.${k}`] = newTitle;
         });
 
-        persistStore();
-        render();
         closeModal();
+        restorePageScroll();
+        render();
+        saveMonthPatch(currentMonth, { ...changedPatch, updatedAt: Date.now() });
     }
 
     function renderCategorySettings() {
@@ -2179,7 +1767,7 @@
         const val = input.value.trim();
         if (val && !categoryList.includes(val)) {
             categoryList.push(val);
-            persistStore();
+            saveCategoryList();
             input.value = '';
             renderCategorySettings();
         }
@@ -2192,7 +1780,7 @@
             return;
         }
         categoryList.splice(index, 1);
-        persistStore();
+        saveCategoryList();
         renderCategorySettings();
     }
     window.removeCategorySetting = removeCategorySetting;
@@ -2205,7 +1793,7 @@
     }
     window.setMemberTab = setMemberTab;
 
-    function changeMonth(m) {
+    async function changeMonth(m) {
         currentMonth = m;
         if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
         const globalMonthEl = document.getElementById('global-month');
@@ -2241,25 +1829,32 @@
 
     function exportData() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
-        const a = document.createElement('a'); a.href = dataStr; a.download = `gotgan_backup_2026.json`; a.click();
+        const a = document.createElement('a'); a.href = dataStr; a.download = `gotgan_backup_${currentMonth}.json`; a.click();
     }
     window.exportData = exportData;
 
     async function resetData() {
-        if(confirm('모든 데이터를 처음 상태로 초기화하시겠습니까?')) {
-            try { await deleteDoc(doc(db, "gotgan", FIRESTORE_DOC_ID)); } catch(e){}
+        if (!confirm('모든 데이터를 처음 상태로 초기화하시겠습니까?')) return;
+        try {
+            const months = getMonthKeys();
+            await Promise.all(months.map(m => deleteDoc(doc(db, MONTH_COLLECTION, `month_${m}`))));
+            await deleteDoc(doc(db, META_COLLECTION, META_DOC_ID));
+            await deleteDoc(doc(db, 'gotgan', LEGACY_DOC_ID));
+
             categoryList = DEFAULT_CATEGORIES.slice();
-            
             store = {};
-            ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
-                store[m] = DEFAULT_MONTH_DATA();
-            });
+            BASE_MONTHS.forEach(m => { store[m] = DEFAULT_MONTH_DATA(); });
 
             renderCategorySettings();
             render();
+            showToast('전체 초기화되었습니다.');
+        } catch (e) {
+            console.error('초기화 실패:', e);
+            showToast('초기화에 실패했습니다.', true);
         }
     }
     window.resetData = resetData;
+
 
     window.onload = init;
 </script>
