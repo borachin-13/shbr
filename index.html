@@ -1289,6 +1289,22 @@
         fieldVersions.set(`${month}:${fieldKey}`, Number(version) || 0);
     }
 
+    function updateSyncStatus(message) {
+        const badge = document.getElementById('auth-status-badge');
+        if (!badge) return;
+        badge.innerText = message;
+        if (message === '동기화 완료') {
+            badge.style.background = '#c6f6d5';
+            badge.style.color = '#22543d';
+        } else if (message === '동기화 중...') {
+            badge.style.background = '#feebc8';
+            badge.style.color = '#744210';
+        } else if (message === '동기화 실패') {
+            badge.style.background = '#fed7d7';
+            badge.style.color = '#742a2a';
+        }
+    }
+
     async function init() {
         const authBadge = document.getElementById('auth-status-badge');
 
