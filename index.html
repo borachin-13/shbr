@@ -862,6 +862,9 @@
     const META_COLLECTION = 'gotgan';
     const BASE_MONTHS = ['2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12'];
     const monthSaveQueues = new Map();
+    const pendingMonthWrites = new Set();
+    let pendingCategoryWrite = null;
+    let lastKnownGoodMonthSnapshot = null;
 
     function getMonthKeys() {
         const select = document.getElementById('global-month');
@@ -903,11 +906,13 @@
     async function saveMonthPatch(month, patch, successMessage = '저장되었습니다.') {
         if (!month) return false;
         const safeMonth = month;
-        return queueMonthWrite(safeMonth, async () => {
+
+        const writePromise = queueMonthWrite(safeMonth, async () => {
             const ref = doc(db, MONTH_COLLECTION, `month_${safeMonth}`);
             try {
                 const snap = await getDoc(ref);
                 const expanded = expandPatch(patch);
+
                 if (!snap.exists()) {
                     const base = cloneData(store[safeMonth] || DEFAULT_MONTH_DATA());
                     await setDoc(ref, {
@@ -922,6 +927,12 @@
                         updatedAt: Date.now()
                     }, { merge: true });
                 }
+
+                lastKnownGoodMonthSnapshot = {
+                    month: safeMonth,
+                    patch: cloneData(patch),
+                    savedAt: Date.now()
+                };
                 showToast(successMessage);
                 return true;
             } catch (e) {
@@ -930,22 +941,34 @@
                 return false;
             }
         });
+
+        pendingMonthWrites.add(writePromise);
+        writePromise.finally(() => pendingMonthWrites.delete(writePromise));
+        return writePromise;
     }
 
 
     async function saveCategoryList() {
-        try {
-            await setDoc(doc(db, META_COLLECTION, META_DOC_ID), {
-                categoryList: categoryList,
-                updatedAt: Date.now()
-            }, { merge: true });
-            showToast('저장되었습니다.');
-            return true;
-        } catch (e) {
-            console.error('설정 저장 실패:', e);
-            showToast('설정 저장에 실패했습니다.', true);
-            return false;
-        }
+        const writePromise = (async () => {
+            try {
+                await setDoc(doc(db, META_COLLECTION, META_DOC_ID), {
+                    categoryList: categoryList,
+                    updatedAt: Date.now()
+                }, { merge: true });
+                showToast('저장되었습니다.');
+                return true;
+            } catch (e) {
+                console.error('설정 저장 실패:', e);
+                showToast('설정 저장에 실패했습니다.', true);
+                return false;
+            }
+        })();
+
+        pendingCategoryWrite = writePromise;
+        writePromise.finally(() => {
+            if (pendingCategoryWrite === writePromise) pendingCategoryWrite = null;
+        });
+        return writePromise;
     }
 
     async function loadAll() {
@@ -1011,6 +1034,28 @@
         }
     }
 
+
+    async function flushPendingSaves() {
+        const waits = Array.from(pendingMonthWrites);
+        if (pendingCategoryWrite) waits.push(pendingCategoryWrite);
+
+        // 이미 진행 중인 Firebase write가 있다면 먼저 완료될 기회를 준다.
+        if (waits.length) {
+            await Promise.allSettled(waits);
+        }
+    }
+
+    // 모바일 Safari/WebView에서 화면을 백그라운드로 보내거나 페이지를 떠날 때
+    // 아직 끝나지 않은 Firestore write가 있으면 완료될 기회를 준다.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            flushPendingSaves();
+        }
+    });
+
+    window.addEventListener('pagehide', () => {
+        flushPendingSaves();
+    });
 
     async function init() {
         const authBadge = document.getElementById('auth-status-badge');
