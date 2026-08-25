@@ -1273,7 +1273,7 @@
                     renderCategorySettings();
                     renderFixedExpenseCategorySettings();
                     render();
-                    updateSyncStatus('동기화 완료');
+                    updateSyncStatus('불러오기 완료');
                 } else {
                     updateSyncStatus('동기화 실패');
                 }
@@ -1371,7 +1371,7 @@
         const badge = document.getElementById('auth-status-badge');
         if (!badge) return;
         badge.innerText = message;
-        if (message === '동기화 완료') {
+        if (message === '불러오기 완료') {
             badge.style.background = '#c6f6d5';
             badge.style.color = '#22543d';
         } else if (message === '동기화 중...') {
@@ -1449,7 +1449,7 @@
             renderCategorySettings();
             renderFixedExpenseCategorySettings();
             render();
-            updateSyncStatus('동기화 완료');
+            updateSyncStatus('불러오기 완료');
         } else {
             // 원격 데이터가 실패해도 캐시/기본 화면을 유지하고 무한 연결 상태를 만들지 않는다.
             renderCategorySettings();
