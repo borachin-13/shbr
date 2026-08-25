@@ -1291,26 +1291,11 @@
 
     async function init() {
         const authBadge = document.getElementById('auth-status-badge');
-        try {
-            await signInAnonymously(auth);
-            if(authBadge) {
-                authBadge.innerText = '연결됨';
-                authBadge.style.background = '#c6f6d5';
-                authBadge.style.color = '#22543d';
-            }
-        } catch (err) {
-            console.error('익명 로그인 실패:', err);
-            if(authBadge) {
-                authBadge.innerText = '인증 실패';
-                authBadge.style.background = '#fed7d7';
-                authBadge.style.color = '#742a2a';
-            }
-        }
 
-        await fetchExchangeRate();
+        // 1) 가장 빠른 경로: 로컬 캐시를 즉시 화면에 반영한다.
         loadFastMonthCache();
-        await loadAll();
-        await recoverIncomeDraft();
+
+        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
 
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) {
@@ -1321,10 +1306,49 @@
             };
         }
 
+        // 캐시/기본값으로 먼저 렌더링하고, 원격 작업은 병렬 백그라운드에서 수행한다.
+        renderCategorySettings();
+        renderFixedExpenseCategorySettings();
+        render();
+
+        updateSyncStatus('데이터 동기화 중...');
+
+        // 인증 / 환율 / Firebase 로딩을 순차적으로 기다리지 않고 병렬 실행한다.
+        const authPromise = signInAnonymously(auth).then(() => {
+            if(authBadge) {
+                authBadge.innerText = '연결됨';
+                authBadge.style.background = '#c6f6d5';
+                authBadge.style.color = '#22543d';
+            }
+        }).catch(err => {
+            console.error('익명 로그인 실패:', err);
+            if(authBadge) {
+                authBadge.innerText = '인증 실패';
+                authBadge.style.background = '#fed7d7';
+                authBadge.style.color = '#742a2a';
+            }
+        });
+
+        const exchangePromise = fetchExchangeRate().catch(err => {
+            console.warn('환율 로드 실패:', err);
+        });
+
+        const dataPromise = loadAll().catch(err => {
+            console.warn('백그라운드 데이터 로드 실패:', err);
+            return false;
+        });
+
+        await Promise.allSettled([authPromise, exchangePromise, dataPromise]);
+
+        // 서버 데이터가 도착한 뒤 임시 입력값을 복구하고 최종 화면을 한 번만 갱신한다.
+        await recoverIncomeDraft();
+
         if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         renderCategorySettings();
         renderFixedExpenseCategorySettings();
         render();
+
+        updateSyncStatus('동기화 완료');
     }
 
     function toggleIncomeCard() {
@@ -1445,7 +1469,15 @@
     }
 
     function handleIncomeInput(key, inputEl) {
-        const rawNum = parseNumberString(inputEl.value);
+        // 숫자를 중간에서 지우거나 삽입할 때 커서가 끝으로 튀지 않도록
+        // 입력 전 커서 위치를 기준으로 숫자 자리수를 보존한다.
+        const beforeValue = inputEl.value;
+        const beforeCursor = typeof inputEl.selectionStart === 'number'
+            ? inputEl.selectionStart
+            : beforeValue.length;
+        const digitsBeforeCursor = (beforeValue.slice(0, beforeCursor).match(/\d/g) || []).length;
+
+        const rawNum = parseNumberString(beforeValue);
         if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         store[currentMonth][key] = rawNum;
         // 브라우저가 갑자기 종료되어도 마지막 입력값을 복구할 수 있도록 임시 백업.
@@ -1462,7 +1494,32 @@
         } catch (e) {
             console.warn('임시 수입 백업 저장 실패:', e);
         }
-inputEl.value = rawNum ? rawNum.toLocaleString() : '';
+        const formattedValue = rawNum ? rawNum.toLocaleString() : '';
+        inputEl.value = formattedValue;
+
+        // "1,234,567" 중 가운데 숫자를 삭제/삽입해도 커서를 해당 위치에 유지한다.
+        if (document.activeElement === inputEl) {
+            let newCursor = formattedValue.length;
+
+            if (formattedValue.length === 0 || digitsBeforeCursor === 0) {
+                newCursor = 0;
+            } else {
+                let seenDigits = 0;
+                for (let i = 0; i < formattedValue.length; i++) {
+                    if (/\d/.test(formattedValue[i])) {
+                        seenDigits++;
+                        if (seenDigits >= digitsBeforeCursor) {
+                            newCursor = i + 1;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            try {
+                inputEl.setSelectionRange(newCursor, newCursor);
+            } catch (_) {}
+        }
         updateKPIAndChartsOnly();
 
         // 입력 당시의 월을 캡처한다.
