@@ -817,13 +817,16 @@
 
     async function fetchExchangeRate() {
         try {
-            const res = await withTimeout(fetch('https://open.er-api.com/v6/latest/USD'), 5000, '환율 조회');
+            const res = await fetch('https://open.er-api.com/v6/latest/USD');
             const data = await res.json();
-            if (data && data.rates && data.rates.KRW) usdRate = data.rates.KRW;
+            if (data && data.rates && data.rates.KRW) {
+                usdRate = data.rates.KRW;
+            }
         } catch(e) {
-            console.log('환율 정보 가져오기 실패/시간 초과, 기본값 사용:', e);
+            console.log('환율 정보 가져오기 실패, 기본값 사용:', e);
         }
     }
+
 
     function formatNumberString(val) {
         if (!val && val !== 0) return '';
@@ -891,6 +894,8 @@
         failed: new Map()
     };
 
+    const incomeSaveTimers = new Map();
+
     const pendingMonthWrites = new Set();
     let pendingCategoryWrite = null;
     let lastKnownGoodMonthSnapshot = null;
@@ -934,6 +939,46 @@
             });
         }
         return items.filter(item => (item.owner || 'shared') !== (currentTab === 'bora' ? 'sang' : 'bora'));
+    }
+
+    // ---------- 공통 실행/상태 관리 ----------
+    function updateSyncStatus(message, type = 'loading') {
+        const badge = document.getElementById('auth-status-badge');
+        if (!badge) return;
+        badge.innerText = message;
+        badge.style.background = type === 'success' ? '#c6f6d5' : type === 'error' ? '#fed7d7' : '#feebc8';
+        badge.style.color = type === 'success' ? '#22543d' : type === 'error' ? '#742a2a' : '#744210';
+    }
+
+    function withTimeout(promise, ms, message) {
+        return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))]);
+    }
+
+    async function withRetry(task, attempts = 3, delayMs = 500) {
+        let lastError;
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            try { return await task(attempt); }
+            catch (error) { lastError = error; if (attempt < attempts) await new Promise(r => setTimeout(r, delayMs * attempt)); }
+        }
+        throw lastError;
+    }
+
+    function normalizeMonthData(raw) {
+        const defaults = DEFAULT_MONTH_DATA();
+        const data = { ...defaults, ...(raw || {}) };
+        data.sectionTitles = { ...defaults.sectionTitles, ...((raw && raw.sectionTitles) || {}) };
+        data.categories = { ...defaults.categories, ...((raw && raw.categories) || {}) };
+        Object.keys(defaults.categories).forEach(key => {
+            if (!Array.isArray(data.categories[key])) data.categories[key] = cloneData(defaults.categories[key]);
+        });
+        return data;
+    }
+
+    function renderAll() {
+        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        renderCategorySettings();
+        if (typeof renderFixedExpenseCategorySettings === 'function') renderFixedExpenseCategorySettings();
+        render();
     }
 
     function queueMonthWrite(month, writer) {
@@ -1056,125 +1101,45 @@
         return writePromise;
     }
 
-    function withTimeout(promise, ms, label = '작업') {
-        return Promise.race([
-            promise,
-            new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} 시간 초과`)), ms))
-        ]);
-    }
-
     async function loadAll() {
         let legacyStore = null;
         let legacyCategories = null;
         let categoryLoaded = false;
 
-        // 로컬 캐시를 먼저 유지한다. 원격 조회 실패 때문에 캐시가 지워지면 안 된다.
-        const cachedStore = cloneData(store || {});
-
-        // 설정과 레거시 문서는 서로 독립적이므로 동시에 조회한다.
-        const [metaResult, legacyResult] = await Promise.allSettled([
-            withTimeout(getDoc(doc(db, META_COLLECTION, META_DOC_ID)), 8000, '설정 조회'),
-            withTimeout(getDoc(doc(db, 'gotgan', LEGACY_DOC_ID)), 8000, '기존 데이터 조회')
-        ]);
-
-        if (metaResult.status === 'fulfilled' && metaResult.value.exists()) {
-            const meta = metaResult.value.data();
-            if (Array.isArray(meta.categoryList) && meta.categoryList.length) {
-                categoryList = meta.categoryList;
-                categoryLoaded = true;
-            }
-            if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
-                fixedExpenseCategoryList = meta.fixedExpenseCategoryList;
-            }
+        const metaSnap = await getDoc(doc(db, META_COLLECTION, META_DOC_ID));
+        if (metaSnap.exists()) {
+            const meta = metaSnap.data();
+            if (Array.isArray(meta.categoryList) && meta.categoryList.length) { categoryList = meta.categoryList; categoryLoaded = true; }
+            if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) fixedExpenseCategoryList = meta.fixedExpenseCategoryList;
         }
 
-        if (legacyResult.status === 'fulfilled' && legacyResult.value.exists()) {
-            const legacy = legacyResult.value.data();
+        const legacySnap = await getDoc(doc(db, 'gotgan', LEGACY_DOC_ID));
+        if (legacySnap.exists()) {
+            const legacy = legacySnap.data();
             legacyStore = legacy.store || null;
             legacyCategories = Array.isArray(legacy.categoryList) ? legacy.categoryList : null;
-            if (!categoryLoaded && legacyCategories && legacyCategories.length) {
-                categoryList = legacyCategories;
-                categoryLoaded = true;
-            }
+            if (!categoryLoaded && legacyCategories && legacyCategories.length) { categoryList = legacyCategories; categoryLoaded = true; }
         }
 
-        const months = Array.from(new Set([
-            ...BASE_MONTHS,
-            ...Object.keys(cachedStore),
-            ...Object.keys(legacyStore || {})
-        ])).sort();
-
-        // 모든 월을 동시에 읽는다. 한 달씩 순차 조회하지 않는다.
-        const monthResults = await Promise.all(months.map(async month => {
+        const months = Array.from(new Set([...BASE_MONTHS, ...Object.keys(legacyStore || {}), ...Object.keys(store || {})])).sort();
+        const results = await Promise.all(months.map(async month => {
             try {
-                const snap = await withTimeout(
-                    getDoc(doc(db, MONTH_COLLECTION, `month_${month}`)),
-                    8000,
-                    `${month} 조회`
-                );
-                return { month, snap };
-            } catch (error) {
-                return { month, error };
-            }
+                const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${month}`));
+                if (snap.exists()) return { month, data: normalizeMonthData(snap.data()) };
+                if (legacyStore && legacyStore[month]) {
+                    const migrated = normalizeMonthData(legacyStore[month]);
+                    await setDoc(doc(db, MONTH_COLLECTION, `month_${month}`), { ...cloneData(migrated), migratedFromLegacy: true, updatedAt: Date.now() }, { merge: true });
+                    return { month, data: migrated };
+                }
+            } catch (error) { console.warn(`${month} 불러오기 실패:`, error); }
+            return null;
         }));
 
-        const nextStore = { ...cachedStore };
-        let hadRemoteMonthSuccess = false;
-
-        for (const result of monthResults) {
-            const month = result.month;
-            if (result.snap && result.snap.exists()) {
-                const remote = result.snap.data();
-                nextStore[month] = {
-                    ...DEFAULT_MONTH_DATA(),
-                    ...(nextStore[month] || {}),
-                    ...remote,
-                    categories: {
-                        ...DEFAULT_MONTH_DATA().categories,
-                        ...((nextStore[month] && nextStore[month].categories) || {}),
-                        ...(remote.categories || {})
-                    }
-                };
-                hadRemoteMonthSuccess = true;
-            } else if (!result.snap && legacyStore && legacyStore[month] && !nextStore[month]) {
-                // 새 문서가 없는 경우에만 구버전 데이터를 메모리에 복구한다.
-                nextStore[month] = {
-                    ...DEFAULT_MONTH_DATA(),
-                    ...cloneData(legacyStore[month])
-                };
-            }
-        }
-
-        store = nextStore;
-        if (!categoryLoaded && legacyCategories && legacyCategories.length) {
-            categoryList = legacyCategories;
-        }
+        results.filter(Boolean).forEach(result => { store[result.month] = result.data; });
         if (!categoryList.length) categoryList = DEFAULT_CATEGORIES.slice();
-        if (!fixedExpenseCategoryList.length) fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
-
-        for (const month of BASE_MONTHS) {
-            if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
-        }
-
-        // 레거시 이관은 화면 로딩을 막지 않도록 성공한 월만 백그라운드에서 1회 저장한다.
-        if (legacyStore) {
-            for (const result of monthResults) {
-                const month = result.month;
-                if (result.snap || !legacyStore[month]) continue;
-                try {
-                    await setDoc(doc(db, MONTH_COLLECTION, `month_${month}`), {
-                        ...cloneData(store[month]),
-                        migratedFromLegacy: true,
-                        updatedAt: Date.now()
-                    }, { merge: true });
-                } catch (e) {
-                    console.warn(`${month} 구버전 데이터 이관 실패:`, e);
-                }
-            }
-        }
-
-        return hadRemoteMonthSuccess || metaResult.status === 'fulfilled' || legacyResult.status === 'fulfilled';
+        BASE_MONTHS.forEach(month => { if (!store[month]) store[month] = DEFAULT_MONTH_DATA(); });
     }
+
 
     async function flushPendingIncomeSaves() {
         const timers = Array.from(incomeSaveTimers.entries());
@@ -1256,32 +1221,6 @@
 
     window.addEventListener('offline', () => {
         showToast('인터넷 연결이 끊겼습니다. 연결되면 자동으로 다시 저장합니다.', true);
-    });
-
-    let reconnectTimer = null;
-    window.addEventListener('online', () => {
-        if (reconnectTimer) clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(async () => {
-            try {
-                if (!auth.currentUser) {
-                    await withTimeout(signInAnonymously(auth), 8000, '재인증');
-                }
-                updateSyncStatus('재연결 중...');
-                const ok = await withTimeout(loadAll(), 12000, '재연결 데이터 동기화');
-                if (ok !== false) {
-                    await recoverIncomeDraft();
-                    renderCategorySettings();
-                    renderFixedExpenseCategorySettings();
-                    render();
-                    updateSyncStatus('불러오기 완료');
-                } else {
-                    updateSyncStatus('동기화 실패');
-                }
-            } catch (e) {
-                console.warn('재연결 실패:', e);
-                updateSyncStatus('동기화 실패');
-            }
-        }, 300);
     });
 
 
@@ -1367,97 +1306,49 @@
         fieldVersions.set(`${month}:${fieldKey}`, Number(version) || 0);
     }
 
-    function updateSyncStatus(message) {
-        const badge = document.getElementById('auth-status-badge');
-        if (!badge) return;
-        badge.innerText = message;
-        if (message === '불러오기 완료') {
-            badge.style.background = '#c6f6d5';
-            badge.style.color = '#22543d';
-        } else if (message === '동기화 중...') {
-            badge.style.background = '#feebc8';
-            badge.style.color = '#744210';
-        } else if (message === '동기화 실패') {
-            badge.style.background = '#fed7d7';
-            badge.style.color = '#742a2a';
-        }
-    }
-
     async function init() {
         const authBadge = document.getElementById('auth-status-badge');
-
-        // 로컬 캐시/기본 화면은 Firebase와 무관하게 즉시 표시한다.
         loadFastMonthCache();
         if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
 
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) {
-            if (globalMonthEl.value) currentMonth = globalMonthEl.value.replace('.', '-');
-            else globalMonthEl.value = currentMonth;
-            globalMonthEl.onchange = async e => { await changeMonth(e.target.value.replace('.', '-')); };
+            currentMonth = (globalMonthEl.value || currentMonth).replace('.', '-');
+            globalMonthEl.onchange = e => changeMonth(e.target.value.replace('.', '-'));
         }
 
-        renderCategorySettings();
-        renderFixedExpenseCategorySettings();
-        render();
+        renderAll();
         updateSyncStatus('연결 중...');
 
-        // Firestore Rules가 인증된 사용자만 허용하는 경우를 대비해
-        // 인증이 끝난 뒤에 데이터 조회를 시작한다. 이전 버전처럼 동시에 실행하지 않는다.
-        let authOk = false;
+        // 인증 완료 후에만 Firestore를 조회한다.
         try {
-            await withTimeout(signInAnonymously(auth), 8000, 'Firebase 인증');
-            authOk = true;
+            await withRetry(() => withTimeout(signInAnonymously(auth), 8000, 'Firebase 인증 시간 초과'), 3, 600);
             if (authBadge) {
                 authBadge.innerText = '연결됨';
                 authBadge.style.background = '#c6f6d5';
                 authBadge.style.color = '#22543d';
             }
-        } catch (err) {
-            console.error('익명 로그인 실패/시간 초과:', err);
-            if (authBadge) {
-                authBadge.innerText = '오프라인';
-                authBadge.style.background = '#fed7d7';
-                authBadge.style.color = '#742a2a';
-            }
-            updateSyncStatus('오프라인');
-        }
-
-        if (!authOk) {
-            // 인증 실패가 앱 자체를 멈추게 하지 않는다. 로컬 캐시를 그대로 사용한다.
-            renderCategorySettings();
-            renderFixedExpenseCategorySettings();
-            render();
+        } catch (error) {
+            console.error('Firebase 인증 실패:', error);
+            updateSyncStatus('오프라인', 'error');
+            showToast('연결이 지연되고 있어요. 저장된 데이터로 먼저 열었습니다.', true);
             return;
         }
 
-        updateSyncStatus('데이터 불러오는 중...');
+        const dataTask = withTimeout(loadAll(), 15000, '데이터 불러오기 시간 초과');
+        const rateTask = withTimeout(fetchExchangeRate(), 5000, '환율 불러오기 시간 초과');
+        const [dataResult, rateResult] = await Promise.allSettled([dataTask, rateTask]);
 
-        const dataPromise = loadAll().catch(err => {
-            console.error('Firebase 데이터 로드 실패:', err);
-            return false;
-        });
-        const exchangePromise = fetchExchangeRate().catch(err => console.warn('환율 로드 실패:', err));
-
-        const [dataResult] = await Promise.allSettled([
-            withTimeout(dataPromise, 12000, 'Firebase 데이터 동기화'),
-            exchangePromise
-        ]);
-
-        if (dataResult.status === 'fulfilled' && dataResult.value !== false) {
-            try { await recoverIncomeDraft(); } catch (e) { console.warn('임시 수입 복구 실패:', e); }
-            renderCategorySettings();
-            renderFixedExpenseCategorySettings();
-            render();
-            updateSyncStatus('불러오기 완료');
+        if (dataResult.status === 'rejected') {
+            console.error('데이터 불러오기 실패:', dataResult.reason);
+            updateSyncStatus('일부 데이터만 표시', 'error');
         } else {
-            // 원격 데이터가 실패해도 캐시/기본 화면을 유지하고 무한 연결 상태를 만들지 않는다.
-            renderCategorySettings();
-            renderFixedExpenseCategorySettings();
-            render();
-            updateSyncStatus('동기화 실패');
-            showToast('서버 데이터를 불러오지 못했습니다. 저장된 데이터로 표시합니다.', true);
+            updateSyncStatus('데이터를 불러왔어요', 'success');
         }
+        if (rateResult.status === 'rejected') console.warn('환율 로드 실패:', rateResult.reason);
+
+        await recoverIncomeDraft();
+        renderAll();
     }
 
     function toggleIncomeCard() {
@@ -2392,13 +2283,19 @@ function addCategorySetting() {
     window.setMemberTab = setMemberTab;
 
     async function changeMonth(m) {
-        await flushPendingIncomeSaves();
-
+        if (!m) return;
         currentMonth = m;
-        if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
+        if (!store[m]) store[m] = DEFAULT_MONTH_DATA();
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) globalMonthEl.value = currentMonth;
-        render();
+        renderAll();
+
+        if (auth.currentUser) {
+            try {
+                const snap = await withTimeout(getDoc(doc(db, MONTH_COLLECTION, `month_${m}`)), 8000, '월 데이터 조회 시간 초과');
+                if (snap.exists()) { store[m] = normalizeMonthData(snap.data()); renderAll(); }
+            } catch (error) { console.warn(`${m} 월 데이터 보강 실패:`, error); }
+        }
     }
     window.changeMonth = changeMonth;
 
@@ -2408,6 +2305,8 @@ function addCategorySetting() {
         const targetPage = document.getElementById(`page-${page}`);
         if(targetPage) targetPage.classList.add('active');
         if(btn) btn.classList.add('active');
+
+        if (page === 'monthly') renderChartAndMonthly();
 
         const memberTabBar = document.getElementById('member-tab-bar');
         const headerMonthWrapper = document.getElementById('header-month-wrapper');
