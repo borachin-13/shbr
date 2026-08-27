@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>우리 곳간</title>
+    <title>우리 곳간 — v49 안정성 강화</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <style>
         :root {
@@ -562,6 +562,23 @@
         .gnb-btn.active { color: var(--primary); font-weight: 800; }
         .gnb-btn-icon { font-size: 18px; }
 
+        .data-loading-inline {
+            font-size: 11px;
+            color: var(--text-sub);
+            white-space: nowrap;
+        }
+
+        .firebase-loading {
+            opacity: 0.72;
+            pointer-events: none;
+        }
+        .data-load-status {
+            font-size: 10px;
+            color: var(--text-sub);
+            margin-left: 4px;
+            white-space: nowrap;
+        }
+
         .btn-action-sm {
             padding: 5px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;
         }
@@ -606,7 +623,7 @@
         <header>
             <div class="logo">🌾 우리 곳간</div>
             <div class="header-right">
-                <span id="auth-status-badge">인증중...</span>
+                <span id="auth-status-badge">인증중...</span><span id="data-load-status" class="data-load-status">데이터 확인 중...</span>
                 <div class="month-select-wrapper" id="header-month-wrapper">
                     <select id="global-month" onchange="window.changeMonth(this.value)">
                         <option value="2026-06">2026.06</option>
@@ -967,21 +984,22 @@
 
         let changed = false;
 
-        fixedExpenseCategories.forEach(template => {
+        getEffectiveFixedExpenseCategories().forEach(template => {
+            const templateObj = typeof template === 'string' ? { name: template, date: '' } : template;
             const existing = d.categories.expense.find(item =>
-                String(item.name || '').trim() === template.name
+                String(item.name || '').trim() === templateObj.name
             );
 
             if (!existing) {
                 d.categories.expense.push({
-                    name: template.name,
+                    name: templateObj.name,
                     amount: 0,
-                    date: template.date || ''
+                    date: templateObj.date || ''
                 });
                 changed = true;
-            } else if (!existing.date && template.date) {
+            } else if (!existing.date && templateObj.date) {
                 // 기존 금액은 절대 건드리지 않고, 비어 있는 날짜만 설정값으로 보강
-                existing.date = template.date;
+                existing.date = templateObj.date;
                 changed = true;
             }
         });
@@ -1059,6 +1077,62 @@
         return result;
     }
 
+
+    const localDraftPrefix = 'gotgan_draft_v2_';
+
+    function saveLocalDraft(month, patch) {
+        try {
+            const key = localDraftPrefix + month;
+            const old = JSON.parse(localStorage.getItem(key) || '{}');
+            const merged = { ...old, ...patch, savedAt: Date.now() };
+            localStorage.setItem(key, JSON.stringify(merged));
+        } catch (e) {
+            console.warn('로컬 임시 저장 실패:', e);
+        }
+    }
+
+    function clearLocalDraft(month) {
+        try {
+            localStorage.removeItem(localDraftPrefix + month);
+        } catch (e) {}
+    }
+
+    function getLocalDraft(month) {
+        try {
+            const raw = localStorage.getItem(localDraftPrefix + month);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function applyFlatPatchToLocal(month, patch) {
+        if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
+        Object.entries(patch || {}).forEach(([path, value]) => {
+            const parts = path.split('.');
+            let cursor = store[month];
+            parts.forEach((part, i) => {
+                if (i === parts.length - 1) cursor[part] = cloneData(value);
+                else {
+                    if (!cursor[part] || typeof cursor[part] !== 'object') cursor[part] = {};
+                    cursor = cursor[part];
+                }
+            });
+        });
+    }
+
+    async function savePatchSafely(month, patch, successMessage = '저장했어요') {
+        if (!month || !patch || !Object.keys(patch).length) return false;
+
+        saveLocalDraft(month, patch);
+        pendingMonthWrites.add(Promise.resolve());
+
+        const result = await saveMonthPatch(month, patch, successMessage);
+
+        if (result) clearLocalDraft(month);
+        return result;
+    }
+
     async function saveMonthPatch(month, patch, successMessage = '저장되었습니다.') {
         if (!month) return false;
         const safeMonth = month;
@@ -1067,6 +1141,7 @@
 
         const writePromise = queueMonthWrite(safeMonth, async () => {
             const ref = doc(db, MONTH_COLLECTION, `month_${safeMonth}`);
+            updateSyncStatus('저장하는 중...');
             saveState.pending.set(stateKey, Date.now());
             saveState.failed.delete(stateKey);
 
@@ -1136,10 +1211,9 @@
                 // 서버 저장을 기다리지 않고 현재 로드된 월에 즉시 반영
                 Object.keys(store || {}).forEach(month => {
                     if (applyFixedExpenseTemplatesToMonth(month, false)) {
-                        saveMonthPatch(month, {
-                            'categories.expense': cloneData(store[month].categories.expense),
-                            updatedAt: Date.now()
-                        });
+                        savePatchSafely(month, {
+                            'categories.expense': cloneData(store[month].categories.expense)
+                        }, '저장했어요');
                     }
                 });
 
@@ -1187,98 +1261,215 @@
         return writePromise;
     }
 
-    async function loadAll() {
-        let legacyStore = null;
-        let legacyCategories = null;
-        let categoryLoaded = false;
-        let fixedCategoryLoaded = false;
+    function updateSyncStatus(message, isError = false) {
+        const el = document.getElementById('data-load-status');
+        if (!el) return;
+        el.innerText = message;
+        el.style.color = isError ? 'var(--expense-color)' : 'var(--text-sub)';
+    }
 
-        // 새 구조를 먼저 읽는다.
+    function setDashboardLoading(isLoading) {
+        const page = document.getElementById('page-dashboard');
+        if (!page) return;
+        page.classList.toggle('firebase-loading', isLoading);
+    }
+
+    function renderEmptyLoadingState() {
+        const ids = ['kpi-income', 'kpi-expense', 'kpi-savings'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = '불러오는 중...';
+        });
+        const advice = document.getElementById('ai-advice-text');
+        if (advice) advice.innerText = '최신 데이터를 불러오는 중입니다...';
+    }
+
+    async function getFreshMonth(month) {
+        if (!month) return false;
+
+        // 같은 월에 중복 요청이 들어오면 하나의 Firebase read만 공유한다.
+        if (monthLoadPromises.has(month)) {
+            return monthLoadPromises.get(month);
+        }
+
+        const token = `${Date.now()}_${Math.random()}`;
+        latestRequestToken.set(month, token);
+
+        const promise = (async () => {
+            try {
+                const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${month}`));
+
+                // 더 최신 요청이 이미 시작됐다면 오래된 응답으로 화면을 덮지 않는다.
+                if (latestRequestToken.get(month) !== token) return false;
+
+                if (snap.exists()) {
+                    store[month] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
+                    if (!store[month].categories) {
+                        store[month].categories = DEFAULT_MONTH_DATA().categories;
+                    }
+                } else {
+                    // Firebase에 실제 문서가 없을 때만 빈 월을 사용한다.
+                    store[month] = DEFAULT_MONTH_DATA();
+                }
+
+                await syncFixedCategoriesToMonth(month, false);
+                return true;
+            } catch (e) {
+                console.error(`${month} 최신 데이터 로드 실패:`, e);
+                return false;
+            } finally {
+                monthLoadPromises.delete(month);
+            }
+        })();
+
+        monthLoadPromises.set(month, promise);
+        return promise;
+    }
+
+    async function loadMonthFromFirebase(month, options = {}) {
+        return getFreshMonth(month);
+    }
+
+
+    async function loadSettingsFromFirebase() {
         try {
             const metaSnap = await getDoc(doc(db, META_COLLECTION, META_DOC_ID));
             if (metaSnap.exists()) {
                 const meta = metaSnap.data();
-                if (Array.isArray(meta.categoryList) && meta.categoryList.length) { categoryList = meta.categoryList; categoryLoaded = true; }
-                if (Array.isArray(meta.fixedExpenseCategories)) {
-                    fixedExpenseCategories = normalizeFixedExpenseCategories(meta.fixedExpenseCategories);
-                    fixedCategoryLoaded = true;
+
+                if (Array.isArray(meta.categoryList) && meta.categoryList.length) {
+                    categoryList = meta.categoryList;
                 }
+
                 if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
                     fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
-                    fixedCategoryLoaded = fixedExpenseCategoryList.length > 0;
+                } else if (Array.isArray(meta.fixedExpenseCategories) && meta.fixedExpenseCategories.length) {
+                    // 이전 버전의 구조도 호환
+                    fixedExpenseCategoryList = meta.fixedExpenseCategories
+                        .map(x => typeof x === 'string' ? x : x?.name)
+                        .filter(Boolean);
                 }
+
+                if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
+                    fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
+                }
+                return true;
             }
         } catch (e) {
-            console.error('설정 불러오기 실패:', e);
+            console.warn('설정 불러오기 실패:', e);
         }
 
+        if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
+            fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
+        }
+        return false;
+    }
+
+    async function loadLegacyStore() {
         try {
             const legacySnap = await getDoc(doc(db, 'gotgan', LEGACY_DOC_ID));
             if (legacySnap.exists()) {
                 const legacy = legacySnap.data();
-                legacyStore = legacy.store || null;
-                legacyCategories = Array.isArray(legacy.categoryList) ? legacy.categoryList : null;
-                if (!categoryLoaded && legacyCategories && legacyCategories.length) { categoryList = legacyCategories; categoryLoaded = true; }
+                return {
+                    store: legacy.store || null,
+                    categories: Array.isArray(legacy.categoryList) ? legacy.categoryList : null
+                };
             }
         } catch (e) {
-            console.error('기존 데이터 확인 실패:', e);
+            console.warn('기존 데이터 확인 실패:', e);
         }
+        return { store: null, categories: null };
+    }
 
-        store = {};
-        const months = Array.from(new Set([...BASE_MONTHS, ...Object.keys(legacyStore || {})])).sort();
-        for (const month of months) {
+    async function loadAll(options = {}) {
+        const priorityMonth = options.priorityMonth || currentMonth;
+
+        // 설정과 기존 데이터는 병렬로 읽는다.
+        const [settingsLoaded, legacy] = await Promise.all([
+            loadSettingsFromFirebase(),
+            loadLegacyStore()
+        ]);
+
+        if (!settingsLoaded && legacy.categories && legacy.categories.length) {
+            categoryList = legacy.categories;
+        }
+        if (!categoryList.length) categoryList = DEFAULT_CATEGORIES.slice();
+
+        // 현재 월을 먼저 가져온다. 이 함수가 끝나면 대시보드에는 최신 월 데이터가 표시된다.
+        await loadMonthFromFirebase(priorityMonth);
+
+        // 기존 데이터가 있고 현재 월 문서가 없는 경우에만 해당 월을 안전하게 이관한다.
+        if (legacy.store && legacy.store[priorityMonth] &&
+            (!store[priorityMonth] || !store[priorityMonth].updatedAt)) {
             try {
-                const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${month}`));
-                if (snap.exists()) {
-                    store[month] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
-                    if (!store[month].categories) store[month].categories = DEFAULT_MONTH_DATA().categories;
-                    continue;
-                }
-
-                // 새 문서가 없을 때만 구버전 데이터를 해당 월 문서로 안전하게 1회 이관한다.
-                if (legacyStore && legacyStore[month]) {
-                    const migrated = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacyStore[month]) };
-                    if (!migrated.categories) migrated.categories = DEFAULT_MONTH_DATA().categories;
-                    store[month] = migrated;
-                    await setDoc(doc(db, MONTH_COLLECTION, `month_${month}`), {
+                const ref = doc(db, MONTH_COLLECTION, `month_${priorityMonth}`);
+                const snap = await getDoc(ref);
+                if (!snap.exists()) {
+                    const migrated = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacy.store[priorityMonth]) };
+                    store[priorityMonth] = migrated;
+                    await setDoc(ref, {
                         ...cloneData(migrated),
                         migratedFromLegacy: true,
                         updatedAt: Date.now()
                     }, { merge: true });
                 }
             } catch (e) {
-                console.error(`${month} 불러오기 실패:`, e);
+                console.warn(`${priorityMonth} 구버전 데이터 이관 실패:`, e);
             }
         }
 
-        if (!categoryLoaded && legacyCategories && legacyCategories.length) { categoryList = legacyCategories; categoryLoaded = true; }
-        if (!categoryList.length) categoryList = DEFAULT_CATEGORIES.slice();
-        if (!fixedCategoryLoaded) {
-            const discovered = [];
-            Object.values(store || {}).forEach(monthData => {
-                const items = monthData?.categories?.expense;
-                if (!Array.isArray(items)) return;
-                items.forEach(item => {
-                    const name = String(item?.name || '').trim();
-                    if (name && !discovered.includes(name)) discovered.push(name);
-                });
-            });
-            fixedExpenseCategoryList = Array.from(new Set([
-                ...DEFAULT_FIXED_EXPENSE_CATEGORIES,
-                ...discovered
-            ]));
-        }
-        if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
-            fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
-        }
+        // 현재 월 화면은 여기까지에서 즉시 갱신할 수 있다.
+        applyFixedExpenseTemplatesToAllLoadedMonths();
+        renderCategorySettings();
+        renderFixedExpenseCategorySettings();
+        render();
 
-        for (const month of BASE_MONTHS) {
-            if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
-        }
+        // 나머지 월은 백그라운드 병렬 로딩.
+        const months = Array.from(new Set([
+            ...BASE_MONTHS,
+            ...Object.keys(legacy.store || {})
+        ])).sort().filter(month => month !== priorityMonth);
 
-        // 설정의 고정지출 카테고리를 월별 데이터의 실제 항목으로도 보장한다.
-        // 기존 금액/날짜는 유지하고, 없는 카테고리만 0원으로 추가한다.
-        await syncFixedCategoriesToAllMonths(false);
+        const results = await Promise.all(months.map(async month => {
+            const ok = await loadMonthFromFirebase(month);
+            if (!ok && legacy.store && legacy.store[month]) {
+                try {
+                    const migrated = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacy.store[month]) };
+                    store[month] = migrated;
+                    const ref = doc(db, MONTH_COLLECTION, `month_${month}`);
+                    const snap = await getDoc(ref);
+                    if (!snap.exists()) {
+                        await setDoc(ref, {
+                            ...cloneData(migrated),
+                            migratedFromLegacy: true,
+                            updatedAt: Date.now()
+                        }, { merge: true });
+                    }
+                } catch (e) {
+                    console.warn(`${month} 구버전 데이터 이관 실패:`, e);
+                }
+            }
+            return ok;
+        }));
+
+        applyFixedExpenseTemplatesToAllLoadedMonths();
+        renderCategorySettings();
+        renderFixedExpenseCategorySettings();
+
+        // 현재 사용자가 월을 바꾸지 않았다면 최종 화면만 갱신한다.
+        render();
+        return results.every(Boolean);
+    }
+
+    async function refreshCurrentMonthFromFirebase(month = currentMonth) {
+        if (!month) return false;
+
+        // 화면은 기존 캐시를 즉시 유지하고, 현재 월만 최신 서버값으로 교체한다.
+        const ok = await loadMonthFromFirebase(month);
+        if (ok && month === currentMonth) {
+            render();
+        }
+        return ok;
     }
 
 
@@ -1468,73 +1659,69 @@
     async function init() {
         const authBadge = document.getElementById('auth-status-badge');
 
-        // 1) 가장 빠른 경로: 로컬 캐시를 즉시 화면에 반영한다.
-        loadFastMonthCache();
-
-        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-
         const globalMonthEl = document.getElementById('global-month');
-        if (globalMonthEl) {
-            if (globalMonthEl.value) currentMonth = globalMonthEl.value.replace('.', '-');
-            else globalMonthEl.value = currentMonth;
-            globalMonthEl.onchange = async (e) => {
-                await changeMonth(e.target.value.replace('.', '-'));
-            };
+        if (globalMonthEl && globalMonthEl.value) {
+            currentMonth = globalMonthEl.value.replace('.', '-');
         }
 
-        // 캐시/기본값으로 먼저 렌더링하고, 원격 작업은 병렬 백그라운드에서 수행한다.
+        // 페이지 껍데기는 즉시 표시하되, 숫자는 Firebase 최신값을 받을 때까지 표시하지 않는다.
         renderCategorySettings();
         renderFixedExpenseCategorySettings();
-        render();
+        renderEmptyLoadingState();
+        updateSyncStatus('데이터 확인 중...');
+        setDashboardLoading(true);
 
-        updateSyncStatus('데이터를 불러오는 중...');
-
-        // Firestore 데이터는 인증이 완료된 뒤에 읽는다.
-        // 인증과 데이터 읽기를 동시에 시작하면 보안 규칙이 request.auth를
-        // 확인하기 전에 getDoc()이 실행되어 기존 데이터가 로드되지 않을 수 있다.
-        let authReady = false;
         try {
             await signInAnonymously(auth);
-            authReady = true;
-            if(authBadge) {
+            if (authBadge) {
                 authBadge.innerText = '연결됨';
                 authBadge.style.background = '#c6f6d5';
                 authBadge.style.color = '#22543d';
             }
         } catch (err) {
             console.error('익명 로그인 실패:', err);
-            if(authBadge) {
+            if (authBadge) {
                 authBadge.innerText = '인증 실패';
                 authBadge.style.background = '#fed7d7';
                 authBadge.style.color = '#742a2a';
             }
+            updateSyncStatus('연결에 실패했어요', true);
+            setDashboardLoading(false);
+            return;
         }
 
-        // 환율은 Firebase 인증과 무관하므로 계속 병렬로 처리한다.
-        const exchangePromise = fetchExchangeRate().catch(err => {
-            console.warn('환율 로드 실패:', err);
-        });
+        firebaseDataReady = true;
 
-        // 인증 성공 후에만 Firestore를 읽는다.
-        const dataPromise = authReady
-            ? loadAll().catch(err => {
-                console.warn('백그라운드 데이터 로드 실패:', err);
-                return false;
-            })
-            : Promise.resolve(false);
+        // 설정과 현재 월을 병렬로 가져온다.
+        await Promise.all([
+            loadSettingsFromFirebase(),
+            getFreshMonth(currentMonth),
+            fetchExchangeRate().catch(() => {})
+        ]);
 
-        await Promise.allSettled([exchangePromise, dataPromise]);
+        // Firebase 최신값을 기준으로 로드한 뒤, 아직 서버에 반영되지 않은
+        // 모바일 임시 저장분이 있다면 사용자의 마지막 입력을 복구한다.
+        const draft = getLocalDraft(currentMonth);
+        if (draft) {
+            const { savedAt, ...draftPatch } = draft;
+            applyFlatPatchToLocal(currentMonth, draftPatch);
+            showToast('저장하지 못한 입력을 복구했어요.');
+        }
 
-        // 서버 데이터가 도착한 뒤 임시 입력값을 복구하고 최종 화면을 한 번만 갱신한다.
-        await recoverIncomeDraft();
-
-        if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         renderCategorySettings();
         renderFixedExpenseCategorySettings();
         render();
 
-        updateSyncStatus('데이터를 불러왔어요');
+        updateSyncStatus('최신 데이터를 불러왔어요');
+        setDashboardLoading(false);
+
+        // 나머지 월은 현재 화면을 막지 않고 백그라운드에서 병렬 조회.
+        const otherMonths = BASE_MONTHS.filter(m => m !== currentMonth);
+        Promise.all(otherMonths.map(m => getFreshMonth(m))).then(() => {
+            renderChartAndMonthly();
+        }).catch(e => console.warn('백그라운드 월별 데이터 로드 실패:', e));
     }
+
 
     function toggleIncomeCard() {
         const body = document.getElementById('income-body-container');
@@ -2354,7 +2541,7 @@ function renderExpenseModalHTML() {
         render();
 
         // 서버 저장은 백그라운드에서 처리한다.
-        saveMonthPatch(currentMonth, { ...changedPatch, updatedAt: Date.now() });
+        savePatchSafely(currentMonth, changedPatch, '저장했어요');
     }
 
     function saveSavingsModal() {
@@ -2398,7 +2585,7 @@ function renderExpenseModalHTML() {
         render();
 
         // 서버 저장은 백그라운드에서 처리한다.
-        saveMonthPatch(currentMonth, { ...changedPatch, updatedAt: Date.now() });
+        savePatchSafely(currentMonth, changedPatch, '저장했어요');
     }
 
     
@@ -2568,12 +2755,19 @@ function renderExpenseModalHTML() {
         const val = input.value.trim();
         if (val && !fixedExpenseCategoryList.includes(val)) {
             fixedExpenseCategoryList.push(val);
-            saveCategoryList();
             input.value = '';
             renderFixedExpenseCategorySettings();
-            // 새 고정지출 카테고리는 현재 월뿐 아니라 기존 월별 데이터에도 즉시 연결한다.
-            syncFixedCategoriesToAllMonths(true);
-            render();
+
+            // 현재 월의 실제 expense 데이터에도 즉시 생성한다.
+            if (currentMonth) {
+                syncFixedCategoriesToMonth(currentMonth, false);
+                render();
+            }
+
+            saveCategoryList();
+            syncFixedCategoriesToAllMonths(true).then(() => {
+                if (currentMonth) render();
+            });
         }
     }
     window.addFixedExpenseCategory = addFixedExpenseCategory;
@@ -2584,8 +2778,9 @@ function renderExpenseModalHTML() {
             return;
         }
         fixedExpenseCategoryList.splice(index, 1);
-        saveCategoryList();
         renderFixedExpenseCategorySettings();
+        render();
+        saveCategoryList();
     }
     window.removeFixedExpenseCategory = removeFixedExpenseCategory;
 
@@ -2633,25 +2828,82 @@ function addCategorySetting() {
         await flushPendingIncomeSaves();
 
         currentMonth = m;
-        if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) globalMonthEl.value = currentMonth;
-        render();
+
+        if (!firebaseDataReady) return;
+
+        setDashboardLoading(true);
+        renderEmptyLoadingState();
+        updateSyncStatus('최신 데이터를 불러오는 중...');
+
+        const requestId = ++activeViewRequestId;
+        const ok = await getFreshMonth(m);
+
+        if (currentMonth !== m || requestId !== activeViewRequestId) return;
+
+        if (ok) {
+            render();
+            updateSyncStatus('최신 데이터를 불러왔어요');
+        } else {
+            updateSyncStatus('데이터를 불러오지 못했어요', true);
+        }
+
+        setDashboardLoading(false);
     }
     window.changeMonth = changeMonth;
+
 
     function navigate(page, btn) {
         document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.gnb-btn').forEach(b => b.classList.remove('active'));
+
         const targetPage = document.getElementById(`page-${page}`);
-        if(targetPage) targetPage.classList.add('active');
-        if(btn) btn.classList.add('active');
+        if (targetPage) targetPage.classList.add('active');
+        if (btn) btn.classList.add('active');
 
         const memberTabBar = document.getElementById('member-tab-bar');
         const headerMonthWrapper = document.getElementById('header-month-wrapper');
 
         if (page === 'monthly') {
-            renderChartAndMonthly();
+            updateSyncStatus('월별 데이터를 불러오는 중...');
+            const months = Array.from(new Set([
+                ...BASE_MONTHS,
+                ...Object.keys(store || {})
+            ])).sort();
+
+            Promise.all(months.map(m => getFreshMonth(m))).then(() => {
+                renderChartAndMonthly();
+                updateSyncStatus('최신 데이터를 불러왔어요');
+            }).catch(e => {
+                console.warn('월별 데이터 로드 실패:', e);
+                updateSyncStatus('월별 데이터를 불러오지 못했어요', true);
+            });
+        } else if (page === 'settings') {
+            updateSyncStatus('설정을 불러오는 중...');
+            loadSettingsFromFirebase().then(() => {
+                renderCategorySettings();
+                renderFixedExpenseCategorySettings();
+                updateSyncStatus('최신 설정을 불러왔어요');
+            }).catch(e => {
+                console.warn('설정 로드 실패:', e);
+                updateSyncStatus('설정을 불러오지 못했어요', true);
+            });
+        } else if (page === 'dashboard') {
+            setDashboardLoading(true);
+            renderEmptyLoadingState();
+            updateSyncStatus('최신 데이터를 불러오는 중...');
+
+            getFreshMonth(currentMonth).then(ok => {
+                if (ok && currentMonth) {
+                    render();
+                    updateSyncStatus('최신 데이터를 불러왔어요');
+                } else {
+                    updateSyncStatus('데이터를 불러오지 못했어요', true);
+                }
+            }).finally(() => {
+                setDashboardLoading(false);
+            });
         }
 
         if (memberTabBar && headerMonthWrapper) {
@@ -2668,6 +2920,7 @@ function addCategorySetting() {
         }
     }
     window.navigate = navigate;
+
 
     function exportData() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
