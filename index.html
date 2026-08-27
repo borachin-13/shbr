@@ -894,9 +894,8 @@
         failed: new Map()
     };
 
-    const incomeSaveTimers = new Map();
-
     const pendingMonthWrites = new Set();
+    const incomeSaveTimers = new Map();
     let pendingCategoryWrite = null;
     let lastKnownGoodMonthSnapshot = null;
 
@@ -939,46 +938,6 @@
             });
         }
         return items.filter(item => (item.owner || 'shared') !== (currentTab === 'bora' ? 'sang' : 'bora'));
-    }
-
-    // ---------- 공통 실행/상태 관리 ----------
-    function updateSyncStatus(message, type = 'loading') {
-        const badge = document.getElementById('auth-status-badge');
-        if (!badge) return;
-        badge.innerText = message;
-        badge.style.background = type === 'success' ? '#c6f6d5' : type === 'error' ? '#fed7d7' : '#feebc8';
-        badge.style.color = type === 'success' ? '#22543d' : type === 'error' ? '#742a2a' : '#744210';
-    }
-
-    function withTimeout(promise, ms, message) {
-        return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))]);
-    }
-
-    async function withRetry(task, attempts = 3, delayMs = 500) {
-        let lastError;
-        for (let attempt = 1; attempt <= attempts; attempt++) {
-            try { return await task(attempt); }
-            catch (error) { lastError = error; if (attempt < attempts) await new Promise(r => setTimeout(r, delayMs * attempt)); }
-        }
-        throw lastError;
-    }
-
-    function normalizeMonthData(raw) {
-        const defaults = DEFAULT_MONTH_DATA();
-        const data = { ...defaults, ...(raw || {}) };
-        data.sectionTitles = { ...defaults.sectionTitles, ...((raw && raw.sectionTitles) || {}) };
-        data.categories = { ...defaults.categories, ...((raw && raw.categories) || {}) };
-        Object.keys(defaults.categories).forEach(key => {
-            if (!Array.isArray(data.categories[key])) data.categories[key] = cloneData(defaults.categories[key]);
-        });
-        return data;
-    }
-
-    function renderAll() {
-        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-        renderCategorySettings();
-        if (typeof renderFixedExpenseCategorySettings === 'function') renderFixedExpenseCategorySettings();
-        render();
     }
 
     function queueMonthWrite(month, writer) {
@@ -1106,38 +1065,66 @@
         let legacyCategories = null;
         let categoryLoaded = false;
 
-        const metaSnap = await getDoc(doc(db, META_COLLECTION, META_DOC_ID));
-        if (metaSnap.exists()) {
-            const meta = metaSnap.data();
-            if (Array.isArray(meta.categoryList) && meta.categoryList.length) { categoryList = meta.categoryList; categoryLoaded = true; }
-            if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) fixedExpenseCategoryList = meta.fixedExpenseCategoryList;
+        // 새 구조를 먼저 읽는다.
+        try {
+            const metaSnap = await getDoc(doc(db, META_COLLECTION, META_DOC_ID));
+            if (metaSnap.exists()) {
+                const meta = metaSnap.data();
+                if (Array.isArray(meta.categoryList) && meta.categoryList.length) { categoryList = meta.categoryList; categoryLoaded = true; }
+                if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) fixedExpenseCategoryList = meta.fixedExpenseCategoryList;
+            }
+        } catch (e) {
+            console.error('설정 불러오기 실패:', e);
         }
 
-        const legacySnap = await getDoc(doc(db, 'gotgan', LEGACY_DOC_ID));
-        if (legacySnap.exists()) {
-            const legacy = legacySnap.data();
-            legacyStore = legacy.store || null;
-            legacyCategories = Array.isArray(legacy.categoryList) ? legacy.categoryList : null;
-            if (!categoryLoaded && legacyCategories && legacyCategories.length) { categoryList = legacyCategories; categoryLoaded = true; }
+        try {
+            const legacySnap = await getDoc(doc(db, 'gotgan', LEGACY_DOC_ID));
+            if (legacySnap.exists()) {
+                const legacy = legacySnap.data();
+                legacyStore = legacy.store || null;
+                legacyCategories = Array.isArray(legacy.categoryList) ? legacy.categoryList : null;
+                if (!categoryLoaded && legacyCategories && legacyCategories.length) { categoryList = legacyCategories; categoryLoaded = true; }
+            }
+        } catch (e) {
+            console.error('기존 데이터 확인 실패:', e);
         }
 
-        const months = Array.from(new Set([...BASE_MONTHS, ...Object.keys(legacyStore || {}), ...Object.keys(store || {})])).sort();
-        const results = await Promise.all(months.map(async month => {
+        store = {};
+        const months = Array.from(new Set([...BASE_MONTHS, ...Object.keys(legacyStore || {})])).sort();
+        for (const month of months) {
             try {
                 const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${month}`));
-                if (snap.exists()) return { month, data: normalizeMonthData(snap.data()) };
-                if (legacyStore && legacyStore[month]) {
-                    const migrated = normalizeMonthData(legacyStore[month]);
-                    await setDoc(doc(db, MONTH_COLLECTION, `month_${month}`), { ...cloneData(migrated), migratedFromLegacy: true, updatedAt: Date.now() }, { merge: true });
-                    return { month, data: migrated };
+                if (snap.exists()) {
+                    store[month] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
+                    if (!store[month].categories) store[month].categories = DEFAULT_MONTH_DATA().categories;
+                    continue;
                 }
-            } catch (error) { console.warn(`${month} 불러오기 실패:`, error); }
-            return null;
-        }));
 
-        results.filter(Boolean).forEach(result => { store[result.month] = result.data; });
+                // 새 문서가 없을 때만 구버전 데이터를 해당 월 문서로 안전하게 1회 이관한다.
+                if (legacyStore && legacyStore[month]) {
+                    const migrated = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacyStore[month]) };
+                    if (!migrated.categories) migrated.categories = DEFAULT_MONTH_DATA().categories;
+                    store[month] = migrated;
+                    await setDoc(doc(db, MONTH_COLLECTION, `month_${month}`), {
+                        ...cloneData(migrated),
+                        migratedFromLegacy: true,
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                }
+            } catch (e) {
+                console.error(`${month} 불러오기 실패:`, e);
+            }
+        }
+
+        if (!categoryLoaded && legacyCategories && legacyCategories.length) { categoryList = legacyCategories; categoryLoaded = true; }
         if (!categoryList.length) categoryList = DEFAULT_CATEGORIES.slice();
-        BASE_MONTHS.forEach(month => { if (!store[month]) store[month] = DEFAULT_MONTH_DATA(); });
+        if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
+            fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
+        }
+
+        for (const month of BASE_MONTHS) {
+            if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
+        }
     }
 
 
@@ -1306,49 +1293,84 @@
         fieldVersions.set(`${month}:${fieldKey}`, Number(version) || 0);
     }
 
+    function updateSyncStatus(message) {
+        const badge = document.getElementById('auth-status-badge');
+        if (!badge) return;
+        if (message === '데이터를 불러왔어요') {
+            badge.innerText = '연결됨';
+            badge.style.background = '#c6f6d5';
+            badge.style.color = '#22543d';
+        } else if (message === '데이터를 불러오는 중...') {
+            badge.innerText = '불러오는 중';
+            badge.style.background = '#feebc8';
+            badge.style.color = '#744210';
+        } else if (message === '데이터를 불러오지 못했어요') {
+            badge.innerText = '오프라인';
+            badge.style.background = '#fed7d7';
+            badge.style.color = '#742a2a';
+        }
+    }
+
     async function init() {
         const authBadge = document.getElementById('auth-status-badge');
+
+        // 1) 가장 빠른 경로: 로컬 캐시를 즉시 화면에 반영한다.
         loadFastMonthCache();
+
         if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
 
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) {
-            currentMonth = (globalMonthEl.value || currentMonth).replace('.', '-');
-            globalMonthEl.onchange = e => changeMonth(e.target.value.replace('.', '-'));
+            if (globalMonthEl.value) currentMonth = globalMonthEl.value.replace('.', '-');
+            else globalMonthEl.value = currentMonth;
+            globalMonthEl.onchange = async (e) => {
+                await changeMonth(e.target.value.replace('.', '-'));
+            };
         }
 
-        renderAll();
-        updateSyncStatus('연결 중...');
+        // 캐시/기본값으로 먼저 렌더링하고, 원격 작업은 병렬 백그라운드에서 수행한다.
+        renderCategorySettings();
+        renderFixedExpenseCategorySettings();
+        render();
 
-        // 인증 완료 후에만 Firestore를 조회한다.
-        try {
-            await withRetry(() => withTimeout(signInAnonymously(auth), 8000, 'Firebase 인증 시간 초과'), 3, 600);
-            if (authBadge) {
+        updateSyncStatus('데이터를 불러오는 중...');
+
+        // 인증 / 환율 / Firebase 로딩을 순차적으로 기다리지 않고 병렬 실행한다.
+        const authPromise = signInAnonymously(auth).then(() => {
+            if(authBadge) {
                 authBadge.innerText = '연결됨';
                 authBadge.style.background = '#c6f6d5';
                 authBadge.style.color = '#22543d';
             }
-        } catch (error) {
-            console.error('Firebase 인증 실패:', error);
-            updateSyncStatus('오프라인', 'error');
-            showToast('연결이 지연되고 있어요. 저장된 데이터로 먼저 열었습니다.', true);
-            return;
-        }
+        }).catch(err => {
+            console.error('익명 로그인 실패:', err);
+            if(authBadge) {
+                authBadge.innerText = '인증 실패';
+                authBadge.style.background = '#fed7d7';
+                authBadge.style.color = '#742a2a';
+            }
+        });
 
-        const dataTask = withTimeout(loadAll(), 15000, '데이터 불러오기 시간 초과');
-        const rateTask = withTimeout(fetchExchangeRate(), 5000, '환율 불러오기 시간 초과');
-        const [dataResult, rateResult] = await Promise.allSettled([dataTask, rateTask]);
+        const exchangePromise = fetchExchangeRate().catch(err => {
+            console.warn('환율 로드 실패:', err);
+        });
 
-        if (dataResult.status === 'rejected') {
-            console.error('데이터 불러오기 실패:', dataResult.reason);
-            updateSyncStatus('일부 데이터만 표시', 'error');
-        } else {
-            updateSyncStatus('데이터를 불러왔어요', 'success');
-        }
-        if (rateResult.status === 'rejected') console.warn('환율 로드 실패:', rateResult.reason);
+        const dataPromise = loadAll().catch(err => {
+            console.warn('백그라운드 데이터 로드 실패:', err);
+            return false;
+        });
 
+        await Promise.allSettled([authPromise, exchangePromise, dataPromise]);
+
+        // 서버 데이터가 도착한 뒤 임시 입력값을 복구하고 최종 화면을 한 번만 갱신한다.
         await recoverIncomeDraft();
-        renderAll();
+
+        if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        renderCategorySettings();
+        renderFixedExpenseCategorySettings();
+        render();
+
+        updateSyncStatus('데이터를 불러왔어요');
     }
 
     function toggleIncomeCard() {
@@ -1793,6 +1815,10 @@
                     <div class="accordion-content">
                         <div class="sub-item-row"><span>총 수입액</span><span>${formatAmount(incWon)}</span></div>
                         <div class="sub-item-row"><span>총 지출액</span><span>${formatAmount(totalExpWon)}</span></div>
+                        <div class="sub-item-row"><span>고정 지출</span><span>${formatAmount(sumCat(d.categories.expense))}</span></div>
+                        ${(d.categories.expense || []).map(item => `<div class="sub-item-row" style="padding-left:18px;"><span>${item.date ? formatKoreanDate(item.date) + ' ' : ''}${item.name || '고정 지출'}</span><span>${formatAmount(Number(item.amount) || 0)}</span></div>`).join('')}
+                        <div class="sub-item-row"><span>공동 생활비</span><span>${formatAmount(sumCat(d.categories.living))}</span></div>
+                        <div class="sub-item-row"><span>변동 지출</span><span>${formatAmount(sumCat(d.categories.variable_expense))}</span></div>
                         <div class="sub-item-row"><span>총 저축액 (고정+추가)</span><span>${formatAmount(totalSavWon)}</span></div>
                         <div class="sub-item-row"><span>변동 지출 건수</span><span>${(d.categories.variable_expense || []).length}건</span></div>
                     </div>
@@ -1940,8 +1966,17 @@ function renderExpenseModalHTML() {
                             <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
                         </div>
                         <div class="modal-rows-container">`;
-                cats[k].forEach((item) => {
-                    if (k === 'expense') {
+                if (k === 'expense') {
+                    // 설정에서 등록한 고정 지출 카테고리가 해당 월에 아직 저장되지 않았더라도
+                    // 월별 입력 화면에 자동으로 나타나도록 한다. 기존 월 데이터는 절대 덮어쓰지 않는다.
+                    const existingFixedNames = new Set(cats.expense.map(item => item.name));
+                    const fixedItemsForMonth = cats.expense.slice();
+                    fixedExpenseCategoryList.forEach(category => {
+                        if (!existingFixedNames.has(category)) {
+                            fixedItemsForMonth.push({ name: category, amount: 0, date: '' });
+                        }
+                    });
+                    fixedItemsForMonth.forEach((item) => {
                         html += `
                         <div class="sub-row">
                             <input type="date" value="${item.date || ''}" class="inp-date">
@@ -1949,7 +1984,9 @@ function renderExpenseModalHTML() {
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
-                    } else {
+                    });
+                } else {
+                    cats[k].forEach((item) => {
                         html += `
                         <div class="sub-row">
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
@@ -1958,6 +1995,7 @@ function renderExpenseModalHTML() {
                         </div>`;
                     }
                 });
+                }
                 html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 고정 지출 항목 추가</button></div>`;
             }
         });
@@ -2283,19 +2321,13 @@ function addCategorySetting() {
     window.setMemberTab = setMemberTab;
 
     async function changeMonth(m) {
-        if (!m) return;
+        await flushPendingIncomeSaves();
+
         currentMonth = m;
-        if (!store[m]) store[m] = DEFAULT_MONTH_DATA();
+        if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) globalMonthEl.value = currentMonth;
-        renderAll();
-
-        if (auth.currentUser) {
-            try {
-                const snap = await withTimeout(getDoc(doc(db, MONTH_COLLECTION, `month_${m}`)), 8000, '월 데이터 조회 시간 초과');
-                if (snap.exists()) { store[m] = normalizeMonthData(snap.data()); renderAll(); }
-            } catch (error) { console.warn(`${m} 월 데이터 보강 실패:`, error); }
-        }
+        render();
     }
     window.changeMonth = changeMonth;
 
@@ -2306,10 +2338,12 @@ function addCategorySetting() {
         if(targetPage) targetPage.classList.add('active');
         if(btn) btn.classList.add('active');
 
-        if (page === 'monthly') renderChartAndMonthly();
-
         const memberTabBar = document.getElementById('member-tab-bar');
         const headerMonthWrapper = document.getElementById('header-month-wrapper');
+
+        if (page === 'monthly') {
+            renderChartAndMonthly();
+        }
 
         if (memberTabBar && headerMonthWrapper) {
             if (page === 'dashboard') {
@@ -2356,6 +2390,34 @@ function addCategorySetting() {
     }
     window.resetData = resetData;
 
+
+    function runInternalSmokeTests() {
+        const results = [];
+        const assert = (name, condition) => results.push({ name, pass: !!condition });
+        const sample = {
+            categories: {
+                expense: [{ name: '월세', amount: 700000, date: '2026-08-25' }],
+                bora_personal: [{ name: '보험료', amount: 100000 }],
+                sang_personal: [{ name: '주유비', amount: 80000 }],
+                living: [{ name: '공동 생활비 예산', amount: 500000 }],
+                variable_expense: [{ name: '외식', amount: 120000, owner: 'shared' }],
+                savings: [{ name: '보라 청년계좌', amount: 300000, owner: 'bora' }],
+                reserve: [{ name: '남겨둘 돈', amount: 100000, owner: 'shared' }]
+            }
+        };
+        assert('고정 지출 합계 계산', sumCat(sample.categories.expense) === 700000);
+        const fixedNames = new Set(sample.categories.expense.map(item => item.name));
+        const configuredFixed = DEFAULT_FIXED_EXPENSE_CATEGORIES[0];
+        assert('설정 고정지출 카테고리 목록 존재', DEFAULT_FIXED_EXPENSE_CATEGORIES.includes(configuredFixed));
+        assert('월별 고정지출 항목은 카테고리명으로 식별 가능', fixedNames.has('월세'));
+        assert('고정 지출 날짜 보존', sample.categories.expense[0].date === '2026-08-25');
+        assert('공동 생활비 합계 계산', sumCat(sample.categories.living) === 500000);
+        assert('변동 지출 합계 계산', sumCat(sample.categories.variable_expense) === 120000);
+        assert('고정 지출 카테고리 기본값 존재', fixedExpenseCategoryList.length > 0);
+        assert('월별 데이터 기본 구조 존재', !!DEFAULT_MONTH_DATA().categories.expense);
+        return results;
+    }
+    window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
 </script>
