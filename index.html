@@ -717,6 +717,20 @@
             <div id="page-settings" class="page-view">
 <div class="card">
                     <div class="card-header">
+                        <span class="card-title">📌 고정 지출 관리</span>
+                    </div>
+                    <div style="display:flex; gap:6px; margin-top:8px;">
+                        <input type="text" id="new-fixed-expense-input" placeholder="새 고정 지출 (예: 보험료)" style="flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; outline:none;">
+                        <button class="btn-action-sm" onclick="window.addFixedExpenseSetting()">추가</button>
+                    </div>
+                    <div id="fixed-expense-setting-list" style="margin-top:8px;"></div>
+                    <div style="font-size:11px;color:var(--text-sub);margin-top:8px;">
+                        날짜를 설정하면 해당 고정 지출의 기준일로 사용됩니다. 기존 월별 금액은 보존됩니다.
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
                         <span class="card-title">🏷️ 변동 지출 카테고리 관리</span>
                     </div>
                     <div style="display:flex; gap:6px; margin-top:8px;">
@@ -783,6 +797,8 @@
     </div>
 <!-- 스크립트 영역 -->
 <script type="module">
+    // v45: 설정 변경은 Firestore 저장 완료를 기다리지 않고 로컬 UI에 즉시 반영.
+    // 서버 저장은 백그라운드에서 수행하여 모바일에서 체감 로딩을 최소화한다.
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -848,6 +864,11 @@
     const DEFAULT_CATEGORIES = ['식비', '생필품', '경조사', '기타'];
     const DEFAULT_FIXED_EXPENSE_CATEGORIES = ['월세', '관리비', '전기/가스/수도', '인터넷', '공동 구독료'];
     let categoryList = DEFAULT_CATEGORIES.slice();
+    // 고정지출 템플릿: 설정에서 관리하며 각 월의 expense 데이터와 연결한다.
+    let fixedExpenseCategories = [
+        { name: '월세', date: '' },
+        { name: '공과금', date: '' }
+    ];
     let fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
 
     function getEffectiveFixedExpenseCategories() {
@@ -914,6 +935,73 @@
     function cloneData(value) {
         return JSON.parse(JSON.stringify(value));
     }
+
+    function normalizeFixedExpenseCategories(list) {
+        const input = Array.isArray(list) ? list : [];
+        const seen = new Set();
+        const result = [];
+
+        input.forEach(item => {
+            const name = typeof item === 'string' ? item.trim() : String(item?.name || '').trim();
+            if (!name || seen.has(name)) return;
+            seen.add(name);
+            result.push({
+                name,
+                date: typeof item === 'string' ? '' : (item?.date || '')
+            });
+        });
+
+        return result.length ? result : [
+            { name: '월세', date: '' },
+            { name: '공과금', date: '' }
+        ];
+    }
+
+    function applyFixedExpenseTemplatesToMonth(month, persist = false) {
+        if (!month) return false;
+        if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
+
+        const d = store[month];
+        if (!d.categories) d.categories = DEFAULT_MONTH_DATA().categories;
+        if (!Array.isArray(d.categories.expense)) d.categories.expense = [];
+
+        let changed = false;
+
+        fixedExpenseCategories.forEach(template => {
+            const existing = d.categories.expense.find(item =>
+                String(item.name || '').trim() === template.name
+            );
+
+            if (!existing) {
+                d.categories.expense.push({
+                    name: template.name,
+                    amount: 0,
+                    date: template.date || ''
+                });
+                changed = true;
+            } else if (!existing.date && template.date) {
+                // 기존 금액은 절대 건드리지 않고, 비어 있는 날짜만 설정값으로 보강
+                existing.date = template.date;
+                changed = true;
+            }
+        });
+
+        if (changed && persist) {
+            saveMonthPatch(month, {
+                'categories.expense': cloneData(d.categories.expense),
+                updatedAt: Date.now()
+            });
+        }
+
+        return changed;
+    }
+
+    function applyFixedExpenseTemplatesToAllLoadedMonths() {
+        Object.keys(store || {}).forEach(month => {
+            applyFixedExpenseTemplatesToMonth(month, false);
+        });
+    }
+
 
     function getOwnerOptionsHtml(currentOwner = 'shared') {
         const owner = currentOwner || 'shared';
@@ -1034,6 +1122,43 @@
     }
 
 
+    
+    async function saveFixedExpenseCategories() {
+        const writePromise = (async () => {
+            try {
+                fixedExpenseCategories = normalizeFixedExpenseCategories(fixedExpenseCategories);
+
+                await setDoc(doc(db, META_COLLECTION, META_DOC_ID), {
+                    fixedExpenseCategories: cloneData(fixedExpenseCategories),
+                    updatedAt: Date.now()
+                }, { merge: true });
+
+                // 서버 저장을 기다리지 않고 현재 로드된 월에 즉시 반영
+                Object.keys(store || {}).forEach(month => {
+                    if (applyFixedExpenseTemplatesToMonth(month, false)) {
+                        saveMonthPatch(month, {
+                            'categories.expense': cloneData(store[month].categories.expense),
+                            updatedAt: Date.now()
+                        });
+                    }
+                });
+
+                showToast('고정 지출 설정이 저장되었습니다.');
+                return true;
+            } catch (e) {
+                console.error('고정 지출 설정 저장 실패:', e);
+                showToast('고정 지출 설정 저장에 실패했습니다.', true);
+                return false;
+            }
+        })();
+
+        pendingCategoryWrite = writePromise;
+        writePromise.finally(() => {
+            if (pendingCategoryWrite === writePromise) pendingCategoryWrite = null;
+        });
+        return writePromise;
+    }
+
     async function saveCategoryList() {
         const writePromise = (async () => {
             let lastError = null;
@@ -1074,6 +1199,10 @@
             if (metaSnap.exists()) {
                 const meta = metaSnap.data();
                 if (Array.isArray(meta.categoryList) && meta.categoryList.length) { categoryList = meta.categoryList; categoryLoaded = true; }
+                if (Array.isArray(meta.fixedExpenseCategories)) {
+                    fixedExpenseCategories = normalizeFixedExpenseCategories(meta.fixedExpenseCategories);
+                    fixedCategoryLoaded = true;
+                }
                 if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
                     fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
                     fixedCategoryLoaded = fixedExpenseCategoryList.length > 0;
@@ -2025,6 +2154,7 @@ function renderExpenseModalHTML() {
                         html += `
                         <div class="sub-row">
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
+                            <input type="date" value="${item.date || ''}" class="inp-date">
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
@@ -2063,6 +2193,7 @@ function renderExpenseModalHTML() {
         } else {
             newRow.innerHTML = `
                 <input type="text" value="" class="inp-name" placeholder="항목명">
+                <input type="date" value="" class="inp-date">
                 <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         }
@@ -2198,10 +2329,12 @@ function renderExpenseModalHTML() {
                     }
                 } else {
                     const nameInp = row.querySelector('.inp-name');
+                    const dateInp = row.querySelector('.inp-date');
                     const amountInp = row.querySelector('.inp-amount');
                     if (nameInp && nameInp.value.trim() !== '') {
                         updated.push({
                             name: nameInp.value.trim() || '항목',
+                            date: dateInp ? dateInp.value : '',
                             amount: parseNumberString(amountInp ? amountInp.value : '')
                         });
                     }
@@ -2215,7 +2348,12 @@ function renderExpenseModalHTML() {
 
         closeModal();
         restorePageScroll();
+
+        // 로컬 상태를 이미 갱신했으므로 Firestore 응답을 기다리지 않고
+        // 현재 월 화면/KPI에 즉시 반영한다.
         render();
+
+        // 서버 저장은 백그라운드에서 처리한다.
         saveMonthPatch(currentMonth, { ...changedPatch, updatedAt: Date.now() });
     }
 
@@ -2254,9 +2392,120 @@ function renderExpenseModalHTML() {
 
         closeModal();
         restorePageScroll();
+
+        // 로컬 상태를 이미 갱신했으므로 Firestore 응답을 기다리지 않고
+        // 현재 월 화면/KPI에 즉시 반영한다.
         render();
+
+        // 서버 저장은 백그라운드에서 처리한다.
         saveMonthPatch(currentMonth, { ...changedPatch, updatedAt: Date.now() });
     }
+
+    
+    function renderFixedExpenseSettings() {
+        const container = document.getElementById('fixed-expense-setting-list');
+        if (!container) return;
+
+        container.innerHTML = fixedExpenseCategories.map((item, index) => `
+            <div class="setting-row">
+                <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+                    <input type="text" value="${item.name.replace(/"/g, '&quot;')}"
+                        data-fixed-name="${index}"
+                        style="flex:1; min-width:0; padding:8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px;">
+                    <input type="date" value="${item.date || ''}"
+                        data-fixed-date="${index}"
+                        style="width:120px; padding:8px 5px; border:1px solid var(--border-color); border-radius:6px; font-size:11px;">
+                </div>
+                <button class="btn-action-sm" style="margin-left:6px; background:#fff5f5; color:var(--expense-color);"
+                    onclick="window.removeFixedExpenseSetting(${index})">삭제</button>
+            </div>
+        `).join('');
+
+        container.querySelectorAll('[data-fixed-name]').forEach(inp => {
+            inp.addEventListener('change', () => updateFixedExpenseSetting(Number(inp.dataset.fixedName), inp.value, null));
+        });
+        container.querySelectorAll('[data-fixed-date]').forEach(inp => {
+            inp.addEventListener('change', () => updateFixedExpenseSetting(Number(inp.dataset.fixedDate), null, inp.value));
+        });
+    }
+
+    function addFixedExpenseSetting() {
+        const input = document.getElementById('new-fixed-expense-input');
+        if (!input) return;
+        const name = input.value.trim();
+        if (!name) return;
+        if (fixedExpenseCategories.some(x => x.name === name)) {
+            showToast('이미 등록된 고정 지출입니다.', true);
+            return;
+        }
+
+        fixedExpenseCategories.push({ name, date: '' });
+        input.value = '';
+        renderFixedExpenseSettings();
+
+        // 현재 월에 즉시 생성 + 계산/월별 화면 즉시 갱신
+        applyFixedExpenseTemplatesToMonth(currentMonth, false);
+        render();
+        saveFixedExpenseCategories();
+    }
+    window.addFixedExpenseSetting = addFixedExpenseSetting;
+
+    function updateFixedExpenseSetting(index, name, date) {
+        const item = fixedExpenseCategories[index];
+        if (!item) return;
+
+        if (name !== null) {
+            const trimmed = String(name || '').trim();
+            if (!trimmed) return;
+            if (fixedExpenseCategories.some((x, i) => i !== index && x.name === trimmed)) {
+                showToast('이미 등록된 고정 지출입니다.', true);
+                renderFixedExpenseSettings();
+                return;
+            }
+
+            const oldName = item.name;
+            item.name = trimmed;
+
+            // 이름 변경은 기존 월 데이터의 항목 이름도 함께 변경하되 금액은 유지한다.
+            Object.values(store || {}).forEach(d => {
+                const found = (d.categories?.expense || []).find(x => x.name === oldName);
+                if (found) found.name = trimmed;
+            });
+        }
+
+        if (date !== null) item.date = date || '';
+
+        renderFixedExpenseSettings();
+        applyFixedExpenseTemplatesToMonth(currentMonth, false);
+        render();
+        saveFixedExpenseCategories();
+
+        // 이름/날짜 변경은 현재 월의 expense도 즉시 서버 반영
+        if (store[currentMonth]?.categories?.expense) {
+            saveMonthPatch(currentMonth, {
+                'categories.expense': cloneData(store[currentMonth].categories.expense),
+                updatedAt: Date.now()
+            });
+        }
+    }
+
+    function removeFixedExpenseSetting(index) {
+        if (fixedExpenseCategories.length <= 1) {
+            showToast('최소 1개의 고정 지출은 필요합니다.', true);
+            return;
+        }
+
+        const removed = fixedExpenseCategories[index];
+        fixedExpenseCategories.splice(index, 1);
+
+        renderFixedExpenseSettings();
+        render();
+        saveFixedExpenseCategories();
+
+        // 과거 월 데이터는 삭제하지 않는다. 현재 월에서도 이미 입력된 값은 보존한다.
+        showToast(`${removed.name} 설정을 삭제했어요.`);
+    }
+    window.removeFixedExpenseSetting = removeFixedExpenseSetting;
 
     function renderCategorySettings() {
         const container = document.getElementById('setting-category-tags');
@@ -2344,12 +2593,15 @@ function addCategorySetting() {
         const input = document.getElementById('new-cat-input');
         if (!input) return;
         const val = input.value.trim();
-        if (val && !categoryList.includes(val)) {
-            categoryList.push(val);
-            saveCategoryList();
-            input.value = '';
-            renderCategorySettings();
-        }
+        if (!val || categoryList.includes(val)) return;
+
+        // 화면 상태를 먼저 변경해 즉시 반영
+        categoryList.push(val);
+        input.value = '';
+        renderCategorySettings();
+
+        // Firestore 저장은 백그라운드에서 진행
+        saveCategoryList();
     }
     window.addCategorySetting = addCategorySetting;
 
@@ -2358,30 +2610,14 @@ function addCategorySetting() {
             alert('최소 1개의 카테고리는 등록되어 있어야 합니다.');
             return;
         }
-        const removed = categoryList[index];
-        if (!removed) return;
-        const deletedLabel = `${removed} (삭제됨)`;
 
-        // 기존 변동지출 데이터가 조용히 다른 카테고리로 바뀌지 않도록
-        // 사용 중인 과거 카테고리는 삭제 표시를 붙여 데이터 자체를 보존한다.
-        Object.values(store || {}).forEach(monthData => {
-            const items = monthData && monthData.categories && monthData.categories.variable_expense;
-            if (!Array.isArray(items)) return;
-            items.forEach(item => {
-                if (item && item.category === removed) item.category = deletedLabel;
-            });
-        });
-
+        // 화면 상태를 먼저 변경해 즉시 반영
         categoryList.splice(index, 1);
-        saveCategoryList();
         renderCategorySettings();
-        render();
-        Object.keys(store || {}).forEach(month => {
-            const items = store[month]?.categories?.variable_expense;
-            if (Array.isArray(items) && items.some(item => item.category === deletedLabel)) {
-                saveMonthPatch(month, { 'categories.variable_expense': cloneData(items), updatedAt: Date.now() }, '카테고리 삭제가 저장되었습니다.');
-            }
-        });
+
+        // 기존 월 데이터의 카테고리 값은 보존한다.
+        // 저장 후 별도의 전체 재로딩은 하지 않아 화면이 늦게 바뀌지 않도록 한다.
+        saveCategoryList();
     }
     window.removeCategorySetting = removeCategorySetting;
 
