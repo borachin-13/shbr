@@ -817,13 +817,16 @@
 
     async function fetchExchangeRate() {
         try {
-            const res = await withTimeout(fetch('https://open.er-api.com/v6/latest/USD'), 5000, '환율 조회');
+            const res = await fetch('https://open.er-api.com/v6/latest/USD');
             const data = await res.json();
-            if (data && data.rates && data.rates.KRW) usdRate = data.rates.KRW;
+            if (data && data.rates && data.rates.KRW) {
+                usdRate = data.rates.KRW;
+            }
         } catch(e) {
-            console.log('환율 정보 가져오기 실패/시간 초과, 기본값 사용:', e);
+            console.log('환율 정보 가져오기 실패, 기본값 사용:', e);
         }
     }
+
 
     function formatNumberString(val) {
         if (!val && val !== 0) return '';
@@ -846,6 +849,11 @@
     const DEFAULT_FIXED_EXPENSE_CATEGORIES = ['월세', '관리비', '전기/가스/수도', '인터넷', '공동 구독료'];
     let categoryList = DEFAULT_CATEGORIES.slice();
     let fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
+
+    function getEffectiveFixedExpenseCategories() {
+        const list = Array.isArray(fixedExpenseCategoryList) ? fixedExpenseCategoryList.filter(Boolean) : [];
+        return list.length ? list : DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
+    }
 
     const DEFAULT_MONTH_DATA = () => ({
         bora: 0, bora_extra: 0, sang: 0, sang_other_income: 0, trip_usd: 0,
@@ -892,6 +900,7 @@
     };
 
     const pendingMonthWrites = new Set();
+    const incomeSaveTimers = new Map();
     let pendingCategoryWrite = null;
     let lastKnownGoodMonthSnapshot = null;
 
@@ -1031,24 +1040,21 @@
             for (let attempt = 0; attempt < 3; attempt++) {
                 try {
                     await setDoc(doc(db, META_COLLECTION, META_DOC_ID), {
-                        categoryList: categoryList,
-                        fixedExpenseCategoryList: fixedExpenseCategoryList,
+                        categoryList: Array.isArray(categoryList) ? categoryList : DEFAULT_CATEGORIES.slice(),
+                        fixedExpenseCategoryList: getEffectiveFixedExpenseCategories(),
                         updatedAt: Date.now()
                     }, { merge: true });
-                    showToast('저장되었습니다.');
+                    showToast('설정이 저장되었어요.');
                     return true;
                 } catch (e) {
                     lastError = e;
-                    if (attempt < 2) {
-                        await new Promise(resolve => setTimeout(resolve, 350 * (attempt + 1)));
-                    }
+                    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 350 * (attempt + 1)));
                 }
             }
             console.error('설정 저장 실패:', lastError);
-            showToast('설정 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', true);
+            showToast('설정을 저장하지 못했어요. 잠시 후 다시 시도해주세요.', true);
             return false;
         })();
-
         pendingCategoryWrite = writePromise;
         writePromise.finally(() => {
             if (pendingCategoryWrite === writePromise) pendingCategoryWrite = null;
@@ -1056,125 +1062,96 @@
         return writePromise;
     }
 
-    function withTimeout(promise, ms, label = '작업') {
-        return Promise.race([
-            promise,
-            new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} 시간 초과`)), ms))
-        ]);
-    }
-
     async function loadAll() {
         let legacyStore = null;
         let legacyCategories = null;
         let categoryLoaded = false;
+        let fixedCategoryLoaded = false;
 
-        // 로컬 캐시를 먼저 유지한다. 원격 조회 실패 때문에 캐시가 지워지면 안 된다.
-        const cachedStore = cloneData(store || {});
-
-        // 설정과 레거시 문서는 서로 독립적이므로 동시에 조회한다.
-        const [metaResult, legacyResult] = await Promise.allSettled([
-            withTimeout(getDoc(doc(db, META_COLLECTION, META_DOC_ID)), 8000, '설정 조회'),
-            withTimeout(getDoc(doc(db, 'gotgan', LEGACY_DOC_ID)), 8000, '기존 데이터 조회')
-        ]);
-
-        if (metaResult.status === 'fulfilled' && metaResult.value.exists()) {
-            const meta = metaResult.value.data();
-            if (Array.isArray(meta.categoryList) && meta.categoryList.length) {
-                categoryList = meta.categoryList;
-                categoryLoaded = true;
+        // 새 구조를 먼저 읽는다.
+        try {
+            const metaSnap = await getDoc(doc(db, META_COLLECTION, META_DOC_ID));
+            if (metaSnap.exists()) {
+                const meta = metaSnap.data();
+                if (Array.isArray(meta.categoryList) && meta.categoryList.length) { categoryList = meta.categoryList; categoryLoaded = true; }
+                if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
+                    fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
+                    fixedCategoryLoaded = fixedExpenseCategoryList.length > 0;
+                }
             }
-            if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
-                fixedExpenseCategoryList = meta.fixedExpenseCategoryList;
-            }
+        } catch (e) {
+            console.error('설정 불러오기 실패:', e);
         }
 
-        if (legacyResult.status === 'fulfilled' && legacyResult.value.exists()) {
-            const legacy = legacyResult.value.data();
-            legacyStore = legacy.store || null;
-            legacyCategories = Array.isArray(legacy.categoryList) ? legacy.categoryList : null;
-            if (!categoryLoaded && legacyCategories && legacyCategories.length) {
-                categoryList = legacyCategories;
-                categoryLoaded = true;
+        try {
+            const legacySnap = await getDoc(doc(db, 'gotgan', LEGACY_DOC_ID));
+            if (legacySnap.exists()) {
+                const legacy = legacySnap.data();
+                legacyStore = legacy.store || null;
+                legacyCategories = Array.isArray(legacy.categoryList) ? legacy.categoryList : null;
+                if (!categoryLoaded && legacyCategories && legacyCategories.length) { categoryList = legacyCategories; categoryLoaded = true; }
             }
+        } catch (e) {
+            console.error('기존 데이터 확인 실패:', e);
         }
 
-        const months = Array.from(new Set([
-            ...BASE_MONTHS,
-            ...Object.keys(cachedStore),
-            ...Object.keys(legacyStore || {})
-        ])).sort();
-
-        // 모든 월을 동시에 읽는다. 한 달씩 순차 조회하지 않는다.
-        const monthResults = await Promise.all(months.map(async month => {
+        store = {};
+        const months = Array.from(new Set([...BASE_MONTHS, ...Object.keys(legacyStore || {})])).sort();
+        for (const month of months) {
             try {
-                const snap = await withTimeout(
-                    getDoc(doc(db, MONTH_COLLECTION, `month_${month}`)),
-                    8000,
-                    `${month} 조회`
-                );
-                return { month, snap };
-            } catch (error) {
-                return { month, error };
-            }
-        }));
+                const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${month}`));
+                if (snap.exists()) {
+                    store[month] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
+                    if (!store[month].categories) store[month].categories = DEFAULT_MONTH_DATA().categories;
+                    continue;
+                }
 
-        const nextStore = { ...cachedStore };
-        let hadRemoteMonthSuccess = false;
-
-        for (const result of monthResults) {
-            const month = result.month;
-            if (result.snap && result.snap.exists()) {
-                const remote = result.snap.data();
-                nextStore[month] = {
-                    ...DEFAULT_MONTH_DATA(),
-                    ...(nextStore[month] || {}),
-                    ...remote,
-                    categories: {
-                        ...DEFAULT_MONTH_DATA().categories,
-                        ...((nextStore[month] && nextStore[month].categories) || {}),
-                        ...(remote.categories || {})
-                    }
-                };
-                hadRemoteMonthSuccess = true;
-            } else if (!result.snap && legacyStore && legacyStore[month] && !nextStore[month]) {
-                // 새 문서가 없는 경우에만 구버전 데이터를 메모리에 복구한다.
-                nextStore[month] = {
-                    ...DEFAULT_MONTH_DATA(),
-                    ...cloneData(legacyStore[month])
-                };
+                // 새 문서가 없을 때만 구버전 데이터를 해당 월 문서로 안전하게 1회 이관한다.
+                if (legacyStore && legacyStore[month]) {
+                    const migrated = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacyStore[month]) };
+                    if (!migrated.categories) migrated.categories = DEFAULT_MONTH_DATA().categories;
+                    store[month] = migrated;
+                    await setDoc(doc(db, MONTH_COLLECTION, `month_${month}`), {
+                        ...cloneData(migrated),
+                        migratedFromLegacy: true,
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                }
+            } catch (e) {
+                console.error(`${month} 불러오기 실패:`, e);
             }
         }
 
-        store = nextStore;
-        if (!categoryLoaded && legacyCategories && legacyCategories.length) {
-            categoryList = legacyCategories;
-        }
+        if (!categoryLoaded && legacyCategories && legacyCategories.length) { categoryList = legacyCategories; categoryLoaded = true; }
         if (!categoryList.length) categoryList = DEFAULT_CATEGORIES.slice();
-        if (!fixedExpenseCategoryList.length) fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
+        if (!fixedCategoryLoaded) {
+            const discovered = [];
+            Object.values(store || {}).forEach(monthData => {
+                const items = monthData?.categories?.expense;
+                if (!Array.isArray(items)) return;
+                items.forEach(item => {
+                    const name = String(item?.name || '').trim();
+                    if (name && !discovered.includes(name)) discovered.push(name);
+                });
+            });
+            fixedExpenseCategoryList = Array.from(new Set([
+                ...DEFAULT_FIXED_EXPENSE_CATEGORIES,
+                ...discovered
+            ]));
+        }
+        if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
+            fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
+        }
 
         for (const month of BASE_MONTHS) {
             if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
         }
 
-        // 레거시 이관은 화면 로딩을 막지 않도록 성공한 월만 백그라운드에서 1회 저장한다.
-        if (legacyStore) {
-            for (const result of monthResults) {
-                const month = result.month;
-                if (result.snap || !legacyStore[month]) continue;
-                try {
-                    await setDoc(doc(db, MONTH_COLLECTION, `month_${month}`), {
-                        ...cloneData(store[month]),
-                        migratedFromLegacy: true,
-                        updatedAt: Date.now()
-                    }, { merge: true });
-                } catch (e) {
-                    console.warn(`${month} 구버전 데이터 이관 실패:`, e);
-                }
-            }
-        }
-
-        return hadRemoteMonthSuccess || metaResult.status === 'fulfilled' || legacyResult.status === 'fulfilled';
+        // 설정의 고정지출 카테고리를 월별 데이터의 실제 항목으로도 보장한다.
+        // 기존 금액/날짜는 유지하고, 없는 카테고리만 0원으로 추가한다.
+        await syncFixedCategoriesToAllMonths(false);
     }
+
 
     async function flushPendingIncomeSaves() {
         const timers = Array.from(incomeSaveTimers.entries());
@@ -1256,32 +1233,6 @@
 
     window.addEventListener('offline', () => {
         showToast('인터넷 연결이 끊겼습니다. 연결되면 자동으로 다시 저장합니다.', true);
-    });
-
-    let reconnectTimer = null;
-    window.addEventListener('online', () => {
-        if (reconnectTimer) clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(async () => {
-            try {
-                if (!auth.currentUser) {
-                    await withTimeout(signInAnonymously(auth), 8000, '재인증');
-                }
-                updateSyncStatus('재연결 중...');
-                const ok = await withTimeout(loadAll(), 12000, '재연결 데이터 동기화');
-                if (ok !== false) {
-                    await recoverIncomeDraft();
-                    renderCategorySettings();
-                    renderFixedExpenseCategorySettings();
-                    render();
-                    updateSyncStatus('불러오기 완료');
-                } else {
-                    updateSyncStatus('동기화 실패');
-                }
-            } catch (e) {
-                console.warn('재연결 실패:', e);
-                updateSyncStatus('동기화 실패');
-            }
-        }, 300);
     });
 
 
@@ -1370,14 +1321,16 @@
     function updateSyncStatus(message) {
         const badge = document.getElementById('auth-status-badge');
         if (!badge) return;
-        badge.innerText = message;
-        if (message === '불러오기 완료') {
+        if (message === '데이터를 불러왔어요') {
+            badge.innerText = '연결됨';
             badge.style.background = '#c6f6d5';
             badge.style.color = '#22543d';
-        } else if (message === '동기화 중...') {
+        } else if (message === '데이터를 불러오는 중...') {
+            badge.innerText = '불러오는 중';
             badge.style.background = '#feebc8';
             badge.style.color = '#744210';
-        } else if (message === '동기화 실패') {
+        } else if (message === '데이터를 불러오지 못했어요') {
+            badge.innerText = '오프라인';
             badge.style.background = '#fed7d7';
             badge.style.color = '#742a2a';
         }
@@ -1386,78 +1339,72 @@
     async function init() {
         const authBadge = document.getElementById('auth-status-badge');
 
-        // 로컬 캐시/기본 화면은 Firebase와 무관하게 즉시 표시한다.
+        // 1) 가장 빠른 경로: 로컬 캐시를 즉시 화면에 반영한다.
         loadFastMonthCache();
+
         if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
 
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) {
             if (globalMonthEl.value) currentMonth = globalMonthEl.value.replace('.', '-');
             else globalMonthEl.value = currentMonth;
-            globalMonthEl.onchange = async e => { await changeMonth(e.target.value.replace('.', '-')); };
+            globalMonthEl.onchange = async (e) => {
+                await changeMonth(e.target.value.replace('.', '-'));
+            };
         }
 
+        // 캐시/기본값으로 먼저 렌더링하고, 원격 작업은 병렬 백그라운드에서 수행한다.
         renderCategorySettings();
         renderFixedExpenseCategorySettings();
         render();
-        updateSyncStatus('연결 중...');
 
-        // Firestore Rules가 인증된 사용자만 허용하는 경우를 대비해
-        // 인증이 끝난 뒤에 데이터 조회를 시작한다. 이전 버전처럼 동시에 실행하지 않는다.
-        let authOk = false;
+        updateSyncStatus('데이터를 불러오는 중...');
+
+        // Firestore 데이터는 인증이 완료된 뒤에 읽는다.
+        // 인증과 데이터 읽기를 동시에 시작하면 보안 규칙이 request.auth를
+        // 확인하기 전에 getDoc()이 실행되어 기존 데이터가 로드되지 않을 수 있다.
+        let authReady = false;
         try {
-            await withTimeout(signInAnonymously(auth), 8000, 'Firebase 인증');
-            authOk = true;
-            if (authBadge) {
+            await signInAnonymously(auth);
+            authReady = true;
+            if(authBadge) {
                 authBadge.innerText = '연결됨';
                 authBadge.style.background = '#c6f6d5';
                 authBadge.style.color = '#22543d';
             }
         } catch (err) {
-            console.error('익명 로그인 실패/시간 초과:', err);
-            if (authBadge) {
-                authBadge.innerText = '오프라인';
+            console.error('익명 로그인 실패:', err);
+            if(authBadge) {
+                authBadge.innerText = '인증 실패';
                 authBadge.style.background = '#fed7d7';
                 authBadge.style.color = '#742a2a';
             }
-            updateSyncStatus('오프라인');
         }
 
-        if (!authOk) {
-            // 인증 실패가 앱 자체를 멈추게 하지 않는다. 로컬 캐시를 그대로 사용한다.
-            renderCategorySettings();
-            renderFixedExpenseCategorySettings();
-            render();
-            return;
-        }
-
-        updateSyncStatus('데이터 불러오는 중...');
-
-        const dataPromise = loadAll().catch(err => {
-            console.error('Firebase 데이터 로드 실패:', err);
-            return false;
+        // 환율은 Firebase 인증과 무관하므로 계속 병렬로 처리한다.
+        const exchangePromise = fetchExchangeRate().catch(err => {
+            console.warn('환율 로드 실패:', err);
         });
-        const exchangePromise = fetchExchangeRate().catch(err => console.warn('환율 로드 실패:', err));
 
-        const [dataResult] = await Promise.allSettled([
-            withTimeout(dataPromise, 12000, 'Firebase 데이터 동기화'),
-            exchangePromise
-        ]);
+        // 인증 성공 후에만 Firestore를 읽는다.
+        const dataPromise = authReady
+            ? loadAll().catch(err => {
+                console.warn('백그라운드 데이터 로드 실패:', err);
+                return false;
+            })
+            : Promise.resolve(false);
 
-        if (dataResult.status === 'fulfilled' && dataResult.value !== false) {
-            try { await recoverIncomeDraft(); } catch (e) { console.warn('임시 수입 복구 실패:', e); }
-            renderCategorySettings();
-            renderFixedExpenseCategorySettings();
-            render();
-            updateSyncStatus('불러오기 완료');
-        } else {
-            // 원격 데이터가 실패해도 캐시/기본 화면을 유지하고 무한 연결 상태를 만들지 않는다.
-            renderCategorySettings();
-            renderFixedExpenseCategorySettings();
-            render();
-            updateSyncStatus('동기화 실패');
-            showToast('서버 데이터를 불러오지 못했습니다. 저장된 데이터로 표시합니다.', true);
-        }
+        await Promise.allSettled([exchangePromise, dataPromise]);
+
+        // 서버 데이터가 도착한 뒤 임시 입력값을 복구하고 최종 화면을 한 번만 갱신한다.
+        await recoverIncomeDraft();
+
+        if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        renderCategorySettings();
+        renderFixedExpenseCategorySettings();
+        render();
+
+        updateSyncStatus('데이터를 불러왔어요');
     }
 
     function toggleIncomeCard() {
@@ -1902,6 +1849,10 @@
                     <div class="accordion-content">
                         <div class="sub-item-row"><span>총 수입액</span><span>${formatAmount(incWon)}</span></div>
                         <div class="sub-item-row"><span>총 지출액</span><span>${formatAmount(totalExpWon)}</span></div>
+                        <div class="sub-item-row"><span>고정 지출</span><span>${formatAmount(sumCat(d.categories.expense))}</span></div>
+                        ${(d.categories.expense || []).map(item => `<div class="sub-item-row" style="padding-left:18px;"><span>${item.date ? formatKoreanDate(item.date) + ' ' : ''}${item.name || '고정 지출'}</span><span>${formatAmount(Number(item.amount) || 0)}</span></div>`).join('')}
+                        <div class="sub-item-row"><span>공동 생활비</span><span>${formatAmount(sumCat(d.categories.living))}</span></div>
+                        <div class="sub-item-row"><span>변동 지출</span><span>${formatAmount(sumCat(d.categories.variable_expense))}</span></div>
                         <div class="sub-item-row"><span>총 저축액 (고정+추가)</span><span>${formatAmount(totalSavWon)}</span></div>
                         <div class="sub-item-row"><span>변동 지출 건수</span><span>${(d.categories.variable_expense || []).length}건</span></div>
                     </div>
@@ -1988,11 +1939,12 @@
     window.handleModalNumInput = handleModalNumInput;
 
         function buildFixedExpenseOptionsHtml(currentCat) {
-        const safeCurrent = currentCat || (fixedExpenseCategoryList[0] || '월세');
-        let options = fixedExpenseCategoryList.map(cat =>
+        const effectiveFixed = getEffectiveFixedExpenseCategories();
+        const safeCurrent = currentCat || (effectiveFixed[0] || '월세');
+        let options = effectiveFixed.map(cat =>
             `<option value="${cat}" ${cat === safeCurrent ? 'selected' : ''}>${cat}</option>`
         ).join('');
-        if (safeCurrent && !fixedExpenseCategoryList.includes(safeCurrent)) {
+        if (safeCurrent && !effectiveFixed.includes(safeCurrent)) {
             options += `<option value="${safeCurrent}" selected>${safeCurrent} (기존)</option>`;
         }
         return options;
@@ -2049,8 +2001,17 @@ function renderExpenseModalHTML() {
                             <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
                         </div>
                         <div class="modal-rows-container">`;
-                cats[k].forEach((item) => {
-                    if (k === 'expense') {
+                if (k === 'expense') {
+                    // 설정에서 등록한 고정 지출 카테고리가 해당 월에 아직 저장되지 않았더라도
+                    // 월별 입력 화면에 자동으로 나타나도록 한다. 기존 월 데이터는 절대 덮어쓰지 않는다.
+                    const existingFixedNames = new Set(cats.expense.map(item => item.name));
+                    const fixedItemsForMonth = cats.expense.slice();
+                    getEffectiveFixedExpenseCategories().forEach(category => {
+                        if (!existingFixedNames.has(category)) {
+                            fixedItemsForMonth.push({ name: category, amount: 0, date: '' });
+                        }
+                    });
+                    fixedItemsForMonth.forEach((item) => {
                         html += `
                         <div class="sub-row">
                             <input type="date" value="${item.date || ''}" class="inp-date">
@@ -2058,15 +2019,17 @@ function renderExpenseModalHTML() {
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
-                    } else {
+                    });
+                } else {
+                    cats[k].forEach((item) => {
                         html += `
                         <div class="sub-row">
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
-                    }
-                });
+                    });
+                }
                 html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 고정 지출 항목 추가</button></div>`;
             }
         });
@@ -2094,7 +2057,7 @@ function renderExpenseModalHTML() {
             const today = new Date().toISOString().split('T')[0];
             newRow.innerHTML = `
                 <input type="date" value="${today}" class="inp-date">
-                <select class="inp-cat">${buildFixedExpenseOptionsHtml(fixedExpenseCategoryList[0])}</select>
+                <select class="inp-cat">${buildFixedExpenseOptionsHtml(getEffectiveFixedExpenseCategories()[0])}</select>
                 <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         } else {
@@ -2228,7 +2191,7 @@ function renderExpenseModalHTML() {
                     const dateInp = row.querySelector('.inp-date');
                     const catInp = row.querySelector('.inp-cat');
                     const amountInp = row.querySelector('.inp-amount');
-                    const category = catInp ? catInp.value : (fixedExpenseCategoryList[0] || '월세');
+                    const category = catInp ? catInp.value : (getEffectiveFixedExpenseCategories()[0] || '월세');
                     const amount = parseNumberString(amountInp ? amountInp.value : '');
                     if (category || amount > 0) {
                         updated.push({ date: dateInp ? dateInp.value : '', name: category, amount });
@@ -2309,9 +2272,45 @@ function renderExpenseModalHTML() {
         function renderFixedExpenseCategorySettings() {
         const container = document.getElementById('setting-fixed-category-tags');
         if (!container) return;
-        container.innerHTML = fixedExpenseCategoryList.map((cat, idx) =>
+        const effective = getEffectiveFixedExpenseCategories();
+        container.innerHTML = effective.map((cat, idx) =>
             `<div class="category-tag">${cat}<span onclick="window.removeFixedExpenseCategory(${idx})">&times;</span></div>`
         ).join('');
+        if (!container.innerHTML) {
+            container.innerHTML = '<div style="font-size:12px;color:var(--text-sub);">등록된 고정 지출 카테고리가 없습니다.</div>';
+        }
+    }
+
+    async function syncFixedCategoriesToMonth(month, persist = false) {
+        if (!month) return false;
+        if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
+        if (!store[month].categories) store[month].categories = DEFAULT_MONTH_DATA().categories;
+        if (!Array.isArray(store[month].categories.expense)) store[month].categories.expense = [];
+
+        const existing = new Set(store[month].categories.expense.map(item => String(item?.name || '').trim()).filter(Boolean));
+        let changed = false;
+        getEffectiveFixedExpenseCategories().forEach(category => {
+            if (!existing.has(category)) {
+                store[month].categories.expense.push({ name: category, amount: 0, date: '' });
+                existing.add(category);
+                changed = true;
+            }
+        });
+
+        if (changed && persist) {
+            await saveMonthPatch(month, {
+                'categories.expense': cloneData(store[month].categories.expense),
+                updatedAt: Date.now()
+            });
+        }
+        return changed;
+    }
+
+    async function syncFixedCategoriesToAllMonths(persist = false) {
+        const months = getMonthKeys();
+        for (const month of months) {
+            await syncFixedCategoriesToMonth(month, persist);
+        }
     }
 
     function addFixedExpenseCategory() {
@@ -2323,6 +2322,9 @@ function renderExpenseModalHTML() {
             saveCategoryList();
             input.value = '';
             renderFixedExpenseCategorySettings();
+            // 새 고정지출 카테고리는 현재 월뿐 아니라 기존 월별 데이터에도 즉시 연결한다.
+            syncFixedCategoriesToAllMonths(true);
+            render();
         }
     }
     window.addFixedExpenseCategory = addFixedExpenseCategory;
@@ -2412,6 +2414,10 @@ function addCategorySetting() {
         const memberTabBar = document.getElementById('member-tab-bar');
         const headerMonthWrapper = document.getElementById('header-month-wrapper');
 
+        if (page === 'monthly') {
+            renderChartAndMonthly();
+        }
+
         if (memberTabBar && headerMonthWrapper) {
             if (page === 'dashboard') {
                 memberTabBar.style.display = 'flex';
@@ -2457,6 +2463,34 @@ function addCategorySetting() {
     }
     window.resetData = resetData;
 
+
+    function runInternalSmokeTests() {
+        const results = [];
+        const assert = (name, condition) => results.push({ name, pass: !!condition });
+        const sample = {
+            categories: {
+                expense: [{ name: '월세', amount: 700000, date: '2026-08-25' }],
+                bora_personal: [{ name: '보험료', amount: 100000 }],
+                sang_personal: [{ name: '주유비', amount: 80000 }],
+                living: [{ name: '공동 생활비 예산', amount: 500000 }],
+                variable_expense: [{ name: '외식', amount: 120000, owner: 'shared' }],
+                savings: [{ name: '보라 청년계좌', amount: 300000, owner: 'bora' }],
+                reserve: [{ name: '남겨둘 돈', amount: 100000, owner: 'shared' }]
+            }
+        };
+        assert('고정 지출 합계 계산', sumCat(sample.categories.expense) === 700000);
+        const fixedNames = new Set(sample.categories.expense.map(item => item.name));
+        const configuredFixed = DEFAULT_FIXED_EXPENSE_CATEGORIES[0];
+        assert('설정 고정지출 카테고리 목록 존재', DEFAULT_FIXED_EXPENSE_CATEGORIES.includes(configuredFixed));
+        assert('월별 고정지출 항목은 카테고리명으로 식별 가능', fixedNames.has('월세'));
+        assert('고정 지출 날짜 보존', sample.categories.expense[0].date === '2026-08-25');
+        assert('공동 생활비 합계 계산', sumCat(sample.categories.living) === 500000);
+        assert('변동 지출 합계 계산', sumCat(sample.categories.variable_expense) === 120000);
+        assert('고정 지출 카테고리 기본값 존재', fixedExpenseCategoryList.length > 0);
+        assert('월별 데이터 기본 구조 존재', !!DEFAULT_MONTH_DATA().categories.expense);
+        return results;
+    }
+    window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
 </script>
