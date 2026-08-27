@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>우리 곳간</title>
+    <title>우리 곳간 — 안정성 통합본</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <style>
         :root {
@@ -562,23 +562,6 @@
         .gnb-btn.active { color: var(--primary); font-weight: 800; }
         .gnb-btn-icon { font-size: 18px; }
 
-        .data-loading-inline {
-            font-size: 11px;
-            color: var(--text-sub);
-            white-space: nowrap;
-        }
-
-        .firebase-loading {
-            opacity: 0.72;
-            pointer-events: none;
-        }
-        .data-load-status {
-            font-size: 10px;
-            color: var(--text-sub);
-            margin-left: 4px;
-            white-space: nowrap;
-        }
-
         .btn-action-sm {
             padding: 5px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;
         }
@@ -596,24 +579,6 @@
             <div id="lock-error" class="lock-error"></div>
         </div>
     </div>
-
-    <!-- 비밀번호 입력은 Firebase/모듈 로딩과 독립적으로 동작 -->
-    <script>
-        window.checkPassword = function() {
-            const pwInput = document.getElementById('lock-input');
-            const errEl = document.getElementById('lock-error');
-            if (!pwInput) return;
-
-            if (pwInput.value === '0315') {
-                const lockScreen = document.getElementById('lock-screen');
-                if (lockScreen) lockScreen.style.display = 'none';
-            } else {
-                if (errEl) errEl.innerText = '비밀번호가 일치하지 않습니다.';
-                pwInput.value = '';
-                pwInput.focus();
-            }
-        };
-    </script>
 
     <!-- 저장 상태 알림 토스트 메시지 -->
     <div id="toast-message">저장되었습니다.</div>
@@ -724,7 +689,6 @@
                 <div class="card">
                     <div class="card-header">
                         <span class="card-title">📅 월별 요약</span>
-                        <select id="monthly-year-select" onchange="window.changeMonthlyYear(this.value)" style="padding:5px 8px;border:1px solid var(--border-color);border-radius:6px;font-size:11px;background:#fff;"></select>
                     </div>
                     <div id="monthly-accordion-list"></div>
                 </div>
@@ -732,21 +696,74 @@
 
             <!-- 3. 설정 페이지 -->
             <div id="page-settings" class="page-view">
-<div class="card">
+<!-- [기능 비활성화] 데이터 이월 설정
+
+                <div class="card">
                     <div class="card-header">
-                        <span class="card-title">📌 고정 지출 관리</span>
+                        <span class="card-title">🔄 데이터 이월 설정</span>
                     </div>
-                    <div style="display:flex; gap:6px; margin-top:8px;">
-                        <input type="text" id="new-fixed-expense-input" placeholder="새 고정 지출 (예: 보험료)" style="flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; outline:none;">
-                        <button class="btn-action-sm" onclick="window.addFixedExpenseSetting()">추가</button>
+                    <div style="font-size:11px; color:var(--text-sub); margin-bottom:12px;">기준 월을 선택한 뒤 이월 여부를 설정하면, 해당 월의 데이터를 기준으로 이후 월에 적용합니다.</div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px;">
+                        <span class="setting-label">기준 월</span>
+                        <select id="carryover-source-month" onchange="window.changeCarryoverSourceMonth(this.value)"
+                                style="border:1px solid var(--border-color); background:white; padding:7px 30px 7px 12px; border-radius:20px; font-size:13px; font-weight:700; color:var(--text-main); outline:none;">
+                            <option value="2026-06">2026.06</option>
+                            <option value="2026-07">2026.07</option>
+                            <option value="2026-08" selected>2026.08</option>
+                            <option value="2026-09">2026.09</option>
+                            <option value="2026-10">2026.10</option>
+                            <option value="2026-11">2026.11</option>
+                            <option value="2026-12">2026.12</option>
+                        </select>
                     </div>
-                    <div id="fixed-expense-setting-list" style="margin-top:8px;"></div>
-                    <div style="font-size:11px;color:var(--text-sub);margin-top:8px;">
-                        날짜를 설정하면 해당 고정 지출의 기준일로 사용됩니다. 기존 월별 금액은 보존됩니다.
+                    
+                    <div class="setting-row">
+                        <span class="setting-label">공통 고정지출 이월</span>
+                        <label class="switch">
+                            <input type="checkbox" id="carryover-expense-toggle" onchange="window.updateCarryoverSettings()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">보라 개인 지출 이월</span>
+                        <label class="switch">
+                            <input type="checkbox" id="carryover-bora-toggle" onchange="window.updateCarryoverSettings()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">상훈 개인 지출 이월</span>
+                        <label class="switch">
+                            <input type="checkbox" id="carryover-sang-toggle" onchange="window.updateCarryoverSettings()" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">공동 생활비 이월</span>
+                        <label class="switch">
+                            <input type="checkbox" id="carryover-living-toggle" onchange="window.updateCarryoverSettings()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">고정 저축 이월</span>
+                        <label class="switch">
+                            <input type="checkbox" id="carryover-savings-toggle" onchange="window.updateCarryoverSettings()" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">비상금(남겨둘 돈) 이월</span>
+                        <label class="switch">
+                            <input type="checkbox" id="carryover-reserve-toggle" onchange="window.updateCarryoverSettings()" checked>
+                            <span class="slider"></span>
+                        </label>
                     </div>
                 </div>
 
-                <div class="card">
+                
+끝: 데이터 이월 설정 -->
+<div class="card">
                     <div class="card-header">
                         <span class="card-title">🏷️ 변동 지출 카테고리 관리</span>
                     </div>
@@ -755,18 +772,6 @@
                         <button class="btn-action-sm" onclick="window.addCategorySetting()">추가</button>
                     </div>
                     <div class="category-tags" id="setting-category-tags"></div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header"><span class="card-title">🏠 고정 지출 카테고리 관리</span></div>
-                    <div style="font-size:11px;color:var(--text-sub);line-height:1.5;margin-bottom:8px;">
-                        월세·관리비·공과금처럼 집을 유지하기 위해 정기적으로 나가는 항목입니다.
-                    </div>
-                    <div style="display:flex;gap:6px;margin-top:8px;">
-                        <input type="text" id="new-fixed-cat-input" placeholder="새 고정 지출 (예: 도시가스)" style="flex:1;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:12px;outline:none;">
-                        <button class="btn-action-sm" onclick="window.addFixedExpenseCategory()">추가</button>
-                    </div>
-                    <div class="category-tags" id="setting-fixed-category-tags"></div>
                 </div>
 
                 <div class="card">
@@ -814,11 +819,9 @@
     </div>
 <!-- 스크립트 영역 -->
 <script type="module">
-    // v45: 설정 변경은 Firestore 저장 완료를 기다리지 않고 로컬 UI에 즉시 반영.
-    // 서버 저장은 백그라운드에서 수행하여 모바일에서 체감 로딩을 최소화한다.
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyA_xbdI3K1KYa9qCYYd2SN7EJJkLcSLmE4",
@@ -860,6 +863,18 @@
         }
     }
 
+    function checkPassword() {
+        const pwInput = document.getElementById('lock-input').value;
+        const errEl = document.getElementById('lock-error');
+        if (pwInput === '0315') {
+            document.getElementById('lock-screen').style.display = 'none';
+        } else {
+            errEl.innerText = '비밀번호가 일치하지 않습니다.';
+            document.getElementById('lock-input').value = '';
+            document.getElementById('lock-input').focus();
+        }
+    }
+    window.checkPassword = checkPassword;
 
     function formatNumberString(val) {
         if (!val && val !== 0) return '';
@@ -879,22 +894,19 @@
     }
 
     const DEFAULT_CATEGORIES = ['식비', '생필품', '경조사', '기타'];
-    const DEFAULT_FIXED_EXPENSE_CATEGORIES = ['월세', '관리비', '전기/가스/수도', '인터넷', '공동 구독료'];
     let categoryList = DEFAULT_CATEGORIES.slice();
-    // 고정지출 템플릿: 설정에서 관리하며 각 월의 expense 데이터와 연결한다.
-    let fixedExpenseCategories = [
-        { name: '월세', date: '' },
-        { name: '공과금', date: '' }
-    ];
-    let fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
-
-    function getEffectiveFixedExpenseCategories() {
-        const list = Array.isArray(fixedExpenseCategoryList) ? fixedExpenseCategoryList.filter(Boolean) : [];
-        return list.length ? list : DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
-    }
+    
+    let carryoverSettings = {
+        expense: false,
+        bora_personal: false,
+        sang_personal: true,
+        living: false,
+        savings: true,
+        reserve: true
+    };
 
     const DEFAULT_MONTH_DATA = () => ({
-        bora: 0, bora_extra: 0, sang: 0, sang_other_income: 0, trip_usd: 0,
+        bora: 0, bora_extra: 0, sang: 0, sang_extra: 0, trip_usd: 0, 
         sectionTitles: {
             expense: '공통 고정지출',
             bora_personal: '보라 개인 지출',
@@ -914,682 +926,165 @@
         }
     });
 
-    let store = {};
+    let store = null;
     let currentMonth = '2026-08';
     let currentTab = 'all';
-    let monthlySelectedYear = 2026;
 
-    // 이월 기능은 최종 버전에서 제거했다. 월별 데이터는 서로 독립적이다.
-    const LEGACY_DOC_ID = 'gotgan_data_v1';
-    const META_DOC_ID = 'settings_v1';
-    // 기존 Firebase 보안 규칙을 그대로 사용할 수 있도록 같은 gotgan 컬렉션 안에서 분리한다.
-    const MONTH_COLLECTION = 'gotgan';
-    const META_COLLECTION = 'gotgan';
-    const BASE_MONTHS = ['2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12'];
-    const monthSaveQueues = new Map();
-    // PC/모바일 동시 수정 보호용 필드 버전
-    const fieldVersions = new Map();
-    const remoteUnsubscribe = new Map();
+    // 기준 월별 이월 설정
+    let monthlyCarryoverSettings = {};
+    // 미래 월의 어떤 데이터가 어느 기준 월에서 자동 이월된 것인지 기록한다.
+    let carryoverSources = {};
 
-    const saveState = {
-        pending: new Map(),
-        lastSuccess: new Map(),
-        failed: new Map()
-    };
+    const FIRESTORE_DOC_ID = 'gotgan_data_v1';
 
-    const pendingMonthWrites = new Set();
-    const incomeSaveTimers = new Map();
-    let pendingCategoryWrite = null;
-    let lastKnownGoodMonthSnapshot = null;
-
-    function getMonthKeys() {
-        const select = document.getElementById('global-month');
-        const fromUi = select ? Array.from(select.options).map(o => o.value.replace('.', '-')) : [];
-        const fromStore = Object.keys(store || {});
-        return Array.from(new Set([...BASE_MONTHS, ...fromUi, ...fromStore])).filter(Boolean).sort();
+    function debounce(fn, delay) {
+        let timer = null;
+        const debounced = function(...args) {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                timer = null;
+                fn(...args);
+            }, delay);
+        };
+        debounced.flush = function(...args) {
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+            return fn(...args);
+        };
+        return debounced;
     }
 
-    function cloneData(value) {
-        return JSON.parse(JSON.stringify(value));
+
+    async function persistStore(){
+        try {
+            const payload = {
+                store: store,
+                categoryList: categoryList,
+                carryoverSettings: carryoverSettings,
+                monthlyCarryoverSettings: monthlyCarryoverSettings,
+                carryoverSources: carryoverSources,
+                updatedAt: Date.now()
+            };
+
+            // 기존 문서가 있으면 merge update, 없으면 merge set.
+            await setDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), payload, { merge: true });
+            showToast('저장되었습니다.');
+            return true;
+        } catch(e) {
+            console.error('저장 실패:', e);
+            showToast('저장에 실패했습니다 (권한 확인 필요)', true);
+            return false;
+        }
     }
 
-    function normalizeFixedExpenseCategories(list) {
-        const input = Array.isArray(list) ? list : [];
-        const seen = new Set();
-        const result = [];
-
-        input.forEach(item => {
-            const name = typeof item === 'string' ? item.trim() : String(item?.name || '').trim();
-            if (!name || seen.has(name)) return;
-            seen.add(name);
-            result.push({
-                name,
-                date: typeof item === 'string' ? '' : (item?.date || '')
+    async function persistStoreSilently() {
+        try {
+            await updateDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
+                store: store,
+                categoryList: categoryList,
+                carryoverSettings: carryoverSettings,
+                monthlyCarryoverSettings: monthlyCarryoverSettings,
+                carryoverSources: carryoverSources
             });
-        });
-
-        return result.length ? result : [
-            { name: '월세', date: '' },
-            { name: '공과금', date: '' }
-        ];
+        } catch(e) {
+            console.error('자동 저장 실패:', e);
+        }
     }
 
-    function applyFixedExpenseTemplatesToMonth(month, persist = false) {
-        if (!month) return false;
-        if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
 
-        const d = store[month];
-        if (!d.categories) d.categories = DEFAULT_MONTH_DATA().categories;
-        if (!Array.isArray(d.categories.expense)) d.categories.expense = [];
+    async function loadAll(){
+        try {
+            const docSnap = await getDoc(doc(db, "gotgan", FIRESTORE_DOC_ID));
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.store) store = data.store;
+                if (data.categoryList) categoryList = data.categoryList;
+                if (data.carryoverSettings) carryoverSettings = { ...carryoverSettings, ...data.carryoverSettings };
+                if (data.monthlyCarryoverSettings) monthlyCarryoverSettings = data.monthlyCarryoverSettings;
+                if (data.carryoverSources) carryoverSources = data.carryoverSources;
+            }
+        } catch(e) { console.error('불러오기 실패:', e); }
 
+        if (!store) {
+            store = {};
+            ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
+                store[m] = DEFAULT_MONTH_DATA();
+            });
+        }
+    }
+
+    /* [기능 비활성화] migrateLegacyCarryoverSettings 보존용
+    function migrateLegacyCarryoverSettings() {
+        // 이전 버전은 carryoverSettings 하나만 저장했으므로,
+        // 월별 설정이 없으면 현재 기준 월에 기존 설정을 최초 기준값으로 등록한다.
+        if (!monthlyCarryoverSettings || Object.keys(monthlyCarryoverSettings).length === 0) {
+            monthlyCarryoverSettings = {};
+        }
+
+        if (!monthlyCarryoverSettings[currentMonth]) {
+            monthlyCarryoverSettings[currentMonth] = { ...carryoverSettings };
+        }
+    }
+    */
+
+
+    // [일회성 데이터 정리]
+    // 이월 기능을 비활성화하면서 과거에 중복 저장된 공통 고정지출을 정리한다.
+    // 2026.06의 값을 남기고 2026.07~2026.09의 중복값만 비운다.
+    async function cleanupLegacySharedExpenseDuplicates() {
+        if (!store) return;
+
+        const sourceMonth = '2026-06';
+        const duplicateMonths = ['2026-07', '2026-08', '2026-09'];
         let changed = false;
 
-        getEffectiveFixedExpenseCategories().forEach(template => {
-            const templateObj = typeof template === 'string' ? { name: template, date: '' } : template;
-            const existing = d.categories.expense.find(item =>
-                String(item.name || '').trim() === templateObj.name
-            );
+        duplicateMonths.forEach(month => {
+            if (!store[month] || !store[month].categories) return;
 
-            if (!existing) {
-                d.categories.expense.push({
-                    name: templateObj.name,
-                    amount: 0,
-                    date: templateObj.date || ''
-                });
-                changed = true;
-            } else if (!existing.date && templateObj.date) {
-                // 기존 금액은 절대 건드리지 않고, 비어 있는 날짜만 설정값으로 보강
-                existing.date = templateObj.date;
+            const current = store[month].categories.expense;
+            if (Array.isArray(current) && current.length > 0) {
+                store[month].categories.expense = [];
+                if (!store[month].sectionTitles) store[month].sectionTitles = {};
+                store[month].sectionTitles.expense = '공통 고정지출';
                 changed = true;
             }
         });
 
-        if (changed && persist) {
-            saveMonthPatch(month, {
-                'categories.expense': cloneData(d.categories.expense),
-                updatedAt: Date.now()
-            });
-        }
-
-        return changed;
-    }
-
-    function applyFixedExpenseTemplatesToAllLoadedMonths() {
-        Object.keys(store || {}).forEach(month => {
-            applyFixedExpenseTemplatesToMonth(month, false);
-        });
-    }
-
-
-    function getOwnerOptionsHtml(currentOwner = 'shared') {
-        const owner = currentOwner || 'shared';
-        return `
-            <option value="shared" ${owner === 'shared' ? 'selected' : ''}>공통</option>
-            <option value="bora" ${owner === 'bora' ? 'selected' : ''}>보라</option>
-            <option value="sang" ${owner === 'sang' ? 'selected' : ''}>상훈</option>`;
-    }
-
-    function getVariableCategoryOptionsHtml(currentCategory) {
-        const safeCurrent = currentCategory || (categoryList[0] || '식비');
-        let options = categoryList.map(cat =>
-            `<option value="${cat}" ${cat === safeCurrent ? 'selected' : ''}>${cat}</option>`
-        ).join('');
-        if (safeCurrent && !categoryList.includes(safeCurrent)) {
-            options += `<option value="${safeCurrent}" selected>${safeCurrent}</option>`;
-        }
-        return options;
-    }
-
-    function getItemsForCurrentTab(items, key) {
-        if (currentTab === 'all') return items;
-        if (key === 'variable_expense') {
-            return items.filter(item => {
-                const owner = item.owner || 'shared';
-                return owner === 'shared' || owner === currentTab;
-            });
-        }
-        return items.filter(item => (item.owner || 'shared') !== (currentTab === 'bora' ? 'sang' : 'bora'));
-    }
-
-    function queueMonthWrite(month, writer) {
-        const previous = monthSaveQueues.get(month) || Promise.resolve();
-        const next = previous.catch(() => {}).then(writer);
-        monthSaveQueues.set(month, next.finally(() => {
-            if (monthSaveQueues.get(month) === next) monthSaveQueues.delete(month);
-        }));
-        return next;
-    }
-
-    function expandPatch(patch) {
-        const result = {};
-        Object.entries(patch).forEach(([path, value]) => {
-            const parts = path.split('.');
-            let cursor = result;
-            parts.forEach((part, index) => {
-                if (index === parts.length - 1) {
-                    cursor[part] = value;
-                } else {
-                    cursor[part] = cursor[part] || {};
-                    cursor = cursor[part];
-                }
-            });
-        });
-        return result;
-    }
-
-    async function saveMonthPatch(month, patch, successMessage = '저장되었습니다.') {
-        if (!month) return false;
-        const safeMonth = month;
-        const patchKey = Object.keys(patch || {}).sort().join('|') || '__month__';
-        const stateKey = `${safeMonth}:${patchKey}`;
-
-        const writePromise = queueMonthWrite(safeMonth, async () => {
-            const ref = doc(db, MONTH_COLLECTION, `month_${safeMonth}`);
-            updateSyncStatus('저장하는 중...');
-            saveState.pending.set(stateKey, Date.now());
-            saveState.failed.delete(stateKey);
-
-            let lastError = null;
-            for (let attempt = 0; attempt < 3; attempt++) {
-                try {
-                    const snap = await getDoc(ref);
-                    const expanded = expandPatch(patch);
-                    const now = Date.now();
-
-                    if (!snap.exists()) {
-                        const base = cloneData(store[safeMonth] || DEFAULT_MONTH_DATA());
-                        await setDoc(ref, {
-                            ...base, ...expanded,
-                            createdAt: now, updatedAt: now
-                        }, { merge: true });
-                    } else {
-                        await setDoc(ref, {
-                            ...expanded, updatedAt: now
-                        }, { merge: true });
-                    }
-
-                    saveState.lastSuccess.set(stateKey, now);
-                    saveState.failed.delete(stateKey);
-                    saveFastMonthCache(safeMonth);
-                    lastKnownGoodMonthSnapshot = {
-                        month: safeMonth, patch: cloneData(patch), savedAt: now
-                    };
-                    if (successMessage) showToast(successMessage);
-                    return true;
-                } catch (e) {
-                    lastError = e;
-                    if (attempt < 2) {
-                        await new Promise(resolve => setTimeout(resolve, 350 * (attempt + 1)));
-                    }
-                }
-            }
-
-            saveState.failed.set(stateKey, {
-                error: lastError, failedAt: Date.now(), patch: cloneData(patch)
-            });
-            console.error('월별 데이터 저장 실패:', lastError);
-            showToast('저장에 실패했습니다. 잠시 후 다시 시도해주세요.', true);
-            return false;
-        });
-
-        pendingMonthWrites.add(writePromise);
-        writePromise.finally(() => {
-            pendingMonthWrites.delete(writePromise);
-            saveState.pending.delete(stateKey);
-        });
-        return writePromise;
-    }
-
-
-    
-    async function saveFixedExpenseCategories() {
-        const writePromise = (async () => {
+        if (changed) {
             try {
-                fixedExpenseCategories = normalizeFixedExpenseCategories(fixedExpenseCategories);
-
-                await setDoc(doc(db, META_COLLECTION, META_DOC_ID), {
-                    fixedExpenseCategories: cloneData(fixedExpenseCategories),
-                    updatedAt: Date.now()
-                }, { merge: true });
-
-                // 서버 저장을 기다리지 않고 현재 로드된 월에 즉시 반영
-                Object.keys(store || {}).forEach(month => {
-                    if (applyFixedExpenseTemplatesToMonth(month, false)) {
-                        saveMonthPatch(month, {
-                            'categories.expense': cloneData(store[month].categories.expense),
-                            updatedAt: Date.now()
-                        });
-                    }
+                await setDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
+                    store: store,
+                    categoryList: categoryList,
+                    carryoverSettings: carryoverSettings
                 });
-
-                showToast('고정 지출 설정이 저장되었습니다.');
-                return true;
+                console.log('과거 중복 공통 고정지출 데이터를 정리했습니다.');
             } catch (e) {
-                console.error('고정 지출 설정 저장 실패:', e);
-                showToast('고정 지출 설정 저장에 실패했습니다.', true);
-                return false;
-            }
-        })();
-
-        pendingCategoryWrite = writePromise;
-        writePromise.finally(() => {
-            if (pendingCategoryWrite === writePromise) pendingCategoryWrite = null;
-        });
-        return writePromise;
-    }
-
-    async function saveCategoryList() {
-        const writePromise = (async () => {
-            let lastError = null;
-            for (let attempt = 0; attempt < 3; attempt++) {
-                try {
-                    await setDoc(doc(db, META_COLLECTION, META_DOC_ID), {
-                        categoryList: Array.isArray(categoryList) ? categoryList : DEFAULT_CATEGORIES.slice(),
-                        fixedExpenseCategoryList: getEffectiveFixedExpenseCategories(),
-                        updatedAt: Date.now()
-                    }, { merge: true });
-                    showToast('설정이 저장되었어요.');
-                    return true;
-                } catch (e) {
-                    lastError = e;
-                    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 350 * (attempt + 1)));
-                }
-            }
-            console.error('설정 저장 실패:', lastError);
-            showToast('설정을 저장하지 못했어요. 잠시 후 다시 시도해주세요.', true);
-            return false;
-        })();
-        pendingCategoryWrite = writePromise;
-        writePromise.finally(() => {
-            if (pendingCategoryWrite === writePromise) pendingCategoryWrite = null;
-        });
-        return writePromise;
-    }
-
-    function updateSyncStatus(message, isError = false) {
-        // 내부 상태 기록용. 사용자 화면을 막거나 로딩 문구를 표시하지 않는다.
-        return;
-    }
-
-    function setDashboardLoading() {
-        return;
-    }
-
-    function renderEmptyLoadingState() {
-        return;
-    }
-
-    async function getFreshMonth(month) {
-        if (!month) return false;
-
-        // 같은 월에 중복 요청이 들어오면 하나의 Firebase read만 공유한다.
-        if (monthLoadPromises.has(month)) {
-            return monthLoadPromises.get(month);
-        }
-
-        const token = `${Date.now()}_${Math.random()}`;
-        latestRequestToken.set(month, token);
-
-        const promise = (async () => {
-            try {
-                const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${month}`));
-
-                // 더 최신 요청이 이미 시작됐다면 오래된 응답으로 화면을 덮지 않는다.
-                if (latestRequestToken.get(month) !== token) return false;
-
-                if (snap.exists()) {
-                    store[month] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
-                    if (!store[month].categories) {
-                        store[month].categories = DEFAULT_MONTH_DATA().categories;
-                    }
-                } else {
-                    // Firebase에 실제 문서가 없을 때만 빈 월을 사용한다.
-                    store[month] = DEFAULT_MONTH_DATA();
-                }
-
-                await syncFixedCategoriesToMonth(month, false);
-                return true;
-            } catch (e) {
-                console.error(`${month} 최신 데이터 로드 실패:`, e);
-                return false;
-            } finally {
-                monthLoadPromises.delete(month);
-            }
-        })();
-
-        monthLoadPromises.set(month, promise);
-        return promise;
-    }
-
-    async function loadMonthFromFirebase(month, options = {}) {
-        return getFreshMonth(month);
-    }
-
-
-    async function loadSettingsFromFirebase() {
-        try {
-            const metaSnap = await getDoc(doc(db, META_COLLECTION, META_DOC_ID));
-            if (metaSnap.exists()) {
-                const meta = metaSnap.data();
-
-                if (Array.isArray(meta.categoryList) && meta.categoryList.length) {
-                    categoryList = meta.categoryList;
-                }
-
-                if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
-                    fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
-                } else if (Array.isArray(meta.fixedExpenseCategories) && meta.fixedExpenseCategories.length) {
-                    // 이전 버전의 구조도 호환
-                    fixedExpenseCategoryList = meta.fixedExpenseCategories
-                        .map(x => typeof x === 'string' ? x : x?.name)
-                        .filter(Boolean);
-                }
-
-                if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
-                    fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
-                }
-                return true;
-            }
-        } catch (e) {
-            console.warn('설정 불러오기 실패:', e);
-        }
-
-        if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
-            fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
-        }
-        return false;
-    }
-
-    async function loadLegacyStore() {
-        try {
-            const legacySnap = await getDoc(doc(db, 'gotgan', LEGACY_DOC_ID));
-            if (legacySnap.exists()) {
-                const legacy = legacySnap.data();
-                return {
-                    store: legacy.store || null,
-                    categories: Array.isArray(legacy.categoryList) ? legacy.categoryList : null
-                };
-            }
-        } catch (e) {
-            console.warn('기존 데이터 확인 실패:', e);
-        }
-        return { store: null, categories: null };
-    }
-
-    async function loadAll(options = {}) {
-        const priorityMonth = options.priorityMonth || currentMonth;
-
-        // 설정과 기존 데이터는 병렬로 읽는다.
-        const [settingsLoaded, legacy] = await Promise.all([
-            loadSettingsFromFirebase(),
-            loadLegacyStore()
-        ]);
-
-        if (!settingsLoaded && legacy.categories && legacy.categories.length) {
-            categoryList = legacy.categories;
-        }
-        if (!categoryList.length) categoryList = DEFAULT_CATEGORIES.slice();
-
-        // 현재 월을 먼저 가져온다. 이 함수가 끝나면 대시보드에는 최신 월 데이터가 표시된다.
-        await loadMonthFromFirebase(priorityMonth);
-
-        // 기존 데이터가 있고 현재 월 문서가 없는 경우에만 해당 월을 안전하게 이관한다.
-        if (legacy.store && legacy.store[priorityMonth] &&
-            (!store[priorityMonth] || !store[priorityMonth].updatedAt)) {
-            try {
-                const ref = doc(db, MONTH_COLLECTION, `month_${priorityMonth}`);
-                const snap = await getDoc(ref);
-                if (!snap.exists()) {
-                    const migrated = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacy.store[priorityMonth]) };
-                    store[priorityMonth] = migrated;
-                    await setDoc(ref, {
-                        ...cloneData(migrated),
-                        migratedFromLegacy: true,
-                        updatedAt: Date.now()
-                    }, { merge: true });
-                }
-            } catch (e) {
-                console.warn(`${priorityMonth} 구버전 데이터 이관 실패:`, e);
-            }
-        }
-
-        // 현재 월 화면은 여기까지에서 즉시 갱신할 수 있다.
-        applyFixedExpenseTemplatesToAllLoadedMonths();
-        renderCategorySettings();
-        renderFixedExpenseCategorySettings();
-        render();
-
-        // 나머지 월은 백그라운드 병렬 로딩.
-        const months = Array.from(new Set([
-            ...BASE_MONTHS,
-            ...Object.keys(legacy.store || {})
-        ])).sort().filter(month => month !== priorityMonth);
-
-        const results = await Promise.all(months.map(async month => {
-            const ok = await loadMonthFromFirebase(month);
-            if (!ok && legacy.store && legacy.store[month]) {
-                try {
-                    const migrated = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacy.store[month]) };
-                    store[month] = migrated;
-                    const ref = doc(db, MONTH_COLLECTION, `month_${month}`);
-                    const snap = await getDoc(ref);
-                    if (!snap.exists()) {
-                        await setDoc(ref, {
-                            ...cloneData(migrated),
-                            migratedFromLegacy: true,
-                            updatedAt: Date.now()
-                        }, { merge: true });
-                    }
-                } catch (e) {
-                    console.warn(`${month} 구버전 데이터 이관 실패:`, e);
-                }
-            }
-            return ok;
-        }));
-
-        applyFixedExpenseTemplatesToAllLoadedMonths();
-        renderCategorySettings();
-        renderFixedExpenseCategorySettings();
-
-        // 현재 사용자가 월을 바꾸지 않았다면 최종 화면만 갱신한다.
-        render();
-        return results.every(Boolean);
-    }
-
-    async function refreshCurrentMonthFromFirebase(month = currentMonth) {
-        if (!month) return false;
-
-        // 화면은 기존 캐시를 즉시 유지하고, 현재 월만 최신 서버값으로 교체한다.
-        const ok = await loadMonthFromFirebase(month);
-        if (ok && month === currentMonth) {
-            render();
-        }
-        return ok;
-    }
-
-
-    async function flushPendingIncomeSaves() {
-        const timers = Array.from(incomeSaveTimers.entries());
-
-        for (const [timerKey, timerId] of timers) {
-            clearTimeout(timerId);
-            incomeSaveTimers.delete(timerKey);
-
-            const separator = timerKey.lastIndexOf(':');
-            if (separator <= 0) continue;
-
-            const saveMonth = timerKey.slice(0, separator);
-            const key = timerKey.slice(separator + 1);
-
-            if (!store[saveMonth]) continue;
-
-            const ok = await saveMonthPatch(saveMonth, {
-                [key]: Number(store[saveMonth][key]) || 0
-            });
-
-            if (ok) {
-                try {
-                    const drafts = JSON.parse(localStorage.getItem('gotgan_income_drafts_v1') || '{}');
-                    delete drafts[timerKey];
-                    if (Object.keys(drafts).length) {
-                        localStorage.setItem('gotgan_income_drafts_v1', JSON.stringify(drafts));
-                    } else {
-                        localStorage.removeItem('gotgan_income_drafts_v1');
-                    }
-                } catch (e) {
-                    console.warn('임시 수입 백업 정리 실패:', e);
-                }
+                console.error('과거 중복 데이터 정리 저장 실패:', e);
             }
         }
     }
 
-    async function flushPendingSaves() {
-        await flushPendingIncomeSaves();
 
-        const waits = Array.from(pendingMonthWrites);
-        if (pendingCategoryWrite) waits.push(pendingCategoryWrite);
-
-        // 이미 진행 중인 Firebase write가 있다면 먼저 완료될 기회를 준다.
-        if (waits.length) {
-            await Promise.allSettled(waits);
-        }
-    }
-
-    // 모바일 Safari/WebView에서 화면을 백그라운드로 보내거나 페이지를 떠날 때
-    // 아직 끝나지 않은 Firestore write가 있으면 완료될 기회를 준다.
+    // 모바일 브라우저에서 화면을 이탈할 때 대기 중인 저장을 즉시 실행한다.
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden') {
-            saveEmergencyLocalCheckpoint();
-            flushPendingSaves();
+            if (typeof schedulePersistStore.flush === 'function') {
+                schedulePersistStore.flush();
+            } else {
+                persistStore();
+            }
         }
     });
 
     window.addEventListener('pagehide', () => {
-        saveEmergencyLocalCheckpoint();
-        flushPendingSaves();
+        if (typeof schedulePersistStore.flush === 'function') {
+            schedulePersistStore.flush();
+        } else {
+            persistStore();
+        }
     });
-
-    function saveEmergencyLocalCheckpoint() {
-        try {
-            if (!currentMonth || !store[currentMonth]) return;
-            localStorage.setItem('gotgan_emergency_checkpoint_v1', JSON.stringify({
-                month: currentMonth,
-                data: store[currentMonth],
-                savedAt: Date.now()
-            }));
-        } catch (e) {
-            console.warn('긴급 로컬 체크포인트 저장 실패:', e);
-        }
-    }
-
-    window.addEventListener('online', () => {
-        flushPendingSaves();
-    });
-
-    window.addEventListener('offline', () => {
-        showToast('인터넷 연결이 끊겼습니다. 연결되면 자동으로 다시 저장합니다.', true);
-    });
-
-
-    window.runStorageHealthCheck = function() {
-        return {
-            pendingWrites: saveState.pending.size,
-            failedWrites: saveState.failed.size,
-            lastSuccessfulWrites: saveState.lastSuccess.size,
-            online: navigator.onLine
-        };
-    };
-
-    async function recoverIncomeDraft() {
-        try {
-            const raw = localStorage.getItem('gotgan_income_drafts_v1');
-            if (!raw) return;
-            const drafts = JSON.parse(raw);
-            if (!drafts || typeof drafts !== 'object') return;
-
-            const remaining = {};
-            for (const [draftKey, draft] of Object.entries(drafts)) {
-                if (!draft || !draft.month || !draft.key) continue;
-                if (draft.savedAt && Date.now() - Number(draft.savedAt) > 24 * 60 * 60 * 1000) continue;
-
-                const serverMonth = store[draft.month] || DEFAULT_MONTH_DATA();
-                const serverValue = Number(serverMonth[draft.key]) || 0;
-                const draftValue = Number(draft.value) || 0;
-
-                if (serverValue !== draftValue) {
-                    if (!store[draft.month]) store[draft.month] = DEFAULT_MONTH_DATA();
-                const draftVersion = Number(draft.savedAt) || 0;
-                if (getFieldVersion(draft.month, draft.key) > draftVersion) continue;
-                setFieldVersion(draft.month, draft.key, draftVersion);
-
-                    store[draft.month][draft.key] = draftValue;
-
-                    const ok = await saveMonthPatch(draft.month, {
-                        [draft.key]: draftValue
-                    });
-                    if (!ok) remaining[draftKey] = draft;
-                }
-            }
-
-            if (Object.keys(remaining).length) {
-                localStorage.setItem('gotgan_income_drafts_v1', JSON.stringify(remaining));
-            } else {
-                localStorage.removeItem('gotgan_income_drafts_v1');
-            }
-        } catch (e) {
-            console.warn('수입 임시값 복구 실패:', e);
-        }
-    }
-
-    function loadFastMonthCache() {
-        try {
-            const raw = localStorage.getItem('gotgan_month_cache_v2');
-            if (!raw) return;
-            const cache = JSON.parse(raw);
-            if (!cache || !cache.month || !cache.data) return;
-            if (!store[cache.month]) store[cache.month] = DEFAULT_MONTH_DATA();
-            store[cache.month] = { ...DEFAULT_MONTH_DATA(), ...cache.data };
-        } catch (e) {
-            console.warn('빠른 로컬 캐시 로드 실패:', e);
-        }
-    }
-
-    function saveFastMonthCache(month) {
-        try {
-            if (!month || !store[month]) return;
-            localStorage.setItem('gotgan_month_cache_v2', JSON.stringify({
-                month, data: store[month], savedAt: Date.now()
-            }));
-        } catch (e) {
-            console.warn('빠른 로컬 캐시 저장 실패:', e);
-        }
-    }
-
-    function getFieldVersion(month, fieldKey) {
-        return fieldVersions.get(`${month}:${fieldKey}`) || 0;
-    }
-
-    function setFieldVersion(month, fieldKey, version) {
-        fieldVersions.set(`${month}:${fieldKey}`, Number(version) || 0);
-    }
-
-    function updateSyncStatus(message) {
-        const badge = document.getElementById('auth-status-badge');
-        if (!badge) return;
-        if (message === '데이터를 불러왔어요') {
-            badge.innerText = '연결됨';
-            badge.style.background = '#c6f6d5';
-            badge.style.color = '#22543d';
-        } else if (message === '데이터를 ') {
-            badge.innerText = '불러오는 중';
-            badge.style.background = '#feebc8';
-            badge.style.color = '#744210';
-        } else if (message === '데이터를 불러오지 못했어요') {
-            badge.innerText = '오프라인';
-            badge.style.background = '#fed7d7';
-            badge.style.color = '#742a2a';
-        }
-    }
 
     async function init() {
         const authBadge = document.getElementById('auth-status-badge');
@@ -1599,7 +1094,7 @@
             currentMonth = globalMonthEl.value.replace('.', '-');
         }
 
-        // Firebase를 기다리지 않고 UI를 먼저 그린다.
+        // 네트워크를 기다리지 않고 화면을 먼저 표시한다.
         if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         renderCategorySettings();
         if (typeof renderFixedExpenseCategorySettings === 'function') {
@@ -1607,39 +1102,248 @@
         }
         render();
 
-        // 여기부터는 기존 Firebase 인증/조회 흐름을 그대로 백그라운드에서 실행한다.
+        // 기존 Firebase 인증/데이터 로딩 함수는 그대로 사용하고 백그라운드에서 실행한다.
         (async () => {
             try {
                 if (!auth.currentUser) {
                     await signInAnonymously(auth);
                 }
 
-                if (authBadge) {
-                    authBadge.innerText = '연결됨';
-                }
+                if (authBadge) authBadge.style.display = 'none';
 
-                // 기존 정상 로딩 함수를 그대로 사용한다.
                 await loadAll();
 
-                // 현재 월이 Firebase에서 최신으로 채워졌으면 즉시 화면 갱신.
-                if (!store[currentMonth]) {
-                    store[currentMonth] = DEFAULT_MONTH_DATA();
-                }
-
                 await fetchExchangeRate().catch(() => {});
+
+                if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
                 renderCategorySettings();
                 if (typeof renderFixedExpenseCategorySettings === 'function') {
                     renderFixedExpenseCategorySettings();
                 }
                 render();
-
             } catch (e) {
-                console.error('Firebase 백그라운드 최신화 실패:', e);
-                // 실패해도 기존 화면을 빈 화면으로 바꾸지 않는다.
+                console.error('Firebase 백그라운드 로딩 실패:', e);
+                // 실패하더라도 이미 표시한 화면을 빈 데이터로 덮어쓰지 않는다.
             }
         })();
     }
 
+    /* [기능 비활성화] getCarryoverSettingsForMonth 보존용
+    function getCarryoverSettingsForMonth(month) {
+        return monthlyCarryoverSettings[month]
+            ? { ...carryoverSettings, ...monthlyCarryoverSettings[month] }
+            : { ...carryoverSettings };
+    }
+    */
+
+    // 저장된 월별 이월 설정을 기준으로 전체 월 데이터를 다시 맞춘다.
+    // 각 항목은 가장 최근에 명시된 기준 월의 ON/OFF를 따른다.
+    /* [기능 비활성화] reconcileAllCarryovers 보존용
+    function reconcileAllCarryovers() {
+        if (!store) return;
+
+        const months = Object.keys(store).sort();
+        const keys = ['expense', 'bora_personal', 'sang_personal', 'living', 'savings', 'reserve'];
+
+        keys.forEach(key => {
+            let activeSourceMonth = null;
+            let carryEnabled = false;
+
+            months.forEach(month => {
+                const monthSettings = monthlyCarryoverSettings[month];
+                if (monthSettings && Object.prototype.hasOwnProperty.call(monthSettings, key)) {
+                    activeSourceMonth = month;
+                    carryEnabled = monthSettings[key] === true;
+                }
+
+                if (!activeSourceMonth || month === activeSourceMonth || !store[activeSourceMonth]) return;
+
+                if (!store[month].categories) store[month].categories = {};
+                if (!store[month].sectionTitles) store[month].sectionTitles = {};
+
+                if (carryEnabled) {
+                    store[month].categories[key] =
+                        JSON.parse(JSON.stringify(store[activeSourceMonth].categories[key] || []));
+                    store[month].sectionTitles[key] =
+                        (store[activeSourceMonth].sectionTitles && store[activeSourceMonth].sectionTitles[key]) || key;
+                    setCarryoverSource(month, key, activeSourceMonth);
+                } else {
+                    store[month].categories[key] = [];
+                    store[month].sectionTitles[key] =
+                        (store[activeSourceMonth].sectionTitles && store[activeSourceMonth].sectionTitles[key]) || key;
+                    clearCarryoverSource(month, key);
+                }
+            });
+        });
+    }
+    */
+
+    /* [기능 비활성화] ensureCarryoverSources 보존용
+    function ensureCarryoverSources(month) {
+        if (!carryoverSources[month]) carryoverSources[month] = {};
+        return carryoverSources[month];
+    }
+    */
+
+    /* [기능 비활성화] syncCarryoverSettingsUI 보존용
+    function syncCarryoverSettingsUI() {
+        const sourceMonthEl = document.getElementById('carryover-source-month');
+        if (sourceMonthEl) sourceMonthEl.value = currentMonth;
+
+        const settings = getCarryoverSettingsForMonth(currentMonth);
+        const map = {
+            expense: 'carryover-expense-toggle',
+            bora_personal: 'carryover-bora-toggle',
+            sang_personal: 'carryover-sang-toggle',
+            living: 'carryover-living-toggle',
+            savings: 'carryover-savings-toggle',
+            reserve: 'carryover-reserve-toggle'
+        };
+
+        Object.entries(map).forEach(([key, id]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (key === 'sang_personal' || key === 'savings' || key === 'reserve') {
+                el.checked = settings[key] !== false;
+            } else {
+                el.checked = settings[key] === true;
+            }
+        });
+    }
+    */
+
+    /* [기능 비활성화] changeCarryoverSourceMonth 보존용
+    function changeCarryoverSourceMonth(month) {
+        if (!month) return;
+        currentMonth = month;
+        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+
+        const globalMonthEl = document.getElementById('global-month');
+        if (globalMonthEl) globalMonthEl.value = currentMonth;
+
+        render();
+    }
+    window.changeCarryoverSourceMonth = changeCarryoverSourceMonth;
+    */
+
+    /* [기능 비활성화] setCarryoverSource 보존용
+    function setCarryoverSource(targetMonth, key, sourceMonth) {
+        ensureCarryoverSources(targetMonth)[key] = sourceMonth;
+    }
+    */
+
+    /* [기능 비활성화] clearCarryoverSource 보존용
+    function clearCarryoverSource(targetMonth, key) {
+        if (!carryoverSources[targetMonth]) return;
+        delete carryoverSources[targetMonth][key];
+        if (Object.keys(carryoverSources[targetMonth]).length === 0) {
+            delete carryoverSources[targetMonth];
+        }
+    }
+    */
+
+    /* [기능 비활성화] applyCarryoverForSourceMonth 보존용
+    function applyCarryoverForSourceMonth(sourceMonth, key) {
+        const settings = getCarryoverSettingsForMonth(sourceMonth);
+        const source = store[sourceMonth];
+        if (!source || !source.categories) return;
+
+        Object.keys(store || {}).forEach(m => {
+            if (m <= sourceMonth || !store[m]) return;
+            if (!store[m].categories) store[m].categories = {};
+            if (!store[m].sectionTitles) store[m].sectionTitles = {};
+
+            if (settings[key] === true) {
+                store[m].categories[key] = JSON.parse(JSON.stringify(source.categories[key] || []));
+                store[m].sectionTitles[key] = (source.sectionTitles && source.sectionTitles[key]) || key;
+                setCarryoverSource(m, key, sourceMonth);
+            } else {
+                // OFF이면 출처 메타데이터 유무와 관계없이
+                // 기준 월 이후의 해당 항목을 모두 비운다.
+                store[m].categories[key] = [];
+                store[m].sectionTitles[key] = (source.sectionTitles && source.sectionTitles[key]) || key;
+                clearCarryoverSource(m, key);
+            }
+        });
+    }
+    */
+
+    // 공동 생활비 이월 OFF 상태에서 미래 월에 남아 있는 이월 데이터를 정리한다.
+    // 공동 생활비 이월 OFF 상태에서 미래 월에 남아 있는 이월 데이터를 정리한다.
+    // 실제 변경이 발생했는지 boolean으로 반환한다.
+    /* [기능 비활성화] clearFutureLivingCarryover 보존용
+    function clearFutureLivingCarryover() {
+        let changed = false;
+
+        Object.keys(store || {}).forEach(m => {
+            if (m > currentMonth && store[m]) {
+                if (!store[m].categories) store[m].categories = {};
+
+                const existing = store[m].categories.living;
+                if (Array.isArray(existing) && existing.length > 0) {
+                    store[m].categories.living = [];
+                    changed = true;
+                } else if (existing === undefined) {
+                    store[m].categories.living = [];
+                    changed = true;
+                }
+
+                if (!store[m].sectionTitles) store[m].sectionTitles = {};
+                if (store[m].sectionTitles.living !== '공동 생활비') {
+                    store[m].sectionTitles.living = '공동 생활비';
+                    changed = true;
+                }
+            }
+        });
+
+        return changed;
+    }
+    */
+
+    /* [기능 비활성화] updateCarryoverSettings 보존용
+    async function updateCarryoverSettings() {
+        const expToggle = document.getElementById('carryover-expense-toggle');
+        const boraToggle = document.getElementById('carryover-bora-toggle');
+        const sangToggle = document.getElementById('carryover-sang-toggle');
+        const livingToggle = document.getElementById('carryover-living-toggle');
+        const savToggle = document.getElementById('carryover-savings-toggle');
+        const resToggle = document.getElementById('carryover-reserve-toggle');
+
+        const settings = {
+            expense: expToggle ? expToggle.checked : false,
+            bora_personal: boraToggle ? boraToggle.checked : false,
+            sang_personal: sangToggle ? sangToggle.checked : true,
+            living: livingToggle ? livingToggle.checked : false,
+            savings: savToggle ? savToggle.checked : true,
+            reserve: resToggle ? resToggle.checked : true
+        };
+
+        monthlyCarryoverSettings[currentMonth] = { ...settings };
+        carryoverSettings = { ...carryoverSettings, ...settings };
+
+        // 기준 월의 현재 설정을 모든 항목에 다시 적용한다.
+        // OFF였더라도 기존에 남아 있는 미래 데이터를 정리한다.
+        Object.keys(settings).forEach(key => {
+            applyCarryoverForSourceMonth(currentMonth, key);
+        });
+
+        try {
+            await updateDoc(doc(db, "gotgan", FIRESTORE_DOC_ID), {
+                carryoverSettings: carryoverSettings,
+                monthlyCarryoverSettings: monthlyCarryoverSettings,
+                carryoverSources: carryoverSources,
+                store: store
+            });
+            showToast('저장되었습니다.');
+        } catch(e) {
+            console.error('설정 저장 실패:', e);
+            showToast('저장에 실패했습니다 (권한 확인 필요)', true);
+        }
+
+        render();
+    }
+    window.updateCarryoverSettings = updateCarryoverSettings;
+    */
 
     function toggleIncomeCard() {
         const body = document.getElementById('income-body-container');
@@ -1703,7 +1407,7 @@
                 <div class="income-input-card">
                     <span class="income-input-label">상훈 기타 수입</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.sang_other_income)}" placeholder="0" oninput="window.handleIncomeInput('sang_other_income', this)">
+                        <input type="text" value="${formatNumberString(d.sang_extra)}" placeholder="0" oninput="window.handleIncomeInput('sang_extra', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
@@ -1743,7 +1447,7 @@
                 <div class="income-input-card">
                     <span class="income-input-label">상훈 기타 수입</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.sang_other_income)}" placeholder="0" oninput="window.handleIncomeInput('sang_other_income', this)">
+                        <input type="text" value="${formatNumberString(d.sang_extra)}" placeholder="0" oninput="window.handleIncomeInput('sang_extra', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
@@ -1759,85 +1463,24 @@
     }
 
     function handleIncomeInput(key, inputEl) {
-        // 숫자를 중간에서 지우거나 삽입할 때 커서가 끝으로 튀지 않도록
-        // 입력 전 커서 위치를 기준으로 숫자 자리수를 보존한다.
-        const beforeValue = inputEl.value;
-        const beforeCursor = typeof inputEl.selectionStart === 'number'
-            ? inputEl.selectionStart
-            : beforeValue.length;
-        const digitsBeforeCursor = (beforeValue.slice(0, beforeCursor).match(/\d/g) || []).length;
+        const value = parseNumberString(inputEl.value);
+        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        if (!store[currentMonth].income) store[currentMonth].income = {};
 
-        const rawNum = parseNumberString(beforeValue);
-        if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-        store[currentMonth][key] = rawNum;
-        // 브라우저가 갑자기 종료되어도 마지막 입력값을 복구할 수 있도록 임시 백업.
-        try {
-            const draftKey = `${currentMonth}:${key}`;
-            const drafts = JSON.parse(localStorage.getItem('gotgan_income_drafts_v1') || '{}');
-            drafts[draftKey] = {
-                month: currentMonth,
-                key: key,
-                value: rawNum,
-                savedAt: Date.now()
-            };
-            localStorage.setItem('gotgan_income_drafts_v1', JSON.stringify(drafts));
-        } catch (e) {
-            console.warn('임시 수입 백업 저장 실패:', e);
-        }
-        const formattedValue = rawNum ? rawNum.toLocaleString() : '';
-        inputEl.value = formattedValue;
+        store[currentMonth].income[key] = value;
 
-        // "1,234,567" 중 가운데 숫자를 삭제/삽입해도 커서를 해당 위치에 유지한다.
-        if (document.activeElement === inputEl) {
-            let newCursor = formattedValue.length;
+        render();
 
-            if (formattedValue.length === 0 || digitsBeforeCursor === 0) {
-                newCursor = 0;
-            } else {
-                let seenDigits = 0;
-                for (let i = 0; i < formattedValue.length; i++) {
-                    if (/\d/.test(formattedValue[i])) {
-                        seenDigits++;
-                        if (seenDigits >= digitsBeforeCursor) {
-                            newCursor = i + 1;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            try {
-                inputEl.setSelectionRange(newCursor, newCursor);
-            } catch (_) {}
-        }
-        updateKPIAndChartsOnly();
-
-        // 입력 당시의 월을 캡처한다.
-        // 500ms 안에 다른 월로 이동해도 이전 월의 값이 새 월에 저장되지 않는다.
-        const saveMonth = currentMonth;
-        const timerKey = `${saveMonth}:${key}`;
-
-        if (incomeSaveTimers.has(timerKey)) {
-            clearTimeout(incomeSaveTimers.get(timerKey));
-        }
-
-        const timer = setTimeout(async () => {
-            incomeSaveTimers.delete(timerKey);
-            await saveMonthPatch(saveMonth, {
-                [key]: rawNum
-            });
-        }, 500);
-
-        incomeSaveTimers.set(timerKey, timer);
+        // 수입 수정은 모바일에서 화면을 이탈해도 유실되지 않도록 즉시 저장한다.
+        persistStore();
     }
-
     window.handleIncomeInput = handleIncomeInput;
 
     function updateKPIAndChartsOnly() {
         const d = store[currentMonth] || DEFAULT_MONTH_DATA();
         const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
         const boraWonTotal = (d.bora || 0) + (d.bora_extra || 0);
-        const sangWonTotal = (d.sang || 0) + (d.sang_other_income || 0);
+        const sangWonTotal = (d.sang || 0) + (d.sang_extra || 0);
         const totalIncWon = boraWonTotal + sangWonTotal + tripWonTotal;
 
         const expSum = sumCat(d.categories.expense);
@@ -1919,9 +1562,8 @@
             if (currentTab === 'bora' && key === 'sang_personal') return;
             if (currentTab === 'sang' && key === 'bora_personal') return;
 
-            const allItems = categories[key] || defaultCats[key] || [];
-            const items = getItemsForCurrentTab(allItems, key);
-            let sumWon = key === 'variable_expense' ? sumCatForTab(allItems, currentTab) : sumCat(items);
+            const items = categories[key] || defaultCats[key] || [];
+            let sumWon = sumCat(items);
             let subItemsHtml = '';
 
             let displayVal = formatAmount(sumWon);
@@ -1935,13 +1577,10 @@
                 } else {
                     items.forEach(item => {
                         const catTag = item.category ? `[${item.category}] ` : '';
-                        const owner = item.owner || 'shared';
-                        const ownerLabel = owner === 'bora' ? '보라' : owner === 'sang' ? '상훈' : '공통';
-                        const displayAmount = currentTab !== 'all' && owner === 'shared' ? Number(item.amount || 0) / 2 : Number(item.amount || 0);
                         subItemsHtml += `
                             <div class="sub-item-row">
-                                <span style="color:var(--text-main); font-weight:500;">${formatKoreanDate(item.date)} ${catTag}${item.name || '내역'} <small style="color:var(--text-sub);">(${ownerLabel})</small></span>
-                                <span style="color:var(--expense-color); font-weight:700;">-${displayAmount.toLocaleString()}원</span>
+                                <span style="color:var(--text-main); font-weight:500;">${formatKoreanDate(item.date)} ${catTag}${item.name || '내역'}</span>
+                                <span style="color:var(--expense-color); font-weight:700;">-${Number(item.amount || 0).toLocaleString()}원</span>
                             </div>`;
                     });
                 }
@@ -1955,8 +1594,7 @@
                         if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
                             subDetail = `${(itemWon / 2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
                         }
-                        const fixedDate = key === 'expense' && item.date ? `${formatKoreanDate(item.date)} ` : '';
-                        subItemsHtml += `<div class="sub-item-row"><span>${fixedDate}${item.name || '항목'}</span><span>${subDetail}</span></div>`;
+                        subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
                     });
                 }
             }
@@ -2017,14 +1655,7 @@
     window.toggleFlowAccordion = toggleFlowAccordion;
 
     function renderChartAndMonthly() {
-        const allMonths = Object.keys(store).sort();
-        const years = Array.from(new Set(allMonths.map(m => Number(m.slice(0,4))).filter(Boolean))).sort((a,b) => a-b);
-        if (!years.includes(monthlySelectedYear)) monthlySelectedYear = years.length ? years[years.length - 1] : 2026;
-        const yearSelect = document.getElementById('monthly-year-select');
-        if (yearSelect) {
-            yearSelect.innerHTML = years.map(y => `<option value="${y}" ${y === monthlySelectedYear ? 'selected' : ''}>${y}년</option>`).join('');
-        }
-        const months = allMonths.filter(m => Number(m.slice(0,4)) === Number(monthlySelectedYear));
+        const months = Object.keys(store).sort();
         const chartContainer = document.getElementById('chart-bars');
         const listContainer = document.getElementById('monthly-accordion-list');
         
@@ -2038,7 +1669,7 @@
             const d = store[m] || DEFAULT_MONTH_DATA();
             const expWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
             const tripWon = Math.round((d.trip_usd || 0) * usdRate);
-            const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + (d.sang_other_income || 0) + tripWon;
+            const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + (d.sang_extra || 0) + tripWon;
             const savWon = sumCat(d.categories.savings) + Math.max(incWon - expWon - sumCat(d.categories.savings) - sumCat(d.categories.reserve), 0);
             if (expWon > maxVal) maxVal = expWon;
             if (savWon > maxVal) maxVal = savWon;
@@ -2047,7 +1678,7 @@
         months.forEach(m => {
             const d = store[m] || DEFAULT_MONTH_DATA();
             const tripWon = Math.round((d.trip_usd || 0) * usdRate);
-            const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + (d.sang_other_income || 0) + tripWon;
+            const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + (d.sang_extra || 0) + tripWon;
             
             const totalExpWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
             
@@ -2072,7 +1703,7 @@
                 <div class="accordion-item" id="acc-${m}">
                     <div class="accordion-header" onclick="window.toggleAccordion('${m}')">
                         <div>
-                            <div style="font-size:13px; font-weight:700;">${m.split('-')[0]}년 ${m.split('-')[1]}월</div>
+                            <div style="font-size:13px; font-weight:700;">2026년 ${m.split('-')[1]}월</div>
                             <div style="font-size:11px; color:var(--text-sub); margin-top:2px;">수입 ${formatAmount(incWon)}</div>
                         </div>
                         <div style="text-align:right;">
@@ -2083,22 +1714,12 @@
                     <div class="accordion-content">
                         <div class="sub-item-row"><span>총 수입액</span><span>${formatAmount(incWon)}</span></div>
                         <div class="sub-item-row"><span>총 지출액</span><span>${formatAmount(totalExpWon)}</span></div>
-                        <div class="sub-item-row"><span>고정 지출</span><span>${formatAmount(sumCat(d.categories.expense))}</span></div>
-                        ${(d.categories.expense || []).map(item => `<div class="sub-item-row" style="padding-left:18px;"><span>${item.date ? formatKoreanDate(item.date) + ' ' : ''}${item.name || '고정 지출'}</span><span>${formatAmount(Number(item.amount) || 0)}</span></div>`).join('')}
-                        <div class="sub-item-row"><span>공동 생활비</span><span>${formatAmount(sumCat(d.categories.living))}</span></div>
-                        <div class="sub-item-row"><span>변동 지출</span><span>${formatAmount(sumCat(d.categories.variable_expense))}</span></div>
                         <div class="sub-item-row"><span>총 저축액 (고정+추가)</span><span>${formatAmount(totalSavWon)}</span></div>
                         <div class="sub-item-row"><span>변동 지출 건수</span><span>${(d.categories.variable_expense || []).length}건</span></div>
                     </div>
                 </div>`;
         });
     }
-
-    function changeMonthlyYear(year) {
-        monthlySelectedYear = Number(year) || monthlySelectedYear;
-        renderChartAndMonthly();
-    }
-    window.changeMonthlyYear = changeMonthlyYear;
 
     function toggleAccordion(m) { 
         const el = document.getElementById(`acc-${m}`);
@@ -2172,19 +1793,7 @@
     }
     window.handleModalNumInput = handleModalNumInput;
 
-        function buildFixedExpenseOptionsHtml(currentCat) {
-        const effectiveFixed = getEffectiveFixedExpenseCategories();
-        const safeCurrent = currentCat || (effectiveFixed[0] || '월세');
-        let options = effectiveFixed.map(cat =>
-            `<option value="${cat}" ${cat === safeCurrent ? 'selected' : ''}>${cat}</option>`
-        ).join('');
-        if (safeCurrent && !effectiveFixed.includes(safeCurrent)) {
-            options += `<option value="${safeCurrent}" selected>${safeCurrent} (기존)</option>`;
-        }
-        return options;
-    }
-
-function renderExpenseModalHTML() {
+    function renderExpenseModalHTML() {
         const targetData = store[currentMonth] || DEFAULT_MONTH_DATA();
         const cats = targetData.categories;
         const titles = targetData.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
@@ -2214,13 +1823,11 @@ function renderExpenseModalHTML() {
                         <div class="modal-rows-container">`;
                 cats[k].forEach((item) => {
                     const currentCat = item.category || (categoryList[0] || '식비');
-                    const owner = item.owner || 'shared';
-                    const optionsHtml = getVariableCategoryOptionsHtml(currentCat);
+                    let optionsHtml = categoryList.map(cat => `<option value="${cat}" ${cat === currentCat ? 'selected' : ''}>${cat}</option>`).join('');
                     html += `
                         <div class="sub-row">
                             <input type="date" value="${item.date || ''}" class="inp-date">
                             <select class="inp-cat">${optionsHtml}</select>
-                            <select class="inp-owner">${getOwnerOptionsHtml(owner)}</select>
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="내용">
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
@@ -2235,36 +1842,14 @@ function renderExpenseModalHTML() {
                             <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
                         </div>
                         <div class="modal-rows-container">`;
-                if (k === 'expense') {
-                    // 설정에서 등록한 고정 지출 카테고리가 해당 월에 아직 저장되지 않았더라도
-                    // 월별 입력 화면에 자동으로 나타나도록 한다. 기존 월 데이터는 절대 덮어쓰지 않는다.
-                    const existingFixedNames = new Set(cats.expense.map(item => item.name));
-                    const fixedItemsForMonth = cats.expense.slice();
-                    getEffectiveFixedExpenseCategories().forEach(category => {
-                        if (!existingFixedNames.has(category)) {
-                            fixedItemsForMonth.push({ name: category, amount: 0, date: '' });
-                        }
-                    });
-                    fixedItemsForMonth.forEach((item) => {
-                        html += `
-                        <div class="sub-row">
-                            <input type="date" value="${item.date || ''}" class="inp-date">
-                            <select class="inp-cat">${buildFixedExpenseOptionsHtml(item.name)}</select>
-                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-                            <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
-                        </div>`;
-                    });
-                } else {
-                    cats[k].forEach((item) => {
-                        html += `
+                cats[k].forEach((item) => {
+                    html += `
                         <div class="sub-row">
                             <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
-                            <input type="date" value="${item.date || ''}" class="inp-date">
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
-                    });
-                }
+                });
                 html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 고정 지출 항목 추가</button></div>`;
             }
         });
@@ -2280,25 +1865,16 @@ function renderExpenseModalHTML() {
 
         if (k === 'variable_expense') {
             const today = new Date().toISOString().split('T')[0];
-            const optionsHtml = getVariableCategoryOptionsHtml(categoryList[0] || '식비');
+            let optionsHtml = categoryList.map(cat => `<option value="${cat}">${cat}</option>`).join('');
             newRow.innerHTML = `
                 <input type="date" value="${today}" class="inp-date">
                 <select class="inp-cat">${optionsHtml}</select>
-                <select class="inp-owner">${getOwnerOptionsHtml('shared')}</select>
                 <input type="text" value="" class="inp-name" placeholder="내용">
-                <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
-                <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
-        } else if (k === 'expense') {
-            const today = new Date().toISOString().split('T')[0];
-            newRow.innerHTML = `
-                <input type="date" value="${today}" class="inp-date">
-                <select class="inp-cat">${buildFixedExpenseOptionsHtml(getEffectiveFixedExpenseCategories()[0])}</select>
                 <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         } else {
             newRow.innerHTML = `
                 <input type="text" value="" class="inp-name" placeholder="항목명">
-                <input type="date" value="" class="inp-date">
                 <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         }
@@ -2380,28 +1956,28 @@ function renderExpenseModalHTML() {
     }
     window.removeSubModalRow = removeSubModalRow;
 
+    /* [기능 비활성화] 기존 자동 이월 로직 보존용
     function restorePageScroll() {
-        // 모달 종료 후 페이지 스크롤 잠금이 남지 않도록 복구한다.
+        // 모달이 닫힌 뒤 페이지 스크롤을 브라우저 기본 상태로 복구
         document.documentElement.style.removeProperty('overflow');
         document.documentElement.style.removeProperty('overflow-y');
         document.body.style.removeProperty('overflow');
         document.body.style.removeProperty('overflow-y');
+
+        // 혹시 남아 있는 잠금 class도 제거
         document.documentElement.classList.remove('modal-open', 'no-scroll', 'overflow-hidden');
         document.body.classList.remove('modal-open', 'no-scroll', 'overflow-hidden');
     }
     window.restorePageScroll = restorePageScroll;
 
     function saveExpenseModal() {
-        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-        const changedPatch = {};
-
         document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
             const k = group.getAttribute('data-expense-cat');
             if (!k) return;
             const titleInp = group.querySelector('.cat-title-inp');
             const rows = group.querySelectorAll('.sub-row');
-            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
 
+            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
             const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
             store[currentMonth].sectionTitles[k] = newTitle;
 
@@ -2410,69 +1986,127 @@ function renderExpenseModalHTML() {
                 if (k === 'variable_expense') {
                     const dateInp = row.querySelector('.inp-date');
                     const catInp = row.querySelector('.inp-cat');
-                    const ownerInp = row.querySelector('.inp-owner');
                     const nameInp = row.querySelector('.inp-name');
                     const amountInp = row.querySelector('.inp-amount');
-                    const wonAmount = parseNumberString(amountInp ? amountInp.value : '');
-                    if ((nameInp && nameInp.value.trim() !== '') || wonAmount > 0) {
+                    const wonAmount = parseNumberString(amountInp.value);
+                    if (nameInp.value.trim() !== '' || wonAmount > 0) {
                         updated.push({
                             date: dateInp ? dateInp.value : '',
                             category: catInp ? catInp.value : (categoryList[0] || '식비'),
-                            owner: ownerInp ? ownerInp.value : 'shared',
                             name: nameInp.value.trim() || '지출',
                             amount: wonAmount
                         });
                     }
-                } else if (k === 'expense') {
+                } else {
+                    const nameInp = row.querySelector('.inp-name');
+                    const amountInp = row.querySelector('.inp-amount');
+                    if (nameInp.value.trim() !== '') {
+                        updated.push({
+                            name: nameInp.value.trim() || '항목',
+                            amount: parseNumberString(amountInp.value)
+                        });
+                    }
+                }
+            });
+            store[currentMonth].categories[k] = updated;
+
+            // 사용자가 현재 월을 직접 수정했으므로, 이 월에서 해당 항목이
+            // 다른 달에서 자동 이월된 상태라는 표시는 제거한다.
+            clearCarryoverSource(currentMonth, k);
+
+            if (k !== 'variable_expense') {
+                const sourceSettings = getCarryoverSettingsForMonth(currentMonth);
+                const isCarryover = sourceSettings[k] === true;
+
+                Object.keys(store).forEach(m => {
+                    if (m > currentMonth && !store[m]) return;
+                    if (m <= currentMonth) return;
+
+                    if (!store[m].sectionTitles) store[m].sectionTitles = {};
+
+                    if (isCarryover) {
+                        store[m].sectionTitles[k] = newTitle;
+                        store[m].categories[k] = JSON.parse(JSON.stringify(updated));
+                        setCarryoverSource(m, k, currentMonth);
+                    } else {
+                        store[m].categories[k] = [];
+                        store[m].sectionTitles[k] = newTitle;
+                        clearCarryoverSource(m, k);
+                    }
+                });
+            }
+        });
+        closeModal();
+        restorePageScroll();
+        persistStore();
+        render();
+        restorePageScroll();
+
+        // 저장 완료 후에도 스크롤 상태를 다시 보장
+    }
+
+    function saveSavingsModal
+    */
+
+    // 월별 데이터는 서로 독립적으로 저장한다.
+    function saveExpenseModal() {
+        document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
+            const k = group.getAttribute('data-expense-cat');
+            if (!k) return;
+
+            const titleInp = group.querySelector('.cat-title-inp');
+            const rows = group.querySelectorAll('.sub-row');
+
+            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
+            const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
+            store[currentMonth].sectionTitles[k] = newTitle;
+
+            const updated = [];
+            rows.forEach(row => {
+                if (k === 'variable_expense') {
                     const dateInp = row.querySelector('.inp-date');
                     const catInp = row.querySelector('.inp-cat');
+                    const nameInp = row.querySelector('.inp-name');
                     const amountInp = row.querySelector('.inp-amount');
-                    const category = catInp ? catInp.value : (getEffectiveFixedExpenseCategories()[0] || '월세');
-                    const amount = parseNumberString(amountInp ? amountInp.value : '');
-                    if (category || amount > 0) {
-                        updated.push({ date: dateInp ? dateInp.value : '', name: category, amount });
+                    const wonAmount = parseNumberString(amountInp.value);
+                    if (nameInp.value.trim() !== '' || wonAmount > 0) {
+                        updated.push({
+                            date: dateInp ? dateInp.value : '',
+                            category: catInp ? catInp.value : (categoryList[0] || '식비'),
+                            name: nameInp.value.trim() || '지출',
+                            amount: wonAmount
+                        });
                     }
                 } else {
                     const nameInp = row.querySelector('.inp-name');
-                    const dateInp = row.querySelector('.inp-date');
                     const amountInp = row.querySelector('.inp-amount');
-                    if (nameInp && nameInp.value.trim() !== '') {
+                    if (nameInp.value.trim() !== '') {
                         updated.push({
                             name: nameInp.value.trim() || '항목',
-                            date: dateInp ? dateInp.value : '',
-                            amount: parseNumberString(amountInp ? amountInp.value : '')
+                            amount: parseNumberString(amountInp.value)
                         });
                     }
                 }
             });
 
             store[currentMonth].categories[k] = updated;
-            changedPatch[`categories.${k}`] = cloneData(updated);
-            changedPatch[`sectionTitles.${k}`] = newTitle;
         });
 
-        closeModal();
-        restorePageScroll();
-
-        // 로컬 상태를 이미 갱신했으므로 Firestore 응답을 기다리지 않고
-        // 현재 월 화면/KPI에 즉시 반영한다.
+        persistStore();
         render();
-
-        // 서버 저장은 백그라운드에서 처리한다.
-        saveMonthPatch(currentMonth, { ...changedPatch, updatedAt: Date.now() });
+        closeModal();
+        // 저장 완료 후에도 스크롤 상태를 다시 보장
     }
 
+    /* [기능 비활성화] 기존 자동 이월 로직 보존용
     function saveSavingsModal() {
-        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-        const changedPatch = {};
-
         document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
             const k = group.getAttribute('data-savings-cat');
             if (!k) return;
             const titleInp = group.querySelector('.cat-title-inp');
             const rows = group.querySelectorAll('.sub-row');
-            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
 
+            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
             const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
             store[currentMonth].sectionTitles[k] = newTitle;
 
@@ -2481,136 +2115,82 @@ function renderExpenseModalHTML() {
                 const nameInp = row.querySelector('.inp-name');
                 const amountInp = row.querySelector('.inp-amount');
                 const ownerSel = row.querySelector('.inp-owner');
-                if (nameInp && nameInp.value.trim() !== '') {
+
+                if (nameInp.value.trim() !== '') {
                     updated.push({
                         name: nameInp.value.trim() || '항목',
-                        amount: parseNumberString(amountInp ? amountInp.value : ''),
+                        amount: parseNumberString(amountInp.value),
+                        owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared') : 'shared'
+                    });
+                }
+            });
+            store[currentMonth].categories[k] = updated;
+            clearCarryoverSource(currentMonth, k);
+
+            const sourceSettings = getCarryoverSettingsForMonth(currentMonth);
+            const isCarryoverEnabled = sourceSettings[k] === true;
+
+            Object.keys(store).forEach(m => {
+                if (m <= currentMonth || !store[m]) return;
+                if (!store[m].sectionTitles) store[m].sectionTitles = {};
+
+                if (isCarryoverEnabled) {
+                    store[m].sectionTitles[k] = newTitle;
+                    store[m].categories[k] = JSON.parse(JSON.stringify(updated));
+                    setCarryoverSource(m, k, currentMonth);
+                } else {
+                    store[m].categories[k] = [];
+                    store[m].sectionTitles[k] = newTitle;
+                    clearCarryoverSource(m, k);
+                }
+            });
+        });
+        closeModal();
+        restorePageScroll();
+        persistStore();
+        render();
+        restorePageScroll();
+
+    }
+
+    function renderCategorySettings
+    */
+
+    // 월별 저축 데이터도 서로 독립적으로 저장한다.
+    function saveSavingsModal() {
+        document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
+            const k = group.getAttribute('data-savings-cat');
+            if (!k) return;
+
+            const titleInp = group.querySelector('.cat-title-inp');
+            const rows = group.querySelectorAll('.sub-row');
+
+            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
+            const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
+            store[currentMonth].sectionTitles[k] = newTitle;
+
+            const updated = [];
+            rows.forEach(row => {
+                const nameInp = row.querySelector('.inp-name');
+                const amountInp = row.querySelector('.inp-amount');
+                const ownerSel = row.querySelector('.inp-owner');
+
+                if (nameInp.value.trim() !== '') {
+                    updated.push({
+                        name: nameInp.value.trim() || '항목',
+                        amount: parseNumberString(amountInp.value),
                         owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared') : 'shared'
                     });
                 }
             });
 
             store[currentMonth].categories[k] = updated;
-            changedPatch[`categories.${k}`] = cloneData(updated);
-            changedPatch[`sectionTitles.${k}`] = newTitle;
         });
 
+        persistStore();
+        render();
         closeModal();
-        restorePageScroll();
-
-        // 로컬 상태를 이미 갱신했으므로 Firestore 응답을 기다리지 않고
-        // 현재 월 화면/KPI에 즉시 반영한다.
-        render();
-
-        // 서버 저장은 백그라운드에서 처리한다.
-        saveMonthPatch(currentMonth, { ...changedPatch, updatedAt: Date.now() });
     }
-
-    
-    function renderFixedExpenseSettings() {
-        const container = document.getElementById('fixed-expense-setting-list');
-        if (!container) return;
-
-        container.innerHTML = fixedExpenseCategories.map((item, index) => `
-            <div class="setting-row">
-                <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
-                    <input type="text" value="${item.name.replace(/"/g, '&quot;')}"
-                        data-fixed-name="${index}"
-                        style="flex:1; min-width:0; padding:8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px;">
-                    <input type="date" value="${item.date || ''}"
-                        data-fixed-date="${index}"
-                        style="width:120px; padding:8px 5px; border:1px solid var(--border-color); border-radius:6px; font-size:11px;">
-                </div>
-                <button class="btn-action-sm" style="margin-left:6px; background:#fff5f5; color:var(--expense-color);"
-                    onclick="window.removeFixedExpenseSetting(${index})">삭제</button>
-            </div>
-        `).join('');
-
-        container.querySelectorAll('[data-fixed-name]').forEach(inp => {
-            inp.addEventListener('change', () => updateFixedExpenseSetting(Number(inp.dataset.fixedName), inp.value, null));
-        });
-        container.querySelectorAll('[data-fixed-date]').forEach(inp => {
-            inp.addEventListener('change', () => updateFixedExpenseSetting(Number(inp.dataset.fixedDate), null, inp.value));
-        });
-    }
-
-    function addFixedExpenseSetting() {
-        const input = document.getElementById('new-fixed-expense-input');
-        if (!input) return;
-        const name = input.value.trim();
-        if (!name) return;
-        if (fixedExpenseCategories.some(x => x.name === name)) {
-            showToast('이미 등록된 고정 지출입니다.', true);
-            return;
-        }
-
-        fixedExpenseCategories.push({ name, date: '' });
-        input.value = '';
-        renderFixedExpenseSettings();
-
-        // 현재 월에 즉시 생성 + 계산/월별 화면 즉시 갱신
-        applyFixedExpenseTemplatesToMonth(currentMonth, false);
-        render();
-        saveFixedExpenseCategories();
-    }
-    window.addFixedExpenseSetting = addFixedExpenseSetting;
-
-    function updateFixedExpenseSetting(index, name, date) {
-        const item = fixedExpenseCategories[index];
-        if (!item) return;
-
-        if (name !== null) {
-            const trimmed = String(name || '').trim();
-            if (!trimmed) return;
-            if (fixedExpenseCategories.some((x, i) => i !== index && x.name === trimmed)) {
-                showToast('이미 등록된 고정 지출입니다.', true);
-                renderFixedExpenseSettings();
-                return;
-            }
-
-            const oldName = item.name;
-            item.name = trimmed;
-
-            // 이름 변경은 기존 월 데이터의 항목 이름도 함께 변경하되 금액은 유지한다.
-            Object.values(store || {}).forEach(d => {
-                const found = (d.categories?.expense || []).find(x => x.name === oldName);
-                if (found) found.name = trimmed;
-            });
-        }
-
-        if (date !== null) item.date = date || '';
-
-        renderFixedExpenseSettings();
-        applyFixedExpenseTemplatesToMonth(currentMonth, false);
-        render();
-        saveFixedExpenseCategories();
-
-        // 이름/날짜 변경은 현재 월의 expense도 즉시 서버 반영
-        if (store[currentMonth]?.categories?.expense) {
-            saveMonthPatch(currentMonth, {
-                'categories.expense': cloneData(store[currentMonth].categories.expense),
-                updatedAt: Date.now()
-            });
-        }
-    }
-
-    function removeFixedExpenseSetting(index) {
-        if (fixedExpenseCategories.length <= 1) {
-            showToast('최소 1개의 고정 지출은 필요합니다.', true);
-            return;
-        }
-
-        const removed = fixedExpenseCategories[index];
-        fixedExpenseCategories.splice(index, 1);
-
-        renderFixedExpenseSettings();
-        render();
-        saveFixedExpenseCategories();
-
-        // 과거 월 데이터는 삭제하지 않는다. 현재 월에서도 이미 입력된 값은 보존한다.
-        showToast(`${removed.name} 설정을 삭제했어요.`);
-    }
-    window.removeFixedExpenseSetting = removeFixedExpenseSetting;
 
     function renderCategorySettings() {
         const container = document.getElementById('setting-category-tags');
@@ -2623,94 +2203,16 @@ function renderExpenseModalHTML() {
         `).join('');
     }
 
-        function renderFixedExpenseCategorySettings() {
-        const container = document.getElementById('setting-fixed-category-tags');
-        if (!container) return;
-        const effective = getEffectiveFixedExpenseCategories();
-        container.innerHTML = effective.map((cat, idx) =>
-            `<div class="category-tag">${cat}<span onclick="window.removeFixedExpenseCategory(${idx})">&times;</span></div>`
-        ).join('');
-        if (!container.innerHTML) {
-            container.innerHTML = '<div style="font-size:12px;color:var(--text-sub);">등록된 고정 지출 카테고리가 없습니다.</div>';
-        }
-    }
-
-    async function syncFixedCategoriesToMonth(month, persist = false) {
-        if (!month) return false;
-        if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
-        if (!store[month].categories) store[month].categories = DEFAULT_MONTH_DATA().categories;
-        if (!Array.isArray(store[month].categories.expense)) store[month].categories.expense = [];
-
-        const existing = new Set(store[month].categories.expense.map(item => String(item?.name || '').trim()).filter(Boolean));
-        let changed = false;
-        getEffectiveFixedExpenseCategories().forEach(category => {
-            if (!existing.has(category)) {
-                store[month].categories.expense.push({ name: category, amount: 0, date: '' });
-                existing.add(category);
-                changed = true;
-            }
-        });
-
-        if (changed && persist) {
-            await saveMonthPatch(month, {
-                'categories.expense': cloneData(store[month].categories.expense),
-                updatedAt: Date.now()
-            });
-        }
-        return changed;
-    }
-
-    async function syncFixedCategoriesToAllMonths(persist = false) {
-        const months = getMonthKeys();
-        for (const month of months) {
-            await syncFixedCategoriesToMonth(month, persist);
-        }
-    }
-
-    function addFixedExpenseCategory() {
-        const input = document.getElementById('new-fixed-cat-input');
-        if (!input) return;
-        const val = input.value.trim();
-        if (val && !fixedExpenseCategoryList.includes(val)) {
-            fixedExpenseCategoryList.push(val);
-            input.value = '';
-            renderFixedExpenseCategorySettings();
-
-            // 현재 화면에는 즉시 반영하고, Firebase 저장/월별 동기화는 백그라운드에서 처리한다.
-            render();
-            saveCategoryList();
-            syncFixedCategoriesToAllMonths(true).then(() => {
-                if (currentMonth) render();
-            });
-        }
-    }
-    window.addFixedExpenseCategory = addFixedExpenseCategory;
-
-    function removeFixedExpenseCategory(index) {
-        if (fixedExpenseCategoryList.length <= 1) {
-            alert('최소 1개의 고정 지출 카테고리는 등록되어 있어야 합니다.');
-            return;
-        }
-        fixedExpenseCategoryList.splice(index, 1);
-        renderFixedExpenseCategorySettings();
-        render();
-        saveCategoryList();
-    }
-    window.removeFixedExpenseCategory = removeFixedExpenseCategory;
-
-function addCategorySetting() {
+    function addCategorySetting() {
         const input = document.getElementById('new-cat-input');
         if (!input) return;
         const val = input.value.trim();
-        if (!val || categoryList.includes(val)) return;
-
-        // 화면 상태를 먼저 변경해 즉시 반영
-        categoryList.push(val);
-        input.value = '';
-        renderCategorySettings();
-
-        // Firestore 저장은 백그라운드에서 진행
-        saveCategoryList();
+        if (val && !categoryList.includes(val)) {
+            categoryList.push(val);
+            persistStore();
+            input.value = '';
+            renderCategorySettings();
+        }
     }
     window.addCategorySetting = addCategorySetting;
 
@@ -2719,14 +2221,9 @@ function addCategorySetting() {
             alert('최소 1개의 카테고리는 등록되어 있어야 합니다.');
             return;
         }
-
-        // 화면 상태를 먼저 변경해 즉시 반영
         categoryList.splice(index, 1);
+        persistStore();
         renderCategorySettings();
-
-        // 기존 월 데이터의 카테고리 값은 보존한다.
-        // 저장 후 별도의 전체 재로딩은 하지 않아 화면이 늦게 바뀌지 않도록 한다.
-        saveCategoryList();
     }
     window.removeCategorySetting = removeCategorySetting;
 
@@ -2738,48 +2235,24 @@ function addCategorySetting() {
     }
     window.setMemberTab = setMemberTab;
 
-    async function changeMonth(m) {
+    function changeMonth(m) {
         currentMonth = m;
-        if (!store[m]) store[m] = DEFAULT_MONTH_DATA();
-
+        if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) globalMonthEl.value = currentMonth;
-
-        // 월 이동은 즉시.
         render();
-
-        // Firebase 최신 데이터 확인은 기존 저장/조회 구조를 사용해 백그라운드 처리.
-        if (typeof getFreshMonth === 'function' && typeof firebaseDataReady !== 'undefined' && firebaseDataReady) {
-            const requestedMonth = m;
-            getFreshMonth(requestedMonth).then(ok => {
-                if (ok && currentMonth === requestedMonth) render();
-            }).catch(e => console.warn(`${requestedMonth} 최신화 실패:`, e));
-        }
     }
     window.changeMonth = changeMonth;
-
 
     function navigate(page, btn) {
         document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.gnb-btn').forEach(b => b.classList.remove('active'));
-
         const targetPage = document.getElementById(`page-${page}`);
-        if (targetPage) targetPage.classList.add('active');
-        if (btn) btn.classList.add('active');
+        if(targetPage) targetPage.classList.add('active');
+        if(btn) btn.classList.add('active');
 
         const memberTabBar = document.getElementById('member-tab-bar');
         const headerMonthWrapper = document.getElementById('header-month-wrapper');
-
-        if (page === 'dashboard') {
-            render();
-        } else if (page === 'monthly') {
-            renderChartAndMonthly();
-        } else if (page === 'settings') {
-            renderCategorySettings();
-            if (typeof renderFixedExpenseCategorySettings === 'function') {
-                renderFixedExpenseCategorySettings();
-            }
-        }
 
         if (memberTabBar && headerMonthWrapper) {
             if (page === 'dashboard') {
@@ -2796,65 +2269,27 @@ function addCategorySetting() {
     }
     window.navigate = navigate;
 
-
     function exportData() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
-        const a = document.createElement('a'); a.href = dataStr; a.download = `gotgan_backup_${currentMonth}.json`; a.click();
+        const a = document.createElement('a'); a.href = dataStr; a.download = `gotgan_backup_2026.json`; a.click();
     }
     window.exportData = exportData;
 
     async function resetData() {
-        if (!confirm('모든 데이터를 처음 상태로 초기화하시겠습니까?')) return;
-        try {
-            const months = getMonthKeys();
-            await Promise.all(months.map(m => deleteDoc(doc(db, MONTH_COLLECTION, `month_${m}`))));
-            await deleteDoc(doc(db, META_COLLECTION, META_DOC_ID));
-            await deleteDoc(doc(db, 'gotgan', LEGACY_DOC_ID));
-
+        if(confirm('모든 데이터를 처음 상태로 초기화하시겠습니까?')) {
+            try { await deleteDoc(doc(db, "gotgan", FIRESTORE_DOC_ID)); } catch(e){}
             categoryList = DEFAULT_CATEGORIES.slice();
-            fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
+            
             store = {};
-            BASE_MONTHS.forEach(m => { store[m] = DEFAULT_MONTH_DATA(); });
+            ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].forEach(m => {
+                store[m] = DEFAULT_MONTH_DATA();
+            });
 
             renderCategorySettings();
-            renderFixedExpenseCategorySettings();
             render();
-            showToast('전체 초기화되었습니다.');
-        } catch (e) {
-            console.error('초기화 실패:', e);
-            showToast('초기화에 실패했습니다.', true);
         }
     }
     window.resetData = resetData;
-
-
-    function runInternalSmokeTests() {
-        const results = [];
-        const assert = (name, condition) => results.push({ name, pass: !!condition });
-        const sample = {
-            categories: {
-                expense: [{ name: '월세', amount: 700000, date: '2026-08-25' }],
-                bora_personal: [{ name: '보험료', amount: 100000 }],
-                sang_personal: [{ name: '주유비', amount: 80000 }],
-                living: [{ name: '공동 생활비 예산', amount: 500000 }],
-                variable_expense: [{ name: '외식', amount: 120000, owner: 'shared' }],
-                savings: [{ name: '보라 청년계좌', amount: 300000, owner: 'bora' }],
-                reserve: [{ name: '남겨둘 돈', amount: 100000, owner: 'shared' }]
-            }
-        };
-        assert('고정 지출 합계 계산', sumCat(sample.categories.expense) === 700000);
-        const fixedNames = new Set(sample.categories.expense.map(item => item.name));
-        const configuredFixed = DEFAULT_FIXED_EXPENSE_CATEGORIES[0];
-        assert('설정 고정지출 카테고리 목록 존재', DEFAULT_FIXED_EXPENSE_CATEGORIES.includes(configuredFixed));
-        assert('월별 고정지출 항목은 카테고리명으로 식별 가능', fixedNames.has('월세'));
-        assert('고정 지출 날짜 보존', sample.categories.expense[0].date === '2026-08-25');
-        assert('공동 생활비 합계 계산', sumCat(sample.categories.living) === 500000);
-        assert('변동 지출 합계 계산', sumCat(sample.categories.variable_expense) === 120000);
-        assert('고정 지출 카테고리 기본값 존재', fixedExpenseCategoryList.length > 0);
-        assert('월별 데이터 기본 구조 존재', !!DEFAULT_MONTH_DATA().categories.expense);
-        return results;
-    }
-    window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
 </script>
