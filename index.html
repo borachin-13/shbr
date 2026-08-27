@@ -1360,32 +1360,41 @@
 
         updateSyncStatus('데이터를 불러오는 중...');
 
-        // 인증 / 환율 / Firebase 로딩을 순차적으로 기다리지 않고 병렬 실행한다.
-        const authPromise = signInAnonymously(auth).then(() => {
+        // Firestore 데이터는 인증이 완료된 뒤에 읽는다.
+        // 인증과 데이터 읽기를 동시에 시작하면 보안 규칙이 request.auth를
+        // 확인하기 전에 getDoc()이 실행되어 기존 데이터가 로드되지 않을 수 있다.
+        let authReady = false;
+        try {
+            await signInAnonymously(auth);
+            authReady = true;
             if(authBadge) {
                 authBadge.innerText = '연결됨';
                 authBadge.style.background = '#c6f6d5';
                 authBadge.style.color = '#22543d';
             }
-        }).catch(err => {
+        } catch (err) {
             console.error('익명 로그인 실패:', err);
             if(authBadge) {
                 authBadge.innerText = '인증 실패';
                 authBadge.style.background = '#fed7d7';
                 authBadge.style.color = '#742a2a';
             }
-        });
+        }
 
+        // 환율은 Firebase 인증과 무관하므로 계속 병렬로 처리한다.
         const exchangePromise = fetchExchangeRate().catch(err => {
             console.warn('환율 로드 실패:', err);
         });
 
-        const dataPromise = loadAll().catch(err => {
-            console.warn('백그라운드 데이터 로드 실패:', err);
-            return false;
-        });
+        // 인증 성공 후에만 Firestore를 읽는다.
+        const dataPromise = authReady
+            ? loadAll().catch(err => {
+                console.warn('백그라운드 데이터 로드 실패:', err);
+                return false;
+            })
+            : Promise.resolve(false);
 
-        await Promise.allSettled([authPromise, exchangePromise, dataPromise]);
+        await Promise.allSettled([exchangePromise, dataPromise]);
 
         // 서버 데이터가 도착한 뒤 임시 입력값을 복구하고 최종 화면을 한 번만 갱신한다.
         await recoverIncomeDraft();
@@ -2019,8 +2028,7 @@ function renderExpenseModalHTML() {
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
-                    }
-                });
+                    });
                 }
                 html += `</div><button class="add-row-btn" onclick="window.addExpenseSubModal('${k}')">+ 고정 지출 항목 추가</button></div>`;
             }
