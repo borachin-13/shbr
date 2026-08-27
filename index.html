@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>우리 곳간 — 안정성 통합본</title>
+    <title>우리 곳간 — 안정성 최종본</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <style>
         :root {
@@ -1970,85 +1970,79 @@
     }
     window.restorePageScroll = restorePageScroll;
 
-    function saveExpenseModal() {
-        document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
-            const k = group.getAttribute('data-expense-cat');
-            if (!k) return;
-            const titleInp = group.querySelector('.cat-title-inp');
-            const rows = group.querySelectorAll('.sub-row');
 
-            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
-            const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
-            store[currentMonth].sectionTitles[k] = newTitle;
-
-            const updated = [];
-            rows.forEach(row => {
-                if (k === 'variable_expense') {
-                    const dateInp = row.querySelector('.inp-date');
-                    const catInp = row.querySelector('.inp-cat');
-                    const nameInp = row.querySelector('.inp-name');
-                    const amountInp = row.querySelector('.inp-amount');
-                    const wonAmount = parseNumberString(amountInp.value);
-                    if (nameInp.value.trim() !== '' || wonAmount > 0) {
-                        updated.push({
-                            date: dateInp ? dateInp.value : '',
-                            category: catInp ? catInp.value : (categoryList[0] || '식비'),
-                            name: nameInp.value.trim() || '지출',
-                            amount: wonAmount
-                        });
-                    }
-                } else {
-                    const nameInp = row.querySelector('.inp-name');
-                    const amountInp = row.querySelector('.inp-amount');
-                    if (nameInp.value.trim() !== '') {
-                        updated.push({
-                            name: nameInp.value.trim() || '항목',
-                            amount: parseNumberString(amountInp.value)
-                        });
-                    }
-                }
-            });
-            store[currentMonth].categories[k] = updated;
-
-            // 사용자가 현재 월을 직접 수정했으므로, 이 월에서 해당 항목이
-            // 다른 달에서 자동 이월된 상태라는 표시는 제거한다.
-            clearCarryoverSource(currentMonth, k);
-
-            if (k !== 'variable_expense') {
-                const sourceSettings = getCarryoverSettingsForMonth(currentMonth);
-                const isCarryover = sourceSettings[k] === true;
-
-                Object.keys(store).forEach(m => {
-                    if (m > currentMonth && !store[m]) return;
-                    if (m <= currentMonth) return;
-
-                    if (!store[m].sectionTitles) store[m].sectionTitles = {};
-
-                    if (isCarryover) {
-                        store[m].sectionTitles[k] = newTitle;
-                        store[m].categories[k] = JSON.parse(JSON.stringify(updated));
-                        setCarryoverSource(m, k, currentMonth);
-                    } else {
-                        store[m].categories[k] = [];
-                        store[m].sectionTitles[k] = newTitle;
-                        clearCarryoverSource(m, k);
-                    }
-                });
-            }
-        });
-        closeModal();
-        restorePageScroll();
-        persistStore();
-        render();
-        restorePageScroll();
-
-        // 저장 완료 후에도 스크롤 상태를 다시 보장
-    }
 
     function saveSavingsModal
     */
 
     // 월별 데이터는 서로 독립적으로 저장한다.
+
+    async function saveMonthPatch(month, patch, successMessage = '저장했어요') {
+        if (!month || !patch || !Object.keys(patch).length) return false;
+        if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
+
+        // 화면은 즉시 반영한다.
+        Object.entries(patch).forEach(([path, value]) => {
+            const parts = path.split('.');
+            let cur = store[month];
+            parts.forEach((part, i) => {
+                if (i === parts.length - 1) cur[part] = cloneData(value);
+                else {
+                    if (!cur[part] || typeof cur[part] !== 'object') cur[part] = {};
+                    cur = cur[part];
+                }
+            });
+        });
+
+        // 같은 월의 연속 저장은 순차 처리하여 마지막 입력이 사라지지 않게 한다.
+        window.__gotganSaveQueues = window.__gotganSaveQueues || new Map();
+        const previous = window.__gotganSaveQueues.get(month) || Promise.resolve();
+
+        const task = previous.catch(() => {}).then(async () => {
+            const ref = doc(db, MONTH_COLLECTION, `month_${month}`);
+            const snap = await getDoc(ref);
+            const current = snap.exists() ? snap.data() : {};
+            const expanded = {};
+
+            Object.entries(patch).forEach(([path, value]) => {
+                const parts = path.split('.');
+                let cur = expanded;
+                parts.forEach((part, i) => {
+                    if (i === parts.length - 1) cur[part] = cloneData(value);
+                    else {
+                        if (!cur[part] || typeof cur[part] !== 'object') cur[part] = {};
+                        cur = cur[part];
+                    }
+                });
+            });
+
+            await setDoc(ref, {
+                ...current,
+                ...expanded,
+                updatedAt: Date.now()
+            }, { merge: true });
+
+            return true;
+        });
+
+        window.__gotganSaveQueues.set(month, task);
+        task.finally(() => {
+            if (window.__gotganSaveQueues.get(month) === task) {
+                window.__gotganSaveQueues.delete(month);
+            }
+        });
+
+        try {
+            const ok = await task;
+            if (ok && successMessage && typeof showToast === 'function') showToast(successMessage);
+            return ok;
+        } catch (e) {
+            console.error('월별 데이터 저장 실패:', e);
+            if (typeof showToast === 'function') showToast('저장에 실패했어요. 다시 시도해주세요.', true);
+            return false;
+        }
+    }
+
     function saveExpenseModal() {
         document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
             const k = group.getAttribute('data-expense-cat');
@@ -2099,59 +2093,7 @@
     }
 
     /* [기능 비활성화] 기존 자동 이월 로직 보존용
-    function saveSavingsModal() {
-        document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
-            const k = group.getAttribute('data-savings-cat');
-            if (!k) return;
-            const titleInp = group.querySelector('.cat-title-inp');
-            const rows = group.querySelectorAll('.sub-row');
 
-            if (!store[currentMonth].sectionTitles) store[currentMonth].sectionTitles = {};
-            const newTitle = titleInp && titleInp.value.trim() ? titleInp.value.trim() : k;
-            store[currentMonth].sectionTitles[k] = newTitle;
-
-            const updated = [];
-            rows.forEach(row => {
-                const nameInp = row.querySelector('.inp-name');
-                const amountInp = row.querySelector('.inp-amount');
-                const ownerSel = row.querySelector('.inp-owner');
-
-                if (nameInp.value.trim() !== '') {
-                    updated.push({
-                        name: nameInp.value.trim() || '항목',
-                        amount: parseNumberString(amountInp.value),
-                        owner: k === 'savings' ? (ownerSel ? ownerSel.value : 'shared') : 'shared'
-                    });
-                }
-            });
-            store[currentMonth].categories[k] = updated;
-            clearCarryoverSource(currentMonth, k);
-
-            const sourceSettings = getCarryoverSettingsForMonth(currentMonth);
-            const isCarryoverEnabled = sourceSettings[k] === true;
-
-            Object.keys(store).forEach(m => {
-                if (m <= currentMonth || !store[m]) return;
-                if (!store[m].sectionTitles) store[m].sectionTitles = {};
-
-                if (isCarryoverEnabled) {
-                    store[m].sectionTitles[k] = newTitle;
-                    store[m].categories[k] = JSON.parse(JSON.stringify(updated));
-                    setCarryoverSource(m, k, currentMonth);
-                } else {
-                    store[m].categories[k] = [];
-                    store[m].sectionTitles[k] = newTitle;
-                    clearCarryoverSource(m, k);
-                }
-            });
-        });
-        closeModal();
-        restorePageScroll();
-        persistStore();
-        render();
-        restorePageScroll();
-
-    }
 
     function renderCategorySettings
     */
@@ -2292,6 +2234,12 @@
     window.resetData = resetData;
 
     window.onload = init;
+
+
+    // ===== Inline HTML handler bindings =====
+    window.render = render;
+    window.renderChartAndMonthly = renderChartAndMonthly;
+    window.renderCategorySettings = renderCategorySettings;
 </script>
 </body>
 </html>
