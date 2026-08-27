@@ -850,6 +850,11 @@
     let categoryList = DEFAULT_CATEGORIES.slice();
     let fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
 
+    function getEffectiveFixedExpenseCategories() {
+        const list = Array.isArray(fixedExpenseCategoryList) ? fixedExpenseCategoryList.filter(Boolean) : [];
+        return list.length ? list : DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
+    }
+
     const DEFAULT_MONTH_DATA = () => ({
         bora: 0, bora_extra: 0, sang: 0, sang_other_income: 0, trip_usd: 0,
         sectionTitles: {
@@ -1035,24 +1040,21 @@
             for (let attempt = 0; attempt < 3; attempt++) {
                 try {
                     await setDoc(doc(db, META_COLLECTION, META_DOC_ID), {
-                        categoryList: categoryList,
-                        fixedExpenseCategoryList: fixedExpenseCategoryList,
+                        categoryList: Array.isArray(categoryList) ? categoryList : DEFAULT_CATEGORIES.slice(),
+                        fixedExpenseCategoryList: getEffectiveFixedExpenseCategories(),
                         updatedAt: Date.now()
                     }, { merge: true });
-                    showToast('저장되었습니다.');
+                    showToast('설정이 저장되었어요.');
                     return true;
                 } catch (e) {
                     lastError = e;
-                    if (attempt < 2) {
-                        await new Promise(resolve => setTimeout(resolve, 350 * (attempt + 1)));
-                    }
+                    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 350 * (attempt + 1)));
                 }
             }
             console.error('설정 저장 실패:', lastError);
-            showToast('설정 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', true);
+            showToast('설정을 저장하지 못했어요. 잠시 후 다시 시도해주세요.', true);
             return false;
         })();
-
         pendingCategoryWrite = writePromise;
         writePromise.finally(() => {
             if (pendingCategoryWrite === writePromise) pendingCategoryWrite = null;
@@ -1064,6 +1066,7 @@
         let legacyStore = null;
         let legacyCategories = null;
         let categoryLoaded = false;
+        let fixedCategoryLoaded = false;
 
         // 새 구조를 먼저 읽는다.
         try {
@@ -1071,7 +1074,10 @@
             if (metaSnap.exists()) {
                 const meta = metaSnap.data();
                 if (Array.isArray(meta.categoryList) && meta.categoryList.length) { categoryList = meta.categoryList; categoryLoaded = true; }
-                if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) fixedExpenseCategoryList = meta.fixedExpenseCategoryList;
+                if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
+                    fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
+                    fixedCategoryLoaded = fixedExpenseCategoryList.length > 0;
+                }
             }
         } catch (e) {
             console.error('설정 불러오기 실패:', e);
@@ -1118,6 +1124,21 @@
 
         if (!categoryLoaded && legacyCategories && legacyCategories.length) { categoryList = legacyCategories; categoryLoaded = true; }
         if (!categoryList.length) categoryList = DEFAULT_CATEGORIES.slice();
+        if (!fixedCategoryLoaded) {
+            const discovered = [];
+            Object.values(store || {}).forEach(monthData => {
+                const items = monthData?.categories?.expense;
+                if (!Array.isArray(items)) return;
+                items.forEach(item => {
+                    const name = String(item?.name || '').trim();
+                    if (name && !discovered.includes(name)) discovered.push(name);
+                });
+            });
+            fixedExpenseCategoryList = Array.from(new Set([
+                ...DEFAULT_FIXED_EXPENSE_CATEGORIES,
+                ...discovered
+            ]));
+        }
         if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
             fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
         }
@@ -1125,6 +1146,10 @@
         for (const month of BASE_MONTHS) {
             if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
         }
+
+        // 설정의 고정지출 카테고리를 월별 데이터의 실제 항목으로도 보장한다.
+        // 기존 금액/날짜는 유지하고, 없는 카테고리만 0원으로 추가한다.
+        await syncFixedCategoriesToAllMonths(false);
     }
 
 
@@ -1905,11 +1930,12 @@
     window.handleModalNumInput = handleModalNumInput;
 
         function buildFixedExpenseOptionsHtml(currentCat) {
-        const safeCurrent = currentCat || (fixedExpenseCategoryList[0] || '월세');
-        let options = fixedExpenseCategoryList.map(cat =>
+        const effectiveFixed = getEffectiveFixedExpenseCategories();
+        const safeCurrent = currentCat || (effectiveFixed[0] || '월세');
+        let options = effectiveFixed.map(cat =>
             `<option value="${cat}" ${cat === safeCurrent ? 'selected' : ''}>${cat}</option>`
         ).join('');
-        if (safeCurrent && !fixedExpenseCategoryList.includes(safeCurrent)) {
+        if (safeCurrent && !effectiveFixed.includes(safeCurrent)) {
             options += `<option value="${safeCurrent}" selected>${safeCurrent} (기존)</option>`;
         }
         return options;
@@ -1971,7 +1997,7 @@ function renderExpenseModalHTML() {
                     // 월별 입력 화면에 자동으로 나타나도록 한다. 기존 월 데이터는 절대 덮어쓰지 않는다.
                     const existingFixedNames = new Set(cats.expense.map(item => item.name));
                     const fixedItemsForMonth = cats.expense.slice();
-                    fixedExpenseCategoryList.forEach(category => {
+                    getEffectiveFixedExpenseCategories().forEach(category => {
                         if (!existingFixedNames.has(category)) {
                             fixedItemsForMonth.push({ name: category, amount: 0, date: '' });
                         }
@@ -2023,7 +2049,7 @@ function renderExpenseModalHTML() {
             const today = new Date().toISOString().split('T')[0];
             newRow.innerHTML = `
                 <input type="date" value="${today}" class="inp-date">
-                <select class="inp-cat">${buildFixedExpenseOptionsHtml(fixedExpenseCategoryList[0])}</select>
+                <select class="inp-cat">${buildFixedExpenseOptionsHtml(getEffectiveFixedExpenseCategories()[0])}</select>
                 <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         } else {
@@ -2157,7 +2183,7 @@ function renderExpenseModalHTML() {
                     const dateInp = row.querySelector('.inp-date');
                     const catInp = row.querySelector('.inp-cat');
                     const amountInp = row.querySelector('.inp-amount');
-                    const category = catInp ? catInp.value : (fixedExpenseCategoryList[0] || '월세');
+                    const category = catInp ? catInp.value : (getEffectiveFixedExpenseCategories()[0] || '월세');
                     const amount = parseNumberString(amountInp ? amountInp.value : '');
                     if (category || amount > 0) {
                         updated.push({ date: dateInp ? dateInp.value : '', name: category, amount });
@@ -2238,9 +2264,45 @@ function renderExpenseModalHTML() {
         function renderFixedExpenseCategorySettings() {
         const container = document.getElementById('setting-fixed-category-tags');
         if (!container) return;
-        container.innerHTML = fixedExpenseCategoryList.map((cat, idx) =>
+        const effective = getEffectiveFixedExpenseCategories();
+        container.innerHTML = effective.map((cat, idx) =>
             `<div class="category-tag">${cat}<span onclick="window.removeFixedExpenseCategory(${idx})">&times;</span></div>`
         ).join('');
+        if (!container.innerHTML) {
+            container.innerHTML = '<div style="font-size:12px;color:var(--text-sub);">등록된 고정 지출 카테고리가 없습니다.</div>';
+        }
+    }
+
+    async function syncFixedCategoriesToMonth(month, persist = false) {
+        if (!month) return false;
+        if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
+        if (!store[month].categories) store[month].categories = DEFAULT_MONTH_DATA().categories;
+        if (!Array.isArray(store[month].categories.expense)) store[month].categories.expense = [];
+
+        const existing = new Set(store[month].categories.expense.map(item => String(item?.name || '').trim()).filter(Boolean));
+        let changed = false;
+        getEffectiveFixedExpenseCategories().forEach(category => {
+            if (!existing.has(category)) {
+                store[month].categories.expense.push({ name: category, amount: 0, date: '' });
+                existing.add(category);
+                changed = true;
+            }
+        });
+
+        if (changed && persist) {
+            await saveMonthPatch(month, {
+                'categories.expense': cloneData(store[month].categories.expense),
+                updatedAt: Date.now()
+            });
+        }
+        return changed;
+    }
+
+    async function syncFixedCategoriesToAllMonths(persist = false) {
+        const months = getMonthKeys();
+        for (const month of months) {
+            await syncFixedCategoriesToMonth(month, persist);
+        }
     }
 
     function addFixedExpenseCategory() {
@@ -2252,6 +2314,9 @@ function renderExpenseModalHTML() {
             saveCategoryList();
             input.value = '';
             renderFixedExpenseCategorySettings();
+            // 새 고정지출 카테고리는 현재 월뿐 아니라 기존 월별 데이터에도 즉시 연결한다.
+            syncFixedCategoriesToAllMonths(true);
+            render();
         }
     }
     window.addFixedExpenseCategory = addFixedExpenseCategory;
