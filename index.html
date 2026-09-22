@@ -1406,6 +1406,13 @@
         };
     };
 
+    function shouldRecoverIncomeDraft(serverValue, draftValue, baseValue) {
+        const server = Number(serverValue) || 0;
+        const draft = Number(draftValue) || 0;
+        const base = Number(baseValue);
+        return Number.isFinite(base) && server === base && server !== draft;
+    }
+
     async function recoverIncomeDraft() {
         try {
             const raw = localStorage.getItem('gotgan_income_drafts_v1');
@@ -1422,19 +1429,27 @@
                 const serverValue = Number(serverMonth[draft.key]) || 0;
                 const draftValue = Number(draft.value) || 0;
 
-                if (serverValue !== draftValue) {
-                    if (!store[draft.month]) store[draft.month] = DEFAULT_MONTH_DATA();
+                // 이미 서버에 저장된 값이면 임시값만 정리한다.
+                if (serverValue === draftValue) continue;
+
+                // 구버전 draft에는 baseValue가 없으므로 자동 복구하지 않는다.
+                // baseValue가 있는 경우에만, draft 생성 당시의 서버값이 그대로일 때 복구한다.
+                if (!shouldRecoverIncomeDraft(serverValue, draftValue, draft.baseValue)) {
+                    console.warn('수입 임시값 자동 복구를 건너뜁니다. 서버값이 임시값 생성 당시와 달라졌습니다:', draft.month, draft.key);
+                    continue;
+                }
+
+                if (!store[draft.month]) store[draft.month] = DEFAULT_MONTH_DATA();
                 const draftVersion = Number(draft.savedAt) || 0;
                 if (getFieldVersion(draft.month, draft.key) > draftVersion) continue;
                 setFieldVersion(draft.month, draft.key, draftVersion);
 
-                    store[draft.month][draft.key] = draftValue;
+                store[draft.month][draft.key] = draftValue;
 
-                    const ok = await saveMonthPatch(draft.month, {
-                        [draft.key]: draftValue
-                    });
-                    if (!ok) remaining[draftKey] = draft;
-                }
+                const ok = await saveMonthPatch(draft.month, {
+                    [draft.key]: draftValue
+                });
+                if (!ok) remaining[draftKey] = draft;
             }
 
             if (Object.keys(remaining).length) {
@@ -1859,15 +1874,22 @@
             return;
         }
         if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        const previousValue = Number(store[currentMonth][key]) || 0;
         store[currentMonth][key] = rawNum;
         // 브라우저가 갑자기 종료되어도 마지막 입력값을 복구할 수 있도록 임시 백업.
+        // baseValue를 함께 저장해, 다른 기기에서 값이 변경된 경우 stale draft가 서버값을 덮어쓰지 않도록 한다.
         try {
             const draftKey = `${currentMonth}:${key}`;
             const drafts = JSON.parse(localStorage.getItem('gotgan_income_drafts_v1') || '{}');
+            const existingDraft = drafts[draftKey];
+            const existingBaseValue = existingDraft && Object.prototype.hasOwnProperty.call(existingDraft, 'baseValue')
+                ? Number(existingDraft.baseValue)
+                : NaN;
             drafts[draftKey] = {
                 month: currentMonth,
                 key: key,
                 value: rawNum,
+                baseValue: Number.isFinite(existingBaseValue) ? existingBaseValue : previousValue,
                 savedAt: Date.now()
             };
             localStorage.setItem('gotgan_income_drafts_v1', JSON.stringify(drafts));
@@ -2824,6 +2846,9 @@ function addCategorySetting() {
         assert('월별 저장 큐가 존재함', typeof queueMonthWrite === 'function');
         assert('월별 데이터 기본 구조 존재', !!DEFAULT_MONTH_DATA().categories.expense);
         assert('현재 월 읽기 실패는 빈 데이터로 간주하지 않음', resolveCurrentMonthData({ status: 'rejected', reason: new Error('read failed') }, null, '2026-09').loadFailed === true);
+        assert('수입 임시값은 서버값이 draft 시작값과 같을 때만 자동 복구', shouldRecoverIncomeDraft(4200000, 4300000, 4200000) === true);
+        assert('다른 기기에서 서버값이 변경된 경우 stale 수입 임시값을 복구하지 않음', shouldRecoverIncomeDraft(4400000, 4300000, 4200000) === false);
+        assert('수입 임시값과 서버값이 이미 같으면 복구할 필요 없음', shouldRecoverIncomeDraft(4300000, 4300000, 4200000) === false);
         assert('현재 월 문서가 없고 legacy도 없으면 정상적인 신규 월로 처리', resolveCurrentMonthData({ status: 'fulfilled', value: { exists: () => false } }, null, '2026-09').loadFailed === false);
         assert('초기화 시 로컬 저장소 정리 함수 존재', typeof clearLocalPersistence === 'function');
         assert('추가 저축 계산: 소비 0원일 때 수입 전액 가능', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
