@@ -45,6 +45,15 @@ try {
   const integrity = await assertProbe(pageA, 'runEmulatorIntegrityProbe');
   const concurrency = await assertProbe(pageA, 'runEmulatorConcurrencyProbe');
 
+  const authRecoverySetup = await pageA.evaluate(async () => window.runEmulatorAuthRecoveryProbe());
+  if (!authRecoverySetup?.pass) throw new Error(`auth recovery setup failed: ${JSON.stringify(authRecoverySetup)}`);
+  await pageA.locator('#auth-email').fill(emailA);
+  await pageA.locator('#auth-password').fill(passwordA);
+  await pageA.locator('#auth-login-btn').click();
+  await pageA.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none');
+  const authRecovery = await pageA.evaluate(async () => window.runEmulatorAuthRecoveryVerify());
+  if (!authRecovery?.pass) throw new Error(`auth recovery failed: ${JSON.stringify(authRecovery)}`);
+
   const recoverySetup = await pageA.evaluate(async () => window.runEmulatorSaveFailureRecoveryProbe());
   if (!recoverySetup?.pass) throw new Error(`save recovery setup failed: ${JSON.stringify(recoverySetup)}`);
   await contextA.setOffline(true);
@@ -74,6 +83,7 @@ try {
     uidB,
     integrity,
     concurrency,
+    authRecovery,
     recovery,
     bToA,
     aToB
