@@ -1554,6 +1554,12 @@
         }, 0);
     }
 
+    // 월 추가 저축 가능액은 '이번 달 수입 - 소비성 지출 - 이미 예정된 저축'으로 계산한다.
+    // 비상금/남겨둘 돈(reserve)은 기존 자산 또는 별도 보유 목표이므로 월 현금흐름에서 차감하지 않는다.
+    function calculateAdditionalSavings(incomeWon, expenseWon, plannedSavingsWon) {
+        return Math.max((Number(incomeWon) || 0) - (Number(expenseWon) || 0) - (Number(plannedSavingsWon) || 0), 0);
+    }
+
     function formatAmount(won) { return `${Math.round(won).toLocaleString()}원`; }
 
     function renderInputsOnly() {
@@ -1732,8 +1738,6 @@
         const livSum = sumCat(d.categories.living);
         const varSum = sumCat(d.categories.variable_expense);
         const savForTab = sumCatForTab(d.categories.savings, currentTab);
-        const resForTab = sumCatForTab(d.categories.reserve, currentTab);
-
         const sharedExpenseHalf = (expSum + livSum) / 2;
 
         let activeIncomeWon = totalIncWon;
@@ -1752,7 +1756,7 @@
             if(targetLabelEl) targetLabelEl.innerText = '우리 곳간 총 추가 저축 가능액';
         }
 
-        const activeSavingsWon = Math.max(activeIncomeWon - activeExpenseWon - savForTab - resForTab, 0);
+        const activeSavingsWon = calculateAdditionalSavings(activeIncomeWon, activeExpenseWon, savForTab);
 
         const elInc = document.getElementById('kpi-income');
         const elExp = document.getElementById('kpi-expense');
@@ -1925,7 +1929,7 @@
             const expWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
             const tripWon = Math.round((d.trip_usd || 0) * usdRate);
             const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + (d.sang_other_income || 0) + tripWon;
-            const savWon = sumCat(d.categories.savings) + Math.max(incWon - expWon - sumCat(d.categories.savings) - sumCat(d.categories.reserve), 0);
+            const savWon = sumCat(d.categories.savings) + calculateAdditionalSavings(incWon, expWon, sumCat(d.categories.savings));
             if (expWon > maxVal) maxVal = expWon;
             if (savWon > maxVal) maxVal = savWon;
         });
@@ -2608,6 +2612,9 @@ function addCategorySetting() {
         assert('변동 지출 합계 계산', sumCat(sample.categories.variable_expense) === 120000);
         assert('고정 지출 카테고리 기본값 존재', fixedExpenseCategoryList.length > 0);
         assert('월별 데이터 기본 구조 존재', !!DEFAULT_MONTH_DATA().categories.expense);
+        assert('추가 저축 계산: 소비 0원일 때 수입 전액 가능', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
+        assert('추가 저축 계산: 기존 저축은 차감', calculateAdditionalSavings(8200000, 2966500, 1400000) === 3833500);
+        assert('추가 저축 계산: 비상금(reserve)은 계산에 영향 없음', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
         return results;
     }
     window.runInternalSmokeTests = runInternalSmokeTests;
