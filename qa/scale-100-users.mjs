@@ -4,6 +4,7 @@ import {
 } from 'firebase/app';
 import {
   getAuth,
+  connectAuthEmulator,
   createUserWithEmailAndPassword,
   deleteUser,
   signOut
@@ -39,6 +40,7 @@ try {
   for (let i = 0; i < COUNT; i++) {
     const app = initializeApp(config, `qa-scale-${stamp}-${i}`);
     const auth = getAuth(app);
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
     const db = getFirestore(app);
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
     apps.push({ app, auth, db });
