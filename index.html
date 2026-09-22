@@ -3280,6 +3280,10 @@ function addCategorySetting() {
     }
     window.runEmulatorIntegrityProbe = runEmulatorIntegrityProbe;
 
+    window.getAuthenticatedUid = function() {
+        return isAuthenticatedUser() ? auth.currentUser.uid : null;
+    };
+
     window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
