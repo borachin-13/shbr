@@ -57,6 +57,9 @@ try {
   const monthLoadGuard = await pageA.evaluate(async () => window.runEmulatorMonthLoadFailureGuardProbe());
   if (!monthLoadGuard?.pass) throw new Error(`month load failure guard failed: ${JSON.stringify(monthLoadGuard)}`);
 
+  const resetIsolation = await pageA.evaluate(async () => window.runEmulatorResetIsolationProbe());
+  if (!resetIsolation?.pass) throw new Error(`reset isolation failed: ${JSON.stringify(resetIsolation)}`);
+
   const recoverySetup = await pageA.evaluate(async () => window.runEmulatorSaveFailureRecoveryProbe());
   if (!recoverySetup?.pass) throw new Error(`save recovery setup failed: ${JSON.stringify(recoverySetup)}`);
   await contextA.setOffline(true);
@@ -88,6 +91,7 @@ try {
     concurrency,
     authRecovery,
     monthLoadGuard,
+    resetIsolation,
     recovery,
     bToA,
     aToB
