@@ -3070,6 +3070,7 @@ function addCategorySetting() {
 
         const targetMonth = String(month || currentMonth);
         const targetRef = doc(db, USERS_COLLECTION, uid, USER_MONTHS_COLLECTION, `month_${targetMonth}`);
+        const targetSettingsRef = doc(db, USERS_COLLECTION, uid, USER_SETTINGS_COLLECTION, USER_SETTINGS_DOC_ID);
         const results = [];
 
         try {
@@ -3078,6 +3079,38 @@ function addCategorySetting() {
         } catch (e) {
             results.push({
                 test: '다른 사용자 월 데이터 직접 읽기 차단',
+                pass: e?.code === 'permission-denied',
+                error: e?.code || e?.message || String(e)
+            });
+        }
+
+        try {
+            await getDoc(targetSettingsRef);
+            results.push({ test: '다른 사용자 설정 직접 읽기 차단', pass: false, error: 'read unexpectedly allowed' });
+        } catch (e) {
+            results.push({
+                test: '다른 사용자 설정 직접 읽기 차단',
+                pass: e?.code === 'permission-denied',
+                error: e?.code || e?.message || String(e)
+            });
+        }
+
+        const settingsProbeValue = `qa-settings-${Date.now()}`;
+        try {
+            await setDoc(targetSettingsRef, { __qaCrossUserProbe: settingsProbeValue }, { merge: true });
+            results.push({ test: '다른 사용자 설정 직접 쓰기 차단', pass: false, error: 'write unexpectedly allowed' });
+            try {
+                await setDoc(targetSettingsRef, { __qaCrossUserProbe: deleteField() }, { merge: true });
+            } catch (cleanupError) {
+                results.push({
+                    test: '비정상 허용된 설정 probe 정리',
+                    pass: false,
+                    error: cleanupError?.code || cleanupError?.message || String(cleanupError)
+                });
+            }
+        } catch (e) {
+            results.push({
+                test: '다른 사용자 설정 직접 쓰기 차단',
                 pass: e?.code === 'permission-denied',
                 error: e?.code || e?.message || String(e)
             });
