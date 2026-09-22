@@ -1706,12 +1706,11 @@
         updateSyncStatus('로그인을 기다리고 있어요…');
 
         try {
-            let user = await initialAuthUserPromise;
-            if (!user) {
-                const credential = await signInAnonymously(auth);
-                user = credential.user;
-            }
+            const user = await initialAuthUserPromise;
 
+            // 로그인 전에는 익명 계정을 만들지 않는다.
+            // 익명 Auth 생성은 첫 화면에 필요하지 않은 네트워크 요청이므로 제거해
+            // 초기 진입 시간을 줄이고, 사전오픈 사용자 수에도 불필요한 Auth 계정이 생기지 않게 한다.
             if (authBadge) {
                 if (user && !user.isAnonymous) {
                     authBadge.innerText = '내 계정';
