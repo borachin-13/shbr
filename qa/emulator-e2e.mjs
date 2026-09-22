@@ -14,13 +14,20 @@ const pageA = await contextA.newPage();
 const pageB = await contextB.newPage();
 
 async function signup(page, email, password) {
+  const started = Date.now();
   await page.goto(baseUrl);
+  const pageReadyMs = Date.now() - started;
   await page.locator('#auth-email').fill(email);
   await page.locator('#auth-password').fill(password);
+  const authStarted = Date.now();
   await page.locator('#auth-signup-btn').click();
   await page.waitForFunction(() => typeof window.runEmulatorIntegrityProbe === 'function');
   await page.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none');
-  return page.evaluate(() => window.getAuthenticatedUid());
+  const authenticatedMs = Date.now() - authStarted;
+  return {
+    uid: await page.evaluate(() => window.getAuthenticatedUid()),
+    timing: { pageReadyMs, signupToAppMs: authenticatedMs }
+  };
 }
 
 async function assertProbe(page, name) {
@@ -35,12 +42,30 @@ async function assertProbe(page, name) {
 }
 
 try {
-  const uidA = await signup(pageA, emailA, passwordA);
-  const uidB = await signup(pageB, emailB, passwordB);
+  const signupA = await signup(pageA, emailA, passwordA);
+  const signupB = await signup(pageB, emailB, passwordB);
+  const uidA = signupA.uid;
+  const uidB = signupB.uid;
 
   if (!uidA || !uidB || uidA === uidB) {
     throw new Error('CI accounts did not receive distinct authenticated UIDs.');
   }
+
+  // Real-user-flow timing baseline. Emulator timing is a regression signal, not a production SLA.
+  const monthSwitchStarted = Date.now();
+  const monthSwitchResult = await pageA.evaluate(async () => window.changeMonth('2026-08'));
+  const monthSwitchMs = Date.now() - monthSwitchStarted;
+  if (!monthSwitchResult) throw new Error('month switch benchmark failed');
+
+  const inputStarted = Date.now();
+  const inputLatency = await pageA.evaluate(() => {
+    const input = document.querySelector('#income-field-container input');
+    if (!input) return null;
+    const started = performance.now();
+    window.handleIncomeInput('bora', input);
+    return performance.now() - started;
+  });
+  if (inputLatency == null) throw new Error('income input benchmark could not find input');
 
   const smoke = await pageA.evaluate(() => window.runInternalSmokeTests());
   if (!Array.isArray(smoke) || smoke.some(item => !item.pass)) {
@@ -92,6 +117,13 @@ try {
     pass: true,
     uidA,
     uidB,
+    performanceBaseline: {
+      signupA: signupA.timing,
+      signupB: signupB.timing,
+      monthSwitchMs,
+      inputHandlerMs: Number(inputLatency.toFixed(2)),
+      note: 'These values run against local Firebase Emulator/CI and are used to detect regressions. Production network time will differ.'
+    },
     smoke,
     integrity,
     concurrency,
