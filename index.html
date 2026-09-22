@@ -826,7 +826,11 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    // 환율은 월별로 고정한다. 해당 월 1일의 USD/KRW 기준환율을 사용하고,
+    // 1일이 휴일/비영업일이면 가장 가까운 이전 영업일의 환율을 사용한다.
+    // 과거 월은 저장된 환율을 절대 다시 계산하지 않는다.
     let usdRate = 1386;
+    const EXCHANGE_RATE_API = 'https://api.frankfurter.dev/v2/rate/usd/krw';
 
     // 토스트 피드백 표시 함수
     function showToast(message, isError = false) {
@@ -840,16 +844,79 @@
         }, 2500);
     }
 
-    async function fetchExchangeRate() {
-        try {
-            const res = await fetch('https://open.er-api.com/v6/latest/USD');
-            const data = await res.json();
-            if (data && data.rates && data.rates.KRW) {
-                usdRate = data.rates.KRW;
+    function getMonthFirstDate(month) {
+        return new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1, 1));
+    }
+
+    function toDateKey(date) {
+        return date.toISOString().slice(0, 10);
+    }
+
+    function getLocalMonthKey() {
+        const now = new Date();
+        return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    }
+
+    function isMonthStarted(month) {
+        return month <= getLocalMonthKey();
+    }
+
+    async function fetchMonthlyExchangeRate(month) {
+        if (!month || !/^\\d{4}-\\d{2}$/.test(month) || !isMonthStarted(month)) return null;
+
+        // 1일을 우선 조회하고, 데이터가 없는 휴일/주말이면 이전 영업일을 최대 7일 확인한다.
+        const firstDay = getMonthFirstDate(month);
+        for (let offset = 0; offset <= 7; offset++) {
+            const date = new Date(firstDay);
+            date.setUTCDate(firstDay.getUTCDate() - offset);
+            const dateKey = toDateKey(date);
+            try {
+                const res = await fetch(EXCHANGE_RATE_API + '?date=' + dateKey);
+                if (!res.ok) continue;
+                const data = await res.json();
+                const rate = Number(data && data.rate);
+                if (Number.isFinite(rate) && rate > 0) {
+                    return { rate, date: data.date || dateKey };
+                }
+            } catch (e) {
+                console.warn('월별 환율 조회 실패:', month, dateKey, e);
             }
-        } catch(e) {
-            console.log('환율 정보 가져오기 실패, 기본값 사용:', e);
         }
+        return null;
+    }
+
+    async function ensureMonthExchangeRate(month, persist = true) {
+        if (!month || !store[month]) return null;
+
+        const existingRate = Number(store[month].usdRate);
+        if (Number.isFinite(existingRate) && existingRate > 0 && store[month].usdRateDate) {
+            usdRate = existingRate;
+            return existingRate;
+        }
+
+        // 아직 시작하지 않은 미래 월은 환율을 확정/저장하지 않는다.
+        if (!isMonthStarted(month)) return usdRate;
+
+        const result = await fetchMonthlyExchangeRate(month);
+        if (!result) return usdRate;
+
+        store[month].usdRate = result.rate;
+        store[month].usdRateDate = result.date;
+        usdRate = result.rate;
+
+        if (persist) {
+            await saveMonthPatch(month, {
+                usdRate: result.rate,
+                usdRateDate: result.date,
+                updatedAt: Date.now()
+            });
+        }
+        return result.rate;
+    }
+
+    function getMonthExchangeRate(monthData) {
+        const rate = Number(monthData && monthData.usdRate);
+        return Number.isFinite(rate) && rate > 0 ? rate : usdRate;
     }
 
 
@@ -881,6 +948,8 @@
     }
 
     const DEFAULT_MONTH_DATA = () => ({
+        // usdRate/usdRateDate는 해당 월의 기준환율을 고정하기 위한 값이다.
+        usdRate: null, usdRateDate: null,
         bora: 0, bora_extra: 0, sang: 0, sang_other_income: 0, trip_usd: 0,
         sectionTitles: {
             expense: '공통 고정지출',
@@ -1409,7 +1478,7 @@
                 getDoc(doc(db, META_COLLECTION, META_DOC_ID)),
                 getDoc(doc(db, 'gotgan', LEGACY_DOC_ID)),
                 getDoc(doc(db, MONTH_COLLECTION, `month_${current}`)),
-                fetchExchangeRate()
+                Promise.resolve(null)
             ]);
 
             if (metaResult.status === 'fulfilled' && metaResult.value.exists()) {
@@ -1442,6 +1511,9 @@
 
             store = {};
             store[current] = currentData || DEFAULT_MONTH_DATA();
+
+            // 현재 월이 시작된 상태라면 1일 기준환율을 최초 1회 가져와 저장한다.
+            await ensureMonthExchangeRate(current, true);
 
             if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
                 const discovered = (store[current].categories?.expense || [])
@@ -1488,6 +1560,13 @@
             results.forEach(({month, data}) => {
                 store[month] = data;
             });
+
+            // 이미 지난 월/현재 월에 환율이 없으면 해당 월 1일 기준환율을 한 번만 확정한다.
+            for (const month of months) {
+                if (isMonthStarted(month)) {
+                    await ensureMonthExchangeRate(month, true);
+                }
+            }
 
             await syncFixedCategoriesToAllMonths(false);
             renderCategorySettings();
@@ -1567,7 +1646,7 @@
         const container = document.getElementById('income-field-container');
         if (!container) return;
         
-        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
+        const tripWonTotal = Math.round((d.trip_usd || 0) * getMonthExchangeRate(d));
 
         if (currentTab === 'all') {
             container.innerHTML = `
@@ -1606,7 +1685,7 @@
                         <span class="income-unit">$</span>
                     </div>
                 </div>
-                <div class="exchange-sub-info">💡 적용 환율: $1 = ${Math.round(usdRate).toLocaleString()}원 (약 ${formatAmount(tripWonTotal)})</div>`;
+                <div class="exchange-sub-info">💡 적용 환율: $1 = ${Math.round(getMonthExchangeRate(d)).toLocaleString()}원 (기준일 ${d.usdRateDate || '월 시작 시 확정'}) (약 ${formatAmount(tripWonTotal)})</div>`;
         } else if (currentTab === 'bora') {
             container.innerHTML = `
                 <div class="income-input-card">
@@ -1646,7 +1725,7 @@
                         <span class="income-unit">$</span>
                     </div>
                 </div>
-                <div class="exchange-sub-info">💡 적용 환율: $1 = ${Math.round(usdRate).toLocaleString()}원 (약 ${formatAmount(tripWonTotal)})</div>`;
+                <div class="exchange-sub-info">💡 적용 환율: $1 = ${Math.round(getMonthExchangeRate(d)).toLocaleString()}원 (기준일 ${d.usdRateDate || '월 시작 시 확정'}) (약 ${formatAmount(tripWonTotal)})</div>`;
         }
     }
 
@@ -1727,7 +1806,7 @@
 
     function updateKPIAndChartsOnly() {
         const d = store[currentMonth] || DEFAULT_MONTH_DATA();
-        const tripWonTotal = Math.round((d.trip_usd || 0) * usdRate);
+        const tripWonTotal = Math.round((d.trip_usd || 0) * getMonthExchangeRate(d));
         const boraWonTotal = (d.bora || 0) + (d.bora_extra || 0);
         const sangWonTotal = (d.sang || 0) + (d.sang_other_income || 0);
         const totalIncWon = boraWonTotal + sangWonTotal + tripWonTotal;
@@ -1927,7 +2006,7 @@
         months.forEach(m => {
             const d = store[m] || DEFAULT_MONTH_DATA();
             const expWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
-            const tripWon = Math.round((d.trip_usd || 0) * usdRate);
+            const tripWon = Math.round((d.trip_usd || 0) * getMonthExchangeRate(d));
             const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + (d.sang_other_income || 0) + tripWon;
             const savWon = sumCat(d.categories.savings) + calculateAdditionalSavings(incWon, expWon, sumCat(d.categories.savings));
             if (expWon > maxVal) maxVal = expWon;
@@ -1936,7 +2015,7 @@
 
         months.forEach(m => {
             const d = store[m] || DEFAULT_MONTH_DATA();
-            const tripWon = Math.round((d.trip_usd || 0) * usdRate);
+            const tripWon = Math.round((d.trip_usd || 0) * getMonthExchangeRate(d));
             const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + (d.sang_other_income || 0) + tripWon;
             
             const totalExpWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
@@ -2522,6 +2601,7 @@ function addCategorySetting() {
 
         currentMonth = m;
         if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
+        await ensureMonthExchangeRate(m, true);
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) globalMonthEl.value = currentMonth;
         render();
@@ -2615,6 +2695,8 @@ function addCategorySetting() {
         assert('추가 저축 계산: 소비 0원일 때 수입 전액 가능', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
         assert('추가 저축 계산: 기존 저축은 차감', calculateAdditionalSavings(8200000, 2966500, 1400000) === 3833500);
         assert('추가 저축 계산: 비상금(reserve)은 계산에 영향 없음', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
+        assert('월별 환율은 저장된 값을 우선 사용', getMonthExchangeRate({ usdRate: 1400 }) === 1400);
+        assert('월별 환율 미설정 시 기존 fallback 사용', getMonthExchangeRate({ usdRate: null }) === usdRate);
         return results;
     }
     window.runInternalSmokeTests = runInternalSmokeTests;
