@@ -3061,6 +3061,7 @@ function addCategorySetting() {
         assert('Auth 초기화 이벤트 함수 존재', typeof onAuthStateChanged === 'function');
         assert('현재 월 서버 새로고침 함수 존재', typeof refreshCurrentMonthFromServer === 'function');
         assert('사용자별 월 컬렉션 조회를 사용하는 초기화 경로', typeof getDocs === 'function' && typeof collection === 'function');
+        assert('월별 lazy loading 상태 추적', typeof loadedMonths !== 'undefined' && loadedMonths instanceof Set);
         assert('초기화용 원자적 배치 삭제 API 존재', typeof writeBatch === 'function');
         assert('legacy 마이그레이션 snapshot 함수 존재', typeof readLegacyMigrationSnapshot === 'function');
         assert('현재 월 읽기 실패는 빈 데이터로 간주하지 않음', resolveCurrentMonthData({ status: 'rejected', reason: new Error('read failed') }, null, '2026-09').loadFailed === true);
