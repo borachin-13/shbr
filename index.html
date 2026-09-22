@@ -802,7 +802,7 @@
         sendPasswordResetEmail,
         signOut
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, connectFirestoreEmulator, doc, getDoc, getDocs, setDoc, deleteDoc, collection, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, connectFirestoreEmulator, doc, getDoc, getDocs, setDoc, deleteDoc, deleteField, collection, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyA_xbdI3K1KYa9qCYYd2SN7EJJkLcSLmE4",
@@ -3028,6 +3028,66 @@ function addCategorySetting() {
         assert('월간 총 저축액은 고정저축+추가저축으로 계산', summary.totalSavings === 8548063);
         return results;
     }
+    async function runCrossUserRulesTest(targetUid, month = currentMonth) {
+        if (!window.location.search.includes('emulator=1')) {
+            return { pass: false, reason: '에뮬레이터 모드에서만 실행할 수 있습니다.' };
+        }
+        if (!isAuthenticatedUser()) {
+            return { pass: false, reason: '먼저 일반 사용자 계정으로 로그인해주세요.' };
+        }
+        const uid = String(targetUid || '').trim();
+        if (!uid || uid === auth.currentUser.uid) {
+            return { pass: false, reason: '현재 로그인 계정과 다른 대상 UID를 입력해주세요.' };
+        }
+
+        const targetMonth = String(month || currentMonth);
+        const targetRef = doc(db, USERS_COLLECTION, uid, USER_MONTHS_COLLECTION, `month_${targetMonth}`);
+        const results = [];
+
+        try {
+            await getDoc(targetRef);
+            results.push({ test: '다른 사용자 월 데이터 직접 읽기 차단', pass: false, error: 'read unexpectedly allowed' });
+        } catch (e) {
+            results.push({
+                test: '다른 사용자 월 데이터 직접 읽기 차단',
+                pass: e?.code === 'permission-denied',
+                error: e?.code || e?.message || String(e)
+            });
+        }
+
+        const probeValue = `qa-${Date.now()}`;
+        try {
+            await setDoc(targetRef, { __qaCrossUserProbe: probeValue }, { merge: true });
+            results.push({ test: '다른 사용자 월 데이터 직접 쓰기 차단', pass: false, error: 'write unexpectedly allowed' });
+            try {
+                await setDoc(targetRef, { __qaCrossUserProbe: deleteField() }, { merge: true });
+            } catch (cleanupError) {
+                results.push({
+                    test: '비정상 허용된 probe 정리',
+                    pass: false,
+                    error: cleanupError?.code || cleanupError?.message || String(cleanupError)
+                });
+            }
+        } catch (e) {
+            results.push({
+                test: '다른 사용자 월 데이터 직접 쓰기 차단',
+                pass: e?.code === 'permission-denied',
+                error: e?.code || e?.message || String(e)
+            });
+        }
+
+        const pass = results.every(item => item.pass);
+        console.table(results);
+        return {
+            pass,
+            currentUid: auth.currentUser.uid,
+            targetUid: uid,
+            targetMonth,
+            results
+        };
+    }
+    window.runCrossUserRulesTest = runCrossUserRulesTest;
+
     window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
