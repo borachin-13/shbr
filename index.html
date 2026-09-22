@@ -3429,6 +3429,22 @@ function addCategorySetting() {
         }
     };
 
+    window.runEmulatorMonthLoadFailureGuardProbe = async function() {
+        if (!isAuthenticatedUser()) return { pass: false, error: 'auth-required' };
+        const month = '2099-08';
+        const ref = monthDocRef(month);
+        try {
+            monthLoadFailures.add(month);
+            const saved = await saveMonthPatch(month, { bora: 1234567 }, '');
+            const snap = await getDoc(ref);
+            const pass = saved === false && !snap.exists();
+            return { pass, saved, serverDocCreated: snap.exists() };
+        } finally {
+            monthLoadFailures.delete(month);
+            try { await deleteDoc(ref); } catch (e) {}
+        }
+    };
+
     window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
