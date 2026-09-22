@@ -1138,8 +1138,18 @@
     }
 
 
+    let categorySaveQueue = Promise.resolve();
+
+    function queueCategoryWrite(writer) {
+        const next = categorySaveQueue.catch(() => {}).then(writer);
+        categorySaveQueue = next.finally(() => {
+            if (categorySaveQueue === next) categorySaveQueue = Promise.resolve();
+        });
+        return next;
+    }
+
     async function saveCategoryList() {
-        const writePromise = (async () => {
+        const writePromise = queueCategoryWrite(async () => {
             let lastError = null;
             for (let attempt = 0; attempt < 3; attempt++) {
                 try {
@@ -1158,7 +1168,7 @@
             console.error('설정 저장 실패:', lastError);
             showToast('설정을 저장하지 못했어요. 잠시 후 다시 시도해주세요.', true);
             return false;
-        })();
+        });
         pendingCategoryWrite = writePromise;
         writePromise.finally(() => {
             if (pendingCategoryWrite === writePromise) pendingCategoryWrite = null;
@@ -2739,6 +2749,8 @@ function addCategorySetting() {
         assert('공동 생활비 합계 계산', sumCat(sample.categories.living) === 500000);
         assert('변동 지출 합계 계산', sumCat(sample.categories.variable_expense) === 120000);
         assert('고정 지출 카테고리 기본값 존재', fixedExpenseCategoryList.length > 0);
+        assert('카테고리 설정 저장 큐가 존재함', typeof queueCategoryWrite === 'function');
+        assert('월별 저장 큐가 존재함', typeof queueMonthWrite === 'function');
         assert('월별 데이터 기본 구조 존재', !!DEFAULT_MONTH_DATA().categories.expense);
         assert('추가 저축 계산: 소비 0원일 때 수입 전액 가능', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
         assert('추가 저축 계산: 기존 저축은 차감', calculateAdditionalSavings(8200000, 2966500, 1400000) === 3833500);
