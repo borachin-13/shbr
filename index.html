@@ -1038,6 +1038,26 @@
         return options;
     }
 
+    // 신규 월 문서를 처음 생성할 때 중첩 객체를 안전하게 병합한다.
+    function mergeNestedObjects(base, patch) {
+        const result = cloneData(base || {});
+        Object.entries(patch || {}).forEach(([key, value]) => {
+            if (
+                value &&
+                typeof value === 'object' &&
+                !Array.isArray(value) &&
+                result[key] &&
+                typeof result[key] === 'object' &&
+                !Array.isArray(result[key])
+            ) {
+                result[key] = mergeNestedObjects(result[key], value);
+            } else {
+                result[key] = cloneData(value);
+            }
+        });
+        return result;
+    }
+
     function getItemsForCurrentTab(items, key) {
         if (currentTab === 'all') return items;
         if (key === 'variable_expense') {
@@ -1095,8 +1115,9 @@
 
                     if (!snap.exists()) {
                         const base = cloneData(store[safeMonth] || DEFAULT_MONTH_DATA());
+                        const newMonthData = mergeNestedObjects(base, expanded);
                         await setDoc(ref, {
-                            ...base, ...expanded,
+                            ...newMonthData,
                             createdAt: now, updatedAt: now
                         }, { merge: true });
                     } else {
@@ -2747,6 +2768,12 @@ function addCategorySetting() {
         assert('월별 환율 미설정 시 기존 fallback 사용', getMonthExchangeRate({ usdRate: null }) === usdRate);
         assert('숫자 입력은 쉼표를 제거하고 정수로 변환', parseNumberString('1,234,567원') === 1234567);
         assert('빈 금액 입력은 0으로 처리', parseNumberString('') === 0);
+        const mergedMonth = mergeNestedObjects(
+            { categories: { expense: [{ name: '월세', amount: 700000 }], savings: [{ name: '청년계좌', amount: 700000 }] }, sectionTitles: { expense: '공통 고정지출' } },
+            { categories: { expense: [{ name: '월세', amount: 800000 }] }, sectionTitles: { living: '공동 생활비' } }
+        );
+        assert('신규 월 저장 시 다른 카테고리가 보존됨', Array.isArray(mergedMonth.categories.savings) && mergedMonth.categories.expense[0].amount === 800000);
+        assert('신규 월 저장 시 다른 섹션 제목이 보존됨', mergedMonth.sectionTitles.expense === '공통 고정지출' && mergedMonth.sectionTitles.living === '공동 생활비');
         assert('HTML escape는 태그를 문자로 변환', escapeHtml('<script>alert(1)</script>') === '&lt;script&gt;alert(1)&lt;/script&gt;');
         assert('변동지출 카테고리 옵션은 HTML을 이스케이프함', getVariableCategoryOptionsHtml('<img src=x onerror=alert(1)>').includes('&lt;img src=x onerror=alert(1)&gt;') && !getVariableCategoryOptionsHtml('<img src=x onerror=alert(1)>').includes('<img src=x onerror=alert(1)>'));
         assert('고정지출 카테고리 옵션은 HTML을 이스케이프함', buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('&lt;img src=x onerror=alert(1)&gt;') && !buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('<img src=x onerror=alert(1)>'));
