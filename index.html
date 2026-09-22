@@ -1629,19 +1629,12 @@
         if (signupBtn) signupBtn.disabled = true;
 
         try {
-            const wasAnonymous = !!auth.currentUser?.isAnonymous;
             if (mode === 'signup') {
-                let migrationSnapshot = null;
-                if (wasAnonymous) {
-                    // Snapshot first; after linkWithCredential() the new Firestore Rules
-                    // may already be user-scoped and must not expose legacy documents.
-                    migrationSnapshot = await readLegacyMigrationSnapshot();
-                    const credential = EmailAuthProvider.credential(email, password);
-                    await linkWithCredential(auth.currentUser, credential);
-                    await migrateLegacyDataToUser(migrationSnapshot);
-                } else {
-                    await createUserWithEmailAndPassword(auth, email, password);
-                }
+                // 신규 가입은 legacy shared data를 읽지 않는다.
+                // 100명 사전오픈의 사용자 데이터 격리를 위해 가입 순간부터
+                // 새 UID 전용 users/{uid}/... 경로만 사용한다.
+                // legacy 마이그레이션은 일반 회원가입 경로와 분리된 별도 절차로 다룬다.
+                await createUserWithEmailAndPassword(auth, email, password);
             } else {
                 await signInWithEmailAndPassword(auth, email, password);
             }
