@@ -801,7 +801,7 @@
         sendPasswordResetEmail,
         signOut
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, collection, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyA_xbdI3K1KYa9qCYYd2SN7EJJkLcSLmE4",
@@ -1277,15 +1277,17 @@
     }
 
     async function flushPendingSaves() {
-        await flushPendingIncomeSaves();
+        const incomeResult = await flushPendingIncomeSaves();
 
         const waits = Array.from(pendingMonthWrites);
         if (pendingCategoryWrite) waits.push(pendingCategoryWrite);
 
         // 이미 진행 중인 Firebase write가 있다면 먼저 완료될 기회를 준다.
-        if (waits.length) {
-            await Promise.allSettled(waits);
-        }
+        const results = waits.length ? await Promise.allSettled(waits) : [];
+        const monthAndCategorySucceeded = results.every(result =>
+            result.status === 'fulfilled' && result.value !== false
+        );
+        return incomeResult !== false && monthAndCategorySucceeded;
     }
 
     // 모바일 Safari/WebView에서 화면을 백그라운드로 보내거나 페이지를 떠날 때
@@ -1653,7 +1655,12 @@
     window.authenticateUser = authenticateUser;
 
     async function logoutUser() {
-        await flushPendingSaves();
+        const flushed = await flushPendingSaves();
+        if (!flushed) {
+            showToast('저장되지 않은 변경사항이 있어 로그아웃할 수 없습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.', true);
+            return false;
+        }
+
         await signOut(auth);
         store = {};
         clearLocalPersistence();
@@ -1664,6 +1671,7 @@
         if (emailEl) emailEl.value = '';
         if (passwordEl) passwordEl.value = '';
         await signInAnonymously(auth);
+        return true;
     }
     window.logoutUser = logoutUser;
 
@@ -2893,8 +2901,17 @@ function addCategorySetting() {
             const monthsSnap = await getDocs(collection(db, USERS_COLLECTION, auth.currentUser.uid, USER_MONTHS_COLLECTION));
             const monthRefs = [];
             monthsSnap.forEach((snap) => monthRefs.push(snap.ref));
-            await Promise.all(monthRefs.map(ref => deleteDoc(ref)));
-            await deleteDoc(settingsDocRef());
+
+            // A single user's month documents are expected to stay well below
+            // Firestore's 500-write batch limit. Keep month + settings deletion
+            // atomic so a mid-reset failure cannot leave a misleading partial reset.
+            if (monthRefs.length + 1 > 500) {
+                throw new Error('사용자 데이터가 단일 배치 삭제 한도를 초과했습니다.');
+            }
+            const batch = writeBatch(db);
+            monthRefs.forEach(ref => batch.delete(ref));
+            batch.delete(settingsDocRef());
+            await batch.commit();
 
             // 사용자 서버 데이터 삭제가 모두 성공한 뒤에만 로컬 임시/캐시 데이터도 제거한다.
             clearLocalPersistence();
@@ -2959,6 +2976,7 @@ function addCategorySetting() {
         assert('Auth 초기화 이벤트 함수 존재', typeof onAuthStateChanged === 'function');
         assert('현재 월 서버 새로고침 함수 존재', typeof refreshCurrentMonthFromServer === 'function');
         assert('사용자별 월 컬렉션 조회를 사용하는 초기화 경로', typeof getDocs === 'function' && typeof collection === 'function');
+        assert('초기화용 원자적 배치 삭제 API 존재', typeof writeBatch === 'function');
         assert('legacy 마이그레이션 snapshot 함수 존재', typeof readLegacyMigrationSnapshot === 'function');
         assert('현재 월 읽기 실패는 빈 데이터로 간주하지 않음', resolveCurrentMonthData({ status: 'rejected', reason: new Error('read failed') }, null, '2026-09').loadFailed === true);
         assert('수입 임시값은 서버값이 draft 시작값과 같을 때만 자동 복구', shouldRecoverIncomeDraft(4200000, 4300000, 4200000) === true);
