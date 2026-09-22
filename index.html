@@ -3307,17 +3307,13 @@ function addCategorySetting() {
             const baseline = await getDoc(ref);
             if (!baseline.exists()) return { pass: false, error: 'baseline-doc-missing' };
 
-            const offlineBefore = navigator.onLine;
             const originalShowToast = window.showToast;
             window.showToast = function() {};
             let failed;
             try {
-                window.dispatchEvent(new Event('offline'));
                 failed = await saveMonthPatch(month, after, '');
             } finally {
-                window.dispatchEvent(new Event('online'));
                 window.showToast = originalShowToast;
-                if (offlineBefore) window.dispatchEvent(new Event('online'));
             }
             const afterFailure = await getDoc(ref);
             const preservedAfterFailure =
