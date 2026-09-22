@@ -3445,6 +3445,42 @@ function addCategorySetting() {
         }
     };
 
+    window.runEmulatorResetIsolationProbe = async function() {
+        if (!isAuthenticatedUser()) return { pass: false, error: 'auth-required' };
+        const months = ['2099-06', '2099-07', '2099-08'];
+        const refs = months.map(month => monthDocRef(month));
+        const originalConfirm = window.confirm;
+        const originalPrompt = window.prompt;
+        window.confirm = () => true;
+        window.prompt = () => '초기화';
+        try {
+            await Promise.all(refs.map((ref, i) => setDoc(ref, {
+                bora: 9000000 + i,
+                marker: 'reset-test'
+            })));
+            await setDoc(settingsDocRef(), {
+                categoryList: ['reset-test-category'],
+                fixedExpenseCategoryList: ['reset-test-fixed']
+            });
+            await resetData();
+            const monthSnaps = await Promise.all(refs.map(ref => getDoc(ref)));
+            const settingsSnap = await getDoc(settingsDocRef());
+            const pass = monthSnaps.every(snap => !snap.exists()) && !settingsSnap.exists();
+            return {
+                pass,
+                monthsRemaining: monthSnaps.filter(snap => snap.exists()).length,
+                settingsRemaining: settingsSnap.exists()
+            };
+        } finally {
+            window.confirm = originalConfirm;
+            window.prompt = originalPrompt;
+            for (const ref of refs) {
+                try { await deleteDoc(ref); } catch (e) {}
+            }
+            try { await deleteDoc(settingsDocRef()); } catch (e) {}
+        }
+    };
+
     window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
