@@ -1639,6 +1639,36 @@
         return Math.max((Number(incomeWon) || 0) - (Number(expenseWon) || 0) - (Number(plannedSavingsWon) || 0), 0);
     }
 
+    // 모든 화면(대시보드/월별 통계)이 동일한 월간 계산 규칙을 사용하도록
+    // 핵심 계산을 한 곳으로 모은다. reserve(비상금)는 월 현금흐름에서 차감하지 않는다.
+    function calculateMonthlySummary(monthData) {
+        const d = monthData || DEFAULT_MONTH_DATA();
+        const categories = d.categories || DEFAULT_MONTH_DATA().categories;
+        const tripWon = Math.round((Number(d.trip_usd) || 0) * getMonthExchangeRate(d));
+        const income = (Number(d.bora) || 0)
+            + (Number(d.bora_extra) || 0)
+            + (Number(d.sang) || 0)
+            + (Number(d.sang_other_income) || 0)
+            + tripWon;
+        const expense = sumCat(categories.expense)
+            + sumCat(categories.bora_personal)
+            + sumCat(categories.sang_personal)
+            + sumCat(categories.living)
+            + sumCat(categories.variable_expense);
+        const plannedSavings = sumCat(categories.savings);
+        const reserve = sumCat(categories.reserve);
+        const additionalSavings = calculateAdditionalSavings(income, expense, plannedSavings);
+        return {
+            income,
+            expense,
+            plannedSavings,
+            reserve,
+            additionalSavings,
+            totalSavings: plannedSavings + additionalSavings,
+            remaining: additionalSavings
+        };
+    }
+
     function formatAmount(won) { return `${Math.round(won).toLocaleString()}원`; }
 
     function renderInputsOnly() {
@@ -1738,7 +1768,18 @@
             : beforeValue.length;
         const digitsBeforeCursor = (beforeValue.slice(0, beforeCursor).match(/\d/g) || []).length;
 
+        if (/[\\-+]/.test(beforeValue)) {
+            showToast('금액은 0원 이상의 숫자만 입력할 수 있어요.', true);
+            inputEl.value = formatNumberString(store[currentMonth]?.[key] || 0);
+            return;
+        }
         const rawNum = parseNumberString(beforeValue);
+        const MAX_MONEY = 1000000000000;
+        if (rawNum > MAX_MONEY) {
+            showToast('입력 가능한 금액은 1조원 이하입니다.', true);
+            inputEl.value = formatNumberString(store[currentMonth]?.[key] || 0);
+            return;
+        }
         if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         store[currentMonth][key] = rawNum;
         // 브라우저가 갑자기 종료되어도 마지막 입력값을 복구할 수 있도록 임시 백업.
@@ -2005,25 +2046,17 @@
         let maxVal = 1;
         months.forEach(m => {
             const d = store[m] || DEFAULT_MONTH_DATA();
-            const expWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
-            const tripWon = Math.round((d.trip_usd || 0) * getMonthExchangeRate(d));
-            const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + (d.sang_other_income || 0) + tripWon;
-            const savWon = sumCat(d.categories.savings) + calculateAdditionalSavings(incWon, expWon, sumCat(d.categories.savings));
-            if (expWon > maxVal) maxVal = expWon;
-            if (savWon > maxVal) maxVal = savWon;
+            const summary = calculateMonthlySummary(d);
+            if (summary.expense > maxVal) maxVal = summary.expense;
+            if (summary.totalSavings > maxVal) maxVal = summary.totalSavings;
         });
 
         months.forEach(m => {
             const d = store[m] || DEFAULT_MONTH_DATA();
-            const tripWon = Math.round((d.trip_usd || 0) * getMonthExchangeRate(d));
-            const incWon = (d.bora || 0) + (d.bora_extra || 0) + (d.sang || 0) + (d.sang_other_income || 0) + tripWon;
-            
-            const totalExpWon = sumCat(d.categories.expense) + sumCat(d.categories.bora_personal) + sumCat(d.categories.sang_personal) + sumCat(d.categories.living) + sumCat(d.categories.variable_expense);
-            
-            const fixedSavingsSum = sumCat(d.categories.savings);
-            const reserveSum = sumCat(d.categories.reserve);
-            const addSavings = Math.max(incWon - totalExpWon - fixedSavingsSum - reserveSum, 0);
-            const totalSavWon = fixedSavingsSum + addSavings;
+            const summary = calculateMonthlySummary(d);
+            const incWon = summary.income;
+            const totalExpWon = summary.expense;
+            const totalSavWon = summary.totalSavings;
 
             const expHeight = maxVal > 0 ? Math.max(Math.round((totalExpWon / maxVal) * 100), 4) : 0;
             const savHeight = maxVal > 0 ? Math.max(Math.round((totalSavWon / maxVal) * 100), 4) : 0;
@@ -2644,7 +2677,12 @@ function addCategorySetting() {
     window.exportData = exportData;
 
     async function resetData() {
-        if (!confirm('모든 데이터를 처음 상태로 초기화하시겠습니까?')) return;
+        if (!confirm('모든 월별 데이터와 설정을 영구적으로 삭제합니다. 정말 초기화하시겠습니까?')) return;
+        const verification = window.prompt('전체 초기화를 진행하려면 "초기화"를 입력해주세요.');
+        if (verification !== '초기화') {
+            showToast('초기화를 취소했습니다.');
+            return;
+        }
         try {
             const months = getMonthKeys();
             await Promise.all(months.map(m => deleteDoc(doc(db, MONTH_COLLECTION, `month_${m}`))));
@@ -2697,6 +2735,15 @@ function addCategorySetting() {
         assert('추가 저축 계산: 비상금(reserve)은 계산에 영향 없음', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
         assert('월별 환율은 저장된 값을 우선 사용', getMonthExchangeRate({ usdRate: 1400 }) === 1400);
         assert('월별 환율 미설정 시 기존 fallback 사용', getMonthExchangeRate({ usdRate: null }) === usdRate);
+        const summary = calculateMonthlySummary({
+            bora: 8548063, bora_extra: 0, sang: 0, sang_other_income: 0, trip_usd: 0,
+            categories: {
+                expense: [], bora_personal: [], sang_personal: [], living: [], variable_expense: [],
+                savings: [], reserve: [{ name: '남겨둘 돈', amount: 11000000 }]
+            }
+        });
+        assert('월간 통계에서 비상금은 추가 저축 계산을 감소시키지 않음', summary.additionalSavings === 8548063);
+        assert('월간 총 저축액은 고정저축+추가저축으로 계산', summary.totalSavings === 8548063);
         return results;
     }
     window.runInternalSmokeTests = runInternalSmokeTests;
