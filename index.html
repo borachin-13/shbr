@@ -3021,7 +3021,7 @@ function addCategorySetting() {
         );
         assert('신규 월 저장 시 다른 카테고리가 보존됨', Array.isArray(mergedMonth.categories.savings) && mergedMonth.categories.expense[0].amount === 800000);
         assert('신규 월 저장 시 다른 섹션 제목이 보존됨', mergedMonth.sectionTitles.expense === '공통 고정지출' && mergedMonth.sectionTitles.living === '공동 생활비');
-        assert('HTML escape는 태그를 문자로 변환', escapeHtml('<script>alert(1)</script>') === '&lt;script&gt;alert(1)&lt;/script&gt;');
+        assert('HTML escape는 태그를 문자로 변환', escapeHtml('<script>alert(1)<\/script>') === '&lt;script&gt;alert(1)&lt;/script&gt;');
         assert('변동지출 카테고리 옵션은 HTML을 이스케이프함', getVariableCategoryOptionsHtml('<img src=x onerror=alert(1)>').includes('&lt;img src=x onerror=alert(1)&gt;') && !getVariableCategoryOptionsHtml('<img src=x onerror=alert(1)>').includes('<img src=x onerror=alert(1)>'));
         assert('고정지출 카테고리 옵션은 HTML을 이스케이프함', buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('&lt;img src=x onerror=alert(1)&gt;') && !buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('<img src=x onerror=alert(1)>'));
         const summary = calculateMonthlySummary({
