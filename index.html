@@ -795,6 +795,7 @@
         signInAnonymously,
         createUserWithEmailAndPassword,
         signInWithEmailAndPassword,
+        onAuthStateChanged,
         EmailAuthProvider,
         linkWithCredential,
         sendPasswordResetEmail,
@@ -815,6 +816,18 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+
+    // Firebase Auth persistence is restored asynchronously. Wait for the initial
+    // auth-state event before deciding whether an anonymous session is needed.
+    const initialAuthUserPromise = new Promise((resolve) => {
+        let settled = false;
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (settled) return;
+            settled = true;
+            unsubscribe();
+            resolve(user || null);
+        });
+    });
 
     // 환율은 월별로 고정한다. 해당 월 1일의 USD/KRW 기준환율을 사용하고,
     // 1일이 휴일/비영업일이면 가장 가까운 이전 영업일의 환율을 사용한다.
@@ -1281,6 +1294,8 @@
         if (document.visibilityState === 'hidden') {
             saveEmergencyLocalCheckpoint();
             flushPendingSaves();
+        } else if (document.visibilityState === 'visible') {
+            refreshCurrentMonthFromServer();
         }
     });
 
@@ -1303,7 +1318,7 @@
     }
 
     window.addEventListener('online', () => {
-        flushPendingSaves();
+        flushPendingSaves().then(() => refreshCurrentMonthFromServer());
     });
 
     window.addEventListener('offline', () => {
@@ -1657,11 +1672,22 @@
         updateSyncStatus('로그인을 기다리고 있어요…');
 
         try {
-            if (!auth.currentUser) await signInAnonymously(auth);
+            let user = await initialAuthUserPromise;
+            if (!user) {
+                const credential = await signInAnonymously(auth);
+                user = credential.user;
+            }
+
             if (authBadge) {
-                authBadge.innerText = '로그인 필요';
-                authBadge.style.background = '#feebc8';
-                authBadge.style.color = '#744210';
+                if (user && !user.isAnonymous) {
+                    authBadge.innerText = '내 계정';
+                    authBadge.style.background = '#c6f6d5';
+                    authBadge.style.color = '#22543d';
+                } else {
+                    authBadge.innerText = '로그인 필요';
+                    authBadge.style.background = '#feebc8';
+                    authBadge.style.color = '#744210';
+                }
             }
             return true;
         } catch (e) {
@@ -2773,12 +2799,43 @@ function addCategorySetting() {
     }
     window.setMemberTab = setMemberTab;
 
-    async function changeMonth(m) {
-        await flushPendingIncomeSaves();
+    async function refreshCurrentMonthFromServer() {
+        if (!isAuthenticatedUser() || !navigator.onLine) return false;
 
-        currentMonth = m;
-        if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
-        await ensureMonthExchangeRate(m, true);
+        await flushPendingSaves();
+        const targetMonth = currentMonth;
+        try {
+            const snap = await getDoc(monthDocRef(targetMonth));
+            if (targetMonth !== currentMonth) return false;
+
+            if (!snap.exists()) {
+                // A missing document is not permission to overwrite the screen
+                // with a new empty month while another device may be creating it.
+                return false;
+            }
+
+            store[targetMonth] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
+            await ensureMonthExchangeRate(targetMonth, true);
+            render();
+            updateSyncStatus('데이터를 불러왔어요');
+            return true;
+        } catch (e) {
+            console.warn('현재 월 서버 새로고침 실패:', e);
+            updateSyncStatus('데이터를 불러오지 못했어요');
+            return false;
+        }
+    }
+
+    window.refreshCurrentMonthFromServer = refreshCurrentMonthFromServer;
+
+    async function changeMonth(m) {
+        await flushPendingSaves();
+        if (!isAuthenticatedUser()) return;
+
+        const targetMonth = m;
+        currentMonth = targetMonth;
+        if (!store[targetMonth]) store[targetMonth] = DEFAULT_MONTH_DATA();
+        await ensureMonthExchangeRate(targetMonth, true);
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) globalMonthEl.value = currentMonth;
         render();
@@ -2899,6 +2956,8 @@ function addCategorySetting() {
         assert('사용자별 월 문서 경로 함수 존재', typeof monthDocRef === 'function');
         assert('사용자별 설정 문서 경로 함수 존재', typeof settingsDocRef === 'function');
         assert('비밀번호 재설정 함수 존재', typeof resetPassword === 'function');
+        assert('Auth 초기화 이벤트 함수 존재', typeof onAuthStateChanged === 'function');
+        assert('현재 월 서버 새로고침 함수 존재', typeof refreshCurrentMonthFromServer === 'function');
         assert('사용자별 월 컬렉션 조회를 사용하는 초기화 경로', typeof getDocs === 'function' && typeof collection === 'function');
         assert('legacy 마이그레이션 snapshot 함수 존재', typeof readLegacyMigrationSnapshot === 'function');
         assert('현재 월 읽기 실패는 빈 데이터로 간주하지 않음', resolveCurrentMonthData({ status: 'rejected', reason: new Error('read failed') }, null, '2026-09').loadFailed === true);
