@@ -2748,6 +2748,8 @@ function addCategorySetting() {
         assert('숫자 입력은 쉼표를 제거하고 정수로 변환', parseNumberString('1,234,567원') === 1234567);
         assert('빈 금액 입력은 0으로 처리', parseNumberString('') === 0);
         assert('HTML escape는 태그를 문자로 변환', escapeHtml('<script>alert(1)</script>') === '&lt;script&gt;alert(1)&lt;/script&gt;');
+        assert('변동지출 카테고리 옵션은 HTML을 이스케이프함', getVariableCategoryOptionsHtml('<img src=x onerror=alert(1)>').includes('&lt;img src=x onerror=alert(1)&gt;') && !getVariableCategoryOptionsHtml('<img src=x onerror=alert(1)>').includes('<img src=x onerror=alert(1)>'));
+        assert('고정지출 카테고리 옵션은 HTML을 이스케이프함', buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('&lt;img src=x onerror=alert(1)&gt;') && !buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('<img src=x onerror=alert(1)>'));
         const summary = calculateMonthlySummary({
             bora: 8548063, bora_extra: 0, sang: 0, sang_other_income: 0, trip_usd: 0,
             categories: {
