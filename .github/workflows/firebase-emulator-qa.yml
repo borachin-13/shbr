@@ -54,6 +54,9 @@ jobs:
       - name: Run emulator E2E QA
         run: npm run qa:emulator
 
+      - name: Run 100-user scale QA
+        run: npm run qa:scale
+
       - name: Upload emulator log on failure
         if: failure()
         uses: actions/upload-artifact@v4
