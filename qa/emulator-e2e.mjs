@@ -54,6 +54,9 @@ try {
   const authRecovery = await pageA.evaluate(async () => window.runEmulatorAuthRecoveryVerify());
   if (!authRecovery?.pass) throw new Error(`auth recovery failed: ${JSON.stringify(authRecovery)}`);
 
+  const monthLoadGuard = await pageA.evaluate(async () => window.runEmulatorMonthLoadFailureGuardProbe());
+  if (!monthLoadGuard?.pass) throw new Error(`month load failure guard failed: ${JSON.stringify(monthLoadGuard)}`);
+
   const recoverySetup = await pageA.evaluate(async () => window.runEmulatorSaveFailureRecoveryProbe());
   if (!recoverySetup?.pass) throw new Error(`save recovery setup failed: ${JSON.stringify(recoverySetup)}`);
   await contextA.setOffline(true);
@@ -84,6 +87,7 @@ try {
     integrity,
     concurrency,
     authRecovery,
+    monthLoadGuard,
     recovery,
     bToA,
     aToB
