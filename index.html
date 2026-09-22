@@ -1030,10 +1030,10 @@
     function getVariableCategoryOptionsHtml(currentCategory) {
         const safeCurrent = currentCategory || (categoryList[0] || '식비');
         let options = categoryList.map(cat =>
-            `<option value="${cat}" ${cat === safeCurrent ? 'selected' : ''}>${cat}</option>`
+            `<option value="${escapeHtml(cat)}" ${cat === safeCurrent ? 'selected' : ''}>${escapeHtml(cat)}</option>`
         ).join('');
         if (safeCurrent && !categoryList.includes(safeCurrent)) {
-            options += `<option value="${safeCurrent}" selected>${safeCurrent}</option>`;
+            options += `<option value="${escapeHtml(safeCurrent)}" selected>${escapeHtml(safeCurrent)}</option>`;
         }
         return options;
     }
@@ -2188,10 +2188,10 @@
         const effectiveFixed = getEffectiveFixedExpenseCategories();
         const safeCurrent = currentCat || (effectiveFixed[0] || '월세');
         let options = effectiveFixed.map(cat =>
-            `<option value="${cat}" ${cat === safeCurrent ? 'selected' : ''}>${cat}</option>`
+            `<option value="${escapeHtml(cat)}" ${cat === safeCurrent ? 'selected' : ''}>${escapeHtml(cat)}</option>`
         ).join('');
         if (safeCurrent && !effectiveFixed.includes(safeCurrent)) {
-            options += `<option value="${safeCurrent}" selected>${safeCurrent} (기존)</option>`;
+            options += `<option value="${escapeHtml(safeCurrent)}" selected>${escapeHtml(safeCurrent)} (기존)</option>`;
         }
         return options;
     }
@@ -2221,7 +2221,7 @@ function renderExpenseModalHTML() {
                     <div class="cat-group ${isActive}" id="modal-group-${k}" data-expense-cat="${k}">
                         <div class="cat-title-box">
                             <div class="cat-title-label-top">그룹 타이틀</div>
-                            <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
+                            <input type="text" value="${escapeHtml(currentTitle)}" class="cat-title-inp" placeholder="타이틀 입력">
                         </div>
                         <div class="modal-rows-container">`;
                 cats[k].forEach((item) => {
@@ -2233,7 +2233,7 @@ function renderExpenseModalHTML() {
                             <input type="date" value="${item.date || ''}" class="inp-date">
                             <select class="inp-cat">${optionsHtml}</select>
                             <select class="inp-owner">${getOwnerOptionsHtml(owner)}</select>
-                            <input type="text" value="${item.name || ''}" class="inp-name" placeholder="내용">
+                            <input type="text" value="${escapeHtml(item.name || '')}" class="inp-name" placeholder="내용">
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
@@ -2244,7 +2244,7 @@ function renderExpenseModalHTML() {
                     <div class="cat-group ${isActive}" id="modal-group-${k}" data-expense-cat="${k}">
                         <div class="cat-title-box">
                             <div class="cat-title-label-top">그룹 타이틀</div>
-                            <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
+                            <input type="text" value="${escapeHtml(currentTitle)}" class="cat-title-inp" placeholder="타이틀 입력">
                         </div>
                         <div class="modal-rows-container">`;
                 if (k === 'expense') {
@@ -2270,7 +2270,7 @@ function renderExpenseModalHTML() {
                     cats[k].forEach((item) => {
                         html += `
                         <div class="sub-row">
-                            <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
+                            <input type="text" value="${escapeHtml(item.name || '')}" class="inp-name" placeholder="항목명">
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
@@ -2337,7 +2337,7 @@ function renderExpenseModalHTML() {
                 <div class="cat-group ${isActive}" id="modal-group-${k}" data-savings-cat="${k}">
                     <div class="cat-title-box">
                         <div class="cat-title-label-top">그룹 타이틀</div>
-                        <input type="text" value="${currentTitle}" class="cat-title-inp" placeholder="타이틀 입력">
+                        <input type="text" value="${escapeHtml(currentTitle)}" class="cat-title-inp" placeholder="타이틀 입력">
                     </div>
                     <div class="modal-rows-container">`;
             
@@ -2352,7 +2352,7 @@ function renderExpenseModalHTML() {
                 html += `
                     <div class="sub-row">
                         ${ownerSelectHtml}
-                        <input type="text" value="${item.name || ''}" class="inp-name" placeholder="항목명">
+                        <input type="text" value="${escapeHtml(item.name || '')}" class="inp-name" placeholder="항목명">
                         <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
                         <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                     </div>`;
