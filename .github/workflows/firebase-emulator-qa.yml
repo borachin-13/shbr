@@ -1,0 +1,57 @@
+name: Firebase Emulator QA
+
+on:
+  push:
+    branches:
+      - qa/firebase-emulator-connection-2026-09-23
+  workflow_dispatch:
+
+jobs:
+  emulator-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start Firebase Emulator
+        run: |
+          nohup npx firebase emulators:start --only auth,firestore --project shbr-family > /tmp/firebase-emulator.log 2>&1 &
+          for i in {1..60}; do
+            if curl -sf http://127.0.0.1:4000/ > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Start static server
+        run: |
+          nohup npx http-server . -p 5000 -c-1 > /tmp/http-server.log 2>&1 &
+          for i in {1..30}; do
+            if curl -sf http://127.0.0.1:5000/ > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run emulator E2E QA
+        run: npm run qa:emulator
+
+      - name: Upload emulator log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-emulator-log
+          path: /tmp/firebase-emulator.log
