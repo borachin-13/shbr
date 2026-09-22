@@ -1466,6 +1466,26 @@
         }
     }
 
+    function resolveCurrentMonthData(currentResult, legacyStore, current) {
+        if (!currentResult || currentResult.status === 'rejected') {
+            return { data: null, loadFailed: true };
+        }
+        if (currentResult.value && currentResult.value.exists()) {
+            return {
+                data: { ...DEFAULT_MONTH_DATA(), ...currentResult.value.data() },
+                loadFailed: false
+            };
+        }
+        if (legacyStore && legacyStore[current]) {
+            return {
+                data: { ...DEFAULT_MONTH_DATA(), ...cloneData(legacyStore[current]) },
+                loadFailed: false,
+                migratedFromLegacy: true
+            };
+        }
+        return { data: null, loadFailed: false };
+    }
+
     async function warmupFirebase() {
         const authBadge = document.getElementById('auth-status-badge');
         updateSyncStatus('데이터를 불러오는 중...');
@@ -1507,11 +1527,15 @@
                 }
             }
 
-            let currentData = null;
-            if (currentResult.status === 'fulfilled' && currentResult.value.exists()) {
-                currentData = { ...DEFAULT_MONTH_DATA(), ...currentResult.value.data() };
-            } else if (legacyStore && legacyStore[current]) {
-                currentData = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacyStore[current]) };
+            const currentResolution = resolveCurrentMonthData(currentResult, legacyStore, current);
+            if (currentResolution.loadFailed) {
+                console.error('현재 월 데이터 읽기 실패:', currentResult.reason);
+                updateSyncStatus('데이터를 불러오지 못했어요');
+                return false;
+            }
+
+            const currentData = currentResolution.data;
+            if (currentResolution.migratedFromLegacy && currentData) {
                 setDoc(doc(db, MONTH_COLLECTION, `month_${current}`), {
                     ...cloneData(currentData),
                     migratedFromLegacy: true,
@@ -2699,6 +2723,9 @@ function addCategorySetting() {
             await deleteDoc(doc(db, META_COLLECTION, META_DOC_ID));
             await deleteDoc(doc(db, 'gotgan', LEGACY_DOC_ID));
 
+            // 서버 데이터 삭제가 모두 성공한 뒤에만 로컬 임시/캐시 데이터도 제거한다.
+            clearLocalPersistence();
+
             categoryList = DEFAULT_CATEGORIES.slice();
             fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
             store = {};
@@ -2715,6 +2742,16 @@ function addCategorySetting() {
     }
     window.resetData = resetData;
 
+
+    function clearLocalPersistence() {
+        ['gotgan_income_drafts_v1', 'gotgan_month_cache_v2', 'gotgan_emergency_checkpoint_v1'].forEach(key => {
+            try {
+                localStorage.removeItem(key);
+            } catch (e) {
+                console.warn(`로컬 데이터 정리 실패: ${key}`, e);
+            }
+        });
+    }
 
     function runInternalSmokeTests() {
         const results = [];
@@ -2740,6 +2777,9 @@ function addCategorySetting() {
         assert('변동 지출 합계 계산', sumCat(sample.categories.variable_expense) === 120000);
         assert('고정 지출 카테고리 기본값 존재', fixedExpenseCategoryList.length > 0);
         assert('월별 데이터 기본 구조 존재', !!DEFAULT_MONTH_DATA().categories.expense);
+        assert('현재 월 읽기 실패는 빈 데이터로 간주하지 않음', resolveCurrentMonthData({ status: 'rejected', reason: new Error('read failed') }, null, '2026-09').loadFailed === true);
+        assert('현재 월 문서가 없고 legacy도 없으면 정상적인 신규 월로 처리', resolveCurrentMonthData({ status: 'fulfilled', value: { exists: () => false } }, null, '2026-09').loadFailed === false);
+        assert('초기화 시 로컬 저장소 정리 함수 존재', typeof clearLocalPersistence === 'function');
         assert('추가 저축 계산: 소비 0원일 때 수입 전액 가능', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
         assert('추가 저축 계산: 기존 저축은 차감', calculateAdditionalSavings(8200000, 2966500, 1400000) === 3833500);
         assert('추가 저축 계산: 비상금(reserve)은 계산에 영향 없음', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
