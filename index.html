@@ -3356,6 +3356,51 @@ function addCategorySetting() {
         }
     };
 
+    window.runEmulatorAuthRecoveryProbe = async function() {
+        if (!isAuthenticatedUser()) return { pass: false, error: 'auth-required' };
+        const month = '2099-09';
+        const ref = monthDocRef(month);
+        const uidBefore = auth.currentUser?.uid || null;
+        const testData = { bora: 7777001, sang: 8888002, marker: 'auth-recovery' };
+        try {
+            const saved = await saveMonthPatch(month, testData, '');
+            if (!saved) return { pass: false, error: 'baseline-save-failed' };
+            const beforeLogout = await getDoc(ref);
+            if (!beforeLogout.exists() || beforeLogout.data().marker !== testData.marker) {
+                return { pass: false, error: 'baseline-data-missing' };
+            }
+            const logoutOk = await logoutUser();
+            if (!logoutOk) return { pass: false, error: 'logout-failed' };
+            return { pass: true, uidBefore, month, marker: testData.marker };
+        } catch (e) {
+            return { pass: false, error: e?.message || String(e) };
+        }
+    };
+
+    window.runEmulatorAuthRecoveryVerify = async function() {
+        const month = '2099-09';
+        const ref = monthDocRef(month);
+        try {
+            const uidAfter = auth.currentUser?.uid || null;
+            const anonymousAfterLogout = !!auth.currentUser?.isAnonymous;
+            const snap = await getDoc(ref);
+            const preserved = snap.exists()
+                && snap.data().bora === 7777001
+                && snap.data().sang === 8888002
+                && snap.data().marker === 'auth-recovery';
+            try { await deleteDoc(ref); } catch (e) {}
+            return {
+                pass: !!uidAfter && !anonymousAfterLogout && preserved,
+                uidAfter,
+                anonymousAfterLogout,
+                preserved
+            };
+        } catch (e) {
+            try { await deleteDoc(ref); } catch (ignored) {}
+            return { pass: false, error: e?.message || String(e) };
+        }
+    };
+
     window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
