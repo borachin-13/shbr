@@ -45,13 +45,17 @@ try {
   const integrity = await assertProbe(pageA, 'runEmulatorIntegrityProbe');
   const concurrency = await assertProbe(pageA, 'runEmulatorConcurrencyProbe');
 
+  const recoverySetup = await pageA.evaluate(async () => window.runEmulatorSaveFailureRecoveryProbe());
+  if (!recoverySetup?.pass) throw new Error(`save recovery setup failed: ${JSON.stringify(recoverySetup)}`);
   await contextA.setOffline(true);
-  let recovery;
+  let failedWrite;
   try {
-    recovery = await pageA.evaluate(async () => window.runEmulatorSaveFailureRecoveryProbe());
+    failedWrite = await pageA.evaluate(async () => window.runEmulatorSaveFailureWriteProbe());
   } finally {
     await contextA.setOffline(false);
   }
+  if (!failedWrite?.pass) throw new Error(`offline save did not fail as expected: ${JSON.stringify(failedWrite)}`);
+  const recovery = await pageA.evaluate(async () => window.runEmulatorSaveRecoveryCheck());
   if (!recovery?.pass) throw new Error(`save failure recovery failed: ${JSON.stringify(recovery)}`);
 
   const bToA = await pageB.evaluate(async (uidA) => {
