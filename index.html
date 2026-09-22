@@ -1039,6 +1039,7 @@
         return doc(db, LEGACY_COLLECTION, LEGACY_DOC_ID);
     }
     const monthSaveQueues = new Map();
+    const monthLoadFailures = new Set();
     // PC/모바일 동시 수정 보호용 필드 버전
     const fieldVersions = new Map();
     const remoteUnsubscribe = new Map();
@@ -1144,6 +1145,10 @@
     async function saveMonthPatch(month, patch, successMessage = '저장되었습니다.') {
         if (!month) return false;
         if (!isAuthenticatedUser()) return false;
+        if (monthLoadFailures.has(month)) {
+            showToast('이 달의 최신 데이터를 불러오지 못해 저장을 잠시 막았습니다. 다시 시도해 주세요.', true);
+            return false;
+        }
         const safeMonth = month;
         const patchKey = Object.keys(patch || {}).sort().join('|') || '__month__';
         const stateKey = `${safeMonth}:${patchKey}`;
@@ -1741,8 +1746,12 @@
                 }
             }));
 
-            results.forEach(({month, data}) => {
-                // Firestore 읽기 실패 시 기존 메모리 데이터를 보존한다.
+            results.forEach(({month, data, loadFailed}) => {
+                if (loadFailed) {
+                    monthLoadFailures.add(month);
+                    return;
+                }
+                monthLoadFailures.delete(month);
                 if (data) store[month] = data;
             });
 
@@ -2854,16 +2863,35 @@ function addCategorySetting() {
     window.refreshCurrentMonthFromServer = refreshCurrentMonthFromServer;
 
     async function changeMonth(m) {
-        await flushPendingSaves();
-        if (!isAuthenticatedUser()) return;
+        const flushed = await flushPendingSaves();
+        if (!flushed || !isAuthenticatedUser()) return false;
 
         const targetMonth = m;
+        const needsRemoteLoad = monthLoadFailures.has(targetMonth) || !store[targetMonth];
+
+        if (needsRemoteLoad) {
+            try {
+                const snap = await getDoc(monthDocRef(targetMonth));
+                if (snap.exists()) {
+                    store[targetMonth] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
+                } else {
+                    store[targetMonth] = DEFAULT_MONTH_DATA();
+                }
+                monthLoadFailures.delete(targetMonth);
+            } catch (e) {
+                monthLoadFailures.add(targetMonth);
+                console.error('월별 데이터 불러오기 실패:', targetMonth, e);
+                showToast('이 달의 데이터를 불러오지 못했습니다. 현재 달을 유지합니다.', true);
+                return false;
+            }
+        }
+
         currentMonth = targetMonth;
-        if (!store[targetMonth]) store[targetMonth] = DEFAULT_MONTH_DATA();
         await ensureMonthExchangeRate(targetMonth, true);
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) globalMonthEl.value = currentMonth;
         render();
+        return true;
     }
     window.changeMonth = changeMonth;
 
