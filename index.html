@@ -1388,8 +1388,52 @@
         }
     }
 
+    async function refreshCurrentMonthFromServer() {
+        if (!db || !currentMonth || !navigator.onLine) return false;
+
+        // 로컬에서 아직 서버에 반영되지 않은 변경이 있다면 먼저 끝낼 기회를 준다.
+        await flushPendingSaves();
+
+        try {
+            const monthAtStart = currentMonth;
+            const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${monthAtStart}`));
+
+            // 요청 중 월이 바뀌었다면 현재 화면에 다른 월의 데이터를 덮어쓰지 않는다.
+            if (currentMonth !== monthAtStart) return false;
+
+            if (!snap.exists()) {
+                // 서버에 문서가 없는 경우에는 로컬 값을 빈 데이터로 덮어쓰지 않는다.
+                // 신규 월은 사용자가 실제로 저장할 때 생성된다.
+                return false;
+            }
+
+            store[monthAtStart] = {
+                ...DEFAULT_MONTH_DATA(),
+                ...snap.data()
+            };
+
+            await ensureMonthExchangeRate(monthAtStart, false);
+            render();
+            updateSyncStatus('최신 데이터를 불러왔어요');
+            return true;
+        } catch (e) {
+            // 일시적인 네트워크/권한 오류가 발생해도 현재 화면의 데이터를 지우지 않는다.
+            console.warn('현재 월 최신 데이터 동기화 실패:', e);
+            updateSyncStatus('현재 데이터를 유지하고 있어요');
+            return false;
+        }
+    }
+
+    // PC/모바일에서 같은 월을 수정한 뒤 앱을 다시 열거나 온라인으로 돌아오면
+    // 서버의 최신 현재 월 데이터를 다시 읽어 화면을 맞춘다.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            refreshCurrentMonthFromServer();
+        }
+    });
+
     window.addEventListener('online', () => {
-        flushPendingSaves();
+        flushPendingSaves().then(() => refreshCurrentMonthFromServer());
     });
 
     window.addEventListener('offline', () => {
@@ -2730,7 +2774,10 @@ function addCategorySetting() {
     window.setMemberTab = setMemberTab;
 
     async function changeMonth(m) {
-        await flushPendingIncomeSaves();
+        // 월을 바꾸기 전에 모든 종류의 진행 중인 저장을 기다린다.
+        // 수입 debounce만 기다리면 모달/카테고리 저장이 이전 월에 남아
+        // 월 전환 직후 화면과 서버 상태가 어긋날 수 있다.
+        await flushPendingSaves();
 
         currentMonth = m;
         if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
@@ -2850,6 +2897,7 @@ function addCategorySetting() {
         assert('다른 기기에서 서버값이 변경된 경우 stale 수입 임시값을 복구하지 않음', shouldRecoverIncomeDraft(4400000, 4300000, 4200000) === false);
         assert('수입 임시값과 서버값이 이미 같으면 복구할 필요 없음', shouldRecoverIncomeDraft(4300000, 4300000, 4200000) === false);
         assert('현재 월 문서가 없고 legacy도 없으면 정상적인 신규 월로 처리', resolveCurrentMonthData({ status: 'fulfilled', value: { exists: () => false } }, null, '2026-09').loadFailed === false);
+        assert('현재 월 최신 서버값 새로고침 함수 존재', typeof refreshCurrentMonthFromServer === 'function');
         assert('초기화 시 로컬 저장소 정리 함수 존재', typeof clearLocalPersistence === 'function');
         assert('추가 저축 계산: 소비 0원일 때 수입 전액 가능', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
         assert('추가 저축 계산: 기존 저축은 차감', calculateAdditionalSavings(8200000, 2966500, 1400000) === 3833500);
