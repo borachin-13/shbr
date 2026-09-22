@@ -1243,6 +1243,7 @@
 
     async function flushPendingIncomeSaves() {
         const timers = Array.from(incomeSaveTimers.entries());
+        let allSucceeded = true;
 
         for (const [timerKey, timerId] of timers) {
             clearTimeout(timerId);
@@ -1259,6 +1260,7 @@
             const ok = await saveMonthPatch(saveMonth, {
                 [key]: Number(store[saveMonth][key]) || 0
             });
+            if (!ok) allSucceeded = false;
 
             if (ok) {
                 try {
@@ -1274,6 +1276,8 @@
                 }
             }
         }
+
+        return allSucceeded;
     }
 
     async function flushPendingSaves() {
