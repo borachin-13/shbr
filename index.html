@@ -3284,6 +3284,72 @@ function addCategorySetting() {
         return isAuthenticatedUser() ? auth.currentUser.uid : null;
     };
 
+    window.runEmulatorSaveFailureRecoveryProbe = async function() {
+        if (!window.location.search.includes('emulator=1') || !isAuthenticatedUser()) {
+            return { pass: false, error: 'emulator-auth-required' };
+        }
+        const month = '2099-10';
+        const ref = monthDocRef(month);
+        const before = {
+            bora: 1357911,
+            sang: 2468022,
+            living: 123456
+        };
+        const after = {
+            bora: 9753186,
+            sang: 8642097
+        };
+        const originalStore = store[month];
+        try {
+            store[month] = mergeNestedObjects(DEFAULT_MONTH_DATA(), before);
+            const first = await saveMonthPatch(month, before, '');
+            if (!first) return { pass: false, error: 'baseline-write-failed' };
+            const baseline = await getDoc(ref);
+            if (!baseline.exists()) return { pass: false, error: 'baseline-doc-missing' };
+
+            const offlineBefore = navigator.onLine;
+            const originalShowToast = window.showToast;
+            window.showToast = function() {};
+            let failed;
+            try {
+                window.dispatchEvent(new Event('offline'));
+                failed = await saveMonthPatch(month, after, '');
+            } finally {
+                window.dispatchEvent(new Event('online'));
+                window.showToast = originalShowToast;
+                if (offlineBefore) window.dispatchEvent(new Event('online'));
+            }
+            const afterFailure = await getDoc(ref);
+            const preservedAfterFailure =
+                afterFailure.exists()
+                && afterFailure.data().bora === before.bora
+                && afterFailure.data().sang === before.sang
+                && afterFailure.data().living === before.living;
+
+            const recovered = await saveMonthPatch(month, after, '');
+            const finalSnap = await getDoc(ref);
+            const recoveredCorrectly =
+                recovered
+                && finalSnap.exists()
+                && finalSnap.data().bora === after.bora
+                && finalSnap.data().sang === after.sang
+                && finalSnap.data().living === before.living;
+
+            return {
+                pass: failed === false && preservedAfterFailure && recoveredCorrectly,
+                results: [
+                    { test: '장애 중 저장 실패', pass: failed === false },
+                    { test: '실패 직후 서버 데이터 보존', pass: preservedAfterFailure },
+                    { test: '재연결 후 저장 복구', pass: recoveredCorrectly }
+                ]
+            };
+        } finally {
+            try { await deleteDoc(ref); } catch (e) {}
+            if (originalStore === undefined) delete store[month];
+            else store[month] = originalStore;
+        }
+    };
+
     window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
