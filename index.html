@@ -993,6 +993,8 @@
     const META_COLLECTION = 'gotgan';
     const BASE_MONTHS = ['2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12'];
     const monthSaveQueues = new Map();
+    // 백그라운드 읽기에 실패한 월은 빈 데이터로 간주하지 않는다.
+    const monthLoadFailures = new Set();
     // PC/모바일 동시 수정 보호용 필드 버전
     const fieldVersions = new Map();
     const remoteUnsubscribe = new Map();
@@ -1682,8 +1684,13 @@
                 }
             }));
 
-            results.forEach(({month, data}) => {
-                // Firestore 읽기 실패 시 기존 메모리 데이터를 보존한다.
+            results.forEach(({month, data, loadFailed}) => {
+                if (loadFailed) {
+                    monthLoadFailures.add(month);
+                    return;
+                }
+                // 성공적으로 읽은 월은 실패 상태를 해제한다.
+                monthLoadFailures.delete(month);
                 if (data) store[month] = data;
             });
 
@@ -2663,6 +2670,9 @@ function renderExpenseModalHTML() {
 
     async function syncFixedCategoriesToMonth(month, persist = false) {
         if (!month) return false;
+        // 읽기에 실패한 월을 DEFAULT_MONTH_DATA()로 생성하면 이후 편집/저장 시
+        // 실제 서버 데이터를 빈 월처럼 취급할 위험이 있다. 해당 월은 읽기 성공 후에만 동기화한다.
+        if (monthLoadFailures.has(month)) return false;
         if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
         if (!store[month].categories) store[month].categories = DEFAULT_MONTH_DATA().categories;
         if (!Array.isArray(store[month].categories.expense)) store[month].categories.expense = [];
@@ -2775,9 +2785,28 @@ function addCategorySetting() {
 
     async function changeMonth(m) {
         // 월을 바꾸기 전에 모든 종류의 진행 중인 저장을 기다린다.
-        // 수입 debounce만 기다리면 모달/카테고리 저장이 이전 월에 남아
-        // 월 전환 직후 화면과 서버 상태가 어긋날 수 있다.
         await flushPendingSaves();
+
+        const previousMonth = currentMonth;
+        if (monthLoadFailures.has(m)) {
+            try {
+                const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${m}`));
+                if (!snap.exists()) {
+                    monthLoadFailures.delete(m);
+                    store[m] = DEFAULT_MONTH_DATA();
+                } else {
+                    monthLoadFailures.delete(m);
+                    store[m] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
+                }
+            } catch (e) {
+                // 읽지 못한 월로 전환하면서 빈 데이터를 보여주지 않는다.
+                console.warn(`${m} 월 데이터 재조회 실패:`, e);
+                const globalMonthEl = document.getElementById('global-month');
+                if (globalMonthEl) globalMonthEl.value = previousMonth;
+                showToast('해당 월 데이터를 불러오지 못했어요. 현재 월을 유지합니다.', true);
+                return;
+            }
+        }
 
         currentMonth = m;
         if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
@@ -2898,6 +2927,7 @@ function addCategorySetting() {
         assert('수입 임시값과 서버값이 이미 같으면 복구할 필요 없음', shouldRecoverIncomeDraft(4300000, 4300000, 4200000) === false);
         assert('현재 월 문서가 없고 legacy도 없으면 정상적인 신규 월로 처리', resolveCurrentMonthData({ status: 'fulfilled', value: { exists: () => false } }, null, '2026-09').loadFailed === false);
         assert('현재 월 최신 서버값 새로고침 함수 존재', typeof refreshCurrentMonthFromServer === 'function');
+        assert('읽기 실패 월을 빈 데이터로 동기화하지 않도록 실패 상태를 추적함', monthLoadFailures instanceof Set);
         assert('초기화 시 로컬 저장소 정리 함수 존재', typeof clearLocalPersistence === 'function');
         assert('추가 저축 계산: 소비 0원일 때 수입 전액 가능', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
         assert('추가 저축 계산: 기존 저축은 차감', calculateAdditionalSavings(8200000, 2966500, 1400000) === 3833500);
