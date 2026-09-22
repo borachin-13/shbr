@@ -1555,9 +1555,12 @@
     async function loadScopedUserData() {
         if (!isAuthenticatedUser()) return false;
 
-        const [settingsSnap, monthCollectionSnap] = await Promise.all([
+        // 로그인 직후에는 "설정 + 현재 월"만 읽는다.
+        // 전체 월 컬렉션을 기다리면 데이터가 늘어날수록 첫 화면 진입 시간이 길어지므로,
+        // 나머지 월은 화면을 먼저 보여준 뒤 백그라운드에서 채운다.
+        const [settingsSnap, currentMonthSnap] = await Promise.all([
             getDoc(settingsDocRef()),
-            getDocs(collection(db, USERS_COLLECTION, auth.currentUser.uid, USER_MONTHS_COLLECTION))
+            getDoc(monthDocRef(currentMonth))
         ]);
 
         if (settingsSnap.exists()) {
@@ -1569,18 +1572,16 @@
         }
 
         const nextStore = {};
-        monthCollectionSnap.forEach((snap) => {
-            const monthId = String(snap.id || '');
-            if (!/^month_\\d{4}-\\d{2}$/.test(monthId)) return;
-            const month = monthId.slice('month_'.length);
-            nextStore[month] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
+        BASE_MONTHS.forEach((month) => {
+            nextStore[month] = DEFAULT_MONTH_DATA();
         });
 
-        BASE_MONTHS.forEach((month) => {
-            if (!nextStore[month]) nextStore[month] = DEFAULT_MONTH_DATA();
-        });
+        if (currentMonthSnap.exists()) {
+            nextStore[currentMonth] = { ...DEFAULT_MONTH_DATA(), ...currentMonthSnap.data() };
+        }
+
         store = nextStore;
-        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        monthLoadFailures.delete(currentMonth);
         return true;
     }
 
@@ -1656,6 +1657,9 @@
             renderCategorySettings();
             renderFixedExpenseCategorySettings();
             render();
+            // 첫 화면을 먼저 보여준 뒤, 과거/미래 월은 백그라운드에서 채운다.
+            // 사용자가 로그인 직후 기다리는 시간을 줄이기 위한 의도적인 지연 로딩이다.
+            loadRemainingMonthsInBackground();
             showToast(mode === 'signup' ? '계정과 데이터가 안전하게 연결되었어요.' : '로그인되었습니다.');
         } catch (e) {
             console.error('계정 인증 실패:', e);
