@@ -3426,6 +3426,10 @@ function addCategorySetting() {
         try {
             const saved = await saveMonthPatch(month, testData, '');
             if (!saved) return { pass: false, error: 'baseline-save-failed' };
+            categoryList = ['QA-설정복구'];
+            fixedExpenseCategoryList = ['QA-고정지출복구'];
+            const settingsSaved = await saveCategoryList();
+            if (!settingsSaved) return { pass: false, error: 'settings-save-failed' };
             const beforeLogout = await getDoc(ref);
             if (!beforeLogout.exists() || beforeLogout.data().marker !== testData.marker) {
                 return { pass: false, error: 'baseline-data-missing' };
@@ -3445,16 +3449,22 @@ function addCategorySetting() {
             const uidAfter = auth.currentUser?.uid || null;
             const anonymousAfterLogout = !!auth.currentUser?.isAnonymous;
             const snap = await getDoc(ref);
+            const settingsSnap = await getDoc(settingsDocRef());
             const preserved = snap.exists()
                 && snap.data().bora === 7777001
                 && snap.data().sang === 8888002
                 && snap.data().marker === 'auth-recovery';
+            const settingsPreserved = settingsSnap.exists()
+                && JSON.stringify(settingsSnap.data().categoryList) === JSON.stringify(['QA-설정복구'])
+                && JSON.stringify(settingsSnap.data().fixedExpenseCategoryList) === JSON.stringify(['QA-고정지출복구']);
             try { await deleteDoc(ref); } catch (e) {}
+            try { await deleteDoc(settingsDocRef()); } catch (e) {}
             return {
-                pass: !!uidAfter && !anonymousAfterLogout && preserved,
+                pass: !!uidAfter && !anonymousAfterLogout && preserved && settingsPreserved,
                 uidAfter,
                 anonymousAfterLogout,
-                preserved
+                preserved,
+                settingsPreserved
             };
         } catch (e) {
             try { await deleteDoc(ref); } catch (ignored) {}
