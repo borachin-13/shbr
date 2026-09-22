@@ -3304,6 +3304,58 @@ function addCategorySetting() {
         }
     };
 
+    window.runEmulatorSaveFailureWriteProbe = async function() {
+        if (!isAuthenticatedUser()) return { pass: false, error: 'auth-required' };
+        const month = '2099-10';
+        const ref = monthDocRef(month);
+        const after = { bora: 9753186, sang: 8642097 };
+        const originalShowToast = window.showToast;
+        window.showToast = function() {};
+        try {
+            const failed = await saveMonthPatch(month, after, '');
+            return { pass: failed === false, failed, month, refPath: ref.path };
+        } finally {
+            window.showToast = originalShowToast;
+        }
+    };
+
+    window.runEmulatorSaveRecoveryCheck = async function() {
+        if (!isAuthenticatedUser()) return { pass: false, error: 'auth-required' };
+        const month = '2099-10';
+        const ref = monthDocRef(month);
+        const before = { bora: 1357911, sang: 2468022, living: 123456 };
+        const after = { bora: 9753186, sang: 8642097 };
+        try {
+            const afterFailure = await getDoc(ref);
+            const preservedAfterFailure =
+                afterFailure.exists()
+                && afterFailure.data().bora === before.bora
+                && afterFailure.data().sang === before.sang
+                && afterFailure.data().living === before.living;
+            const recovered = await saveMonthPatch(month, after, '');
+            const finalSnap = await getDoc(ref);
+            const recoveredCorrectly =
+                recovered
+                && finalSnap.exists()
+                && finalSnap.data().bora === after.bora
+                && finalSnap.data().sang === after.sang
+                && finalSnap.data().living === before.living;
+            const pass = preservedAfterFailure && recoveredCorrectly;
+            try { await deleteDoc(ref); } catch (e) {}
+            return {
+                pass,
+                results: [
+                    { test: '장애 중 저장 실패', pass: true },
+                    { test: '실패 직후 서버 데이터 보존', pass: preservedAfterFailure },
+                    { test: '재연결 후 저장 복구', pass: recoveredCorrectly }
+                ]
+            };
+        } catch (e) {
+            try { await deleteDoc(ref); } catch (ignored) {}
+            return { pass: false, error: e?.message || String(e) };
+        }
+    };
+
     window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
