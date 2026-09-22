@@ -920,6 +920,16 @@
     }
 
 
+    // 사용자 입력이 화면 HTML에 직접 들어갈 때 태그/속성 주입을 막는다.
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     function formatNumberString(val) {
         if (!val && val !== 0) return '';
         const num = String(val).replace(/[^0-9]/g, '');
@@ -1944,13 +1954,13 @@
                     subItemsHtml += `<div style="font-size:12px; color:var(--text-sub); padding:4px 0;">등록된 내역이 없습니다.</div>`;
                 } else {
                     items.forEach(item => {
-                        const catTag = item.category ? `[${item.category}] ` : '';
+                        const catTag = item.category ? `[${escapeHtml(item.category)}] ` : '';
                         const owner = item.owner || 'shared';
                         const ownerLabel = owner === 'bora' ? '보라' : owner === 'sang' ? '상훈' : '공통';
                         const displayAmount = currentTab !== 'all' && owner === 'shared' ? Number(item.amount || 0) / 2 : Number(item.amount || 0);
                         subItemsHtml += `
                             <div class="sub-item-row">
-                                <span style="color:var(--text-main); font-weight:500;">${formatKoreanDate(item.date)} ${catTag}${item.name || '내역'} <small style="color:var(--text-sub);">(${ownerLabel})</small></span>
+                                <span style="color:var(--text-main); font-weight:500;">${escapeHtml(formatKoreanDate(item.date))} ${catTag}${escapeHtml(item.name || '내역')} <small style="color:var(--text-sub);">(${ownerLabel})</small></span>
                                 <span style="color:var(--expense-color); font-weight:700;">-${displayAmount.toLocaleString()}원</span>
                             </div>`;
                     });
@@ -1965,8 +1975,8 @@
                         if (currentTab !== 'all' && (key === 'expense' || key === 'living')) {
                             subDetail = `${(itemWon / 2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
                         }
-                        const fixedDate = key === 'expense' && item.date ? `${formatKoreanDate(item.date)} ` : '';
-                        subItemsHtml += `<div class="sub-item-row"><span>${fixedDate}${item.name || '항목'}</span><span>${subDetail}</span></div>`;
+                        const fixedDate = key === 'expense' && item.date ? `${escapeHtml(formatKoreanDate(item.date))} ` : '';
+                        subItemsHtml += `<div class="sub-item-row"><span>${fixedDate}${escapeHtml(item.name || '항목')}</span><span>${subDetail}</span></div>`;
                     });
                 }
             }
@@ -1976,7 +1986,7 @@
             expenseContainer.innerHTML += `
                 <div class="accordion-item" id="acc-flow-${key}">
                     <div class="accordion-header" onclick="window.toggleFlowAccordion('${key}')">
-                        <span class="accordion-title">${labelTitle}</span>
+                        <span class="accordion-title">${escapeHtml(labelTitle)}</span>
                         <div class="accordion-val">
                             <span style="${key === 'variable_expense' ? 'color:var(--expense-color);' : ''}">${displayVal}</span>
                             <span class="accordion-icon">▾</span>
@@ -2001,7 +2011,7 @@
                 if (currentTab !== 'all' && owner === 'shared') {
                     subDetail = `${(itemWon/2).toLocaleString()}원 (총 ${itemWon.toLocaleString()}원)`;
                 }
-                subItemsHtml += `<div class="sub-item-row"><span>${item.name || '항목'}</span><span>${subDetail}</span></div>`;
+                subItemsHtml += `<div class="sub-item-row"><span>${escapeHtml(item.name || '항목')}</span><span>${subDetail}</span></div>`;
             });
 
             const labelTitle = titles[key] || '저축 항목';
@@ -2499,7 +2509,7 @@ function renderExpenseModalHTML() {
         if (!container) return;
         container.innerHTML = categoryList.map((cat, idx) => `
             <div class="category-tag">
-                ${cat}
+                ${escapeHtml(cat)}
                 <span onclick="window.removeCategorySetting(${idx})">&times;</span>
             </div>
         `).join('');
@@ -2510,7 +2520,7 @@ function renderExpenseModalHTML() {
         if (!container) return;
         const effective = getEffectiveFixedExpenseCategories();
         container.innerHTML = effective.map((cat, idx) =>
-            `<div class="category-tag">${cat}<span onclick="window.removeFixedExpenseCategory(${idx})">&times;</span></div>`
+            `<div class="category-tag">${escapeHtml(cat)}<span onclick="window.removeFixedExpenseCategory(${idx})">&times;</span></div>`
         ).join('');
         if (!container.innerHTML) {
             container.innerHTML = '<div style="font-size:12px;color:var(--text-sub);">등록된 고정 지출 카테고리가 없습니다.</div>';
@@ -2735,6 +2745,9 @@ function addCategorySetting() {
         assert('추가 저축 계산: 비상금(reserve)은 계산에 영향 없음', calculateAdditionalSavings(8548063, 0, 0) === 8548063);
         assert('월별 환율은 저장된 값을 우선 사용', getMonthExchangeRate({ usdRate: 1400 }) === 1400);
         assert('월별 환율 미설정 시 기존 fallback 사용', getMonthExchangeRate({ usdRate: null }) === usdRate);
+        assert('숫자 입력은 쉼표를 제거하고 정수로 변환', parseNumberString('1,234,567원') === 1234567);
+        assert('빈 금액 입력은 0으로 처리', parseNumberString('') === 0);
+        assert('HTML escape는 태그를 문자로 변환', escapeHtml('<script>alert(1)</script>') === '&lt;script&gt;alert(1)&lt;/script&gt;');
         const summary = calculateMonthlySummary({
             bora: 8548063, bora_extra: 0, sang: 0, sang_other_income: 0, trip_usd: 0,
             categories: {
