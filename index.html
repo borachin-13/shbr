@@ -1194,6 +1194,10 @@
     }
 
     async function saveCategoryList() {
+        if (!isAuthenticatedUser()) {
+            showToast('로그인 후 설정을 저장할 수 있어요.', true);
+            return false;
+        }
         const writePromise = queueCategoryWrite(async () => {
             let lastError = null;
             for (let attempt = 0; attempt < 3; attempt++) {
