@@ -45,6 +45,15 @@ try {
   const integrity = await assertProbe(pageA, 'runEmulatorIntegrityProbe');
   const concurrency = await assertProbe(pageA, 'runEmulatorConcurrencyProbe');
 
+  await contextA.setOffline(true);
+  let recovery;
+  try {
+    recovery = await pageA.evaluate(async () => window.runEmulatorSaveFailureRecoveryProbe());
+  } finally {
+    await contextA.setOffline(false);
+  }
+  if (!recovery?.pass) throw new Error(`save failure recovery failed: ${JSON.stringify(recovery)}`);
+
   const bToA = await pageB.evaluate(async (uidA) => {
     return window.runCrossUserRulesTest(uidA);
   }, uidA);
@@ -61,6 +70,7 @@ try {
     uidB,
     integrity,
     concurrency,
+    recovery,
     bToA,
     aToB
   }, null, 2));
