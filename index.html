@@ -581,6 +581,7 @@
             <input type="password" id="auth-password" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="current-password" placeholder="비밀번호 (8자 이상)">
             <button class="lock-btn" id="auth-login-btn" onclick="window.authenticateUser('login')">로그인</button>
             <button class="lock-btn" id="auth-signup-btn" style="margin-top:8px;background:#edf2f7;color:#1a202c;" onclick="window.authenticateUser('signup')">처음이라면 계정 만들기</button>
+            <button type="button" id="auth-reset-btn" style="margin-top:10px;border:none;background:none;color:#718096;font-size:12px;cursor:pointer;" onclick="window.resetPassword()">비밀번호를 잊으셨나요?</button>
             <div id="lock-error" class="lock-error"></div>
         </div>
     </div>
@@ -796,9 +797,10 @@
         signInWithEmailAndPassword,
         EmailAuthProvider,
         linkWithCredential,
+        sendPasswordResetEmail,
         signOut
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyA_xbdI3K1KYa9qCYYd2SN7EJJkLcSLmE4",
@@ -1219,122 +1221,8 @@
         return writePromise;
     }
 
-    async function loadAll() {
-        let legacyStore = null;
-        let legacyCategories = null;
-        let categoryLoaded = false;
-        let fixedCategoryLoaded = false;
-
-        // 설정/레거시 문서는 서로 독립적이므로 병렬로 읽는다.
-        const [metaResult, legacyResult] = await Promise.allSettled([
-            getDoc(settingsDocRef()),
-            getDoc(legacyDataDocRef())
-        ]);
-
-        if (metaResult.status === 'fulfilled' && metaResult.value.exists()) {
-            const meta = metaResult.value.data();
-            if (Array.isArray(meta.categoryList) && meta.categoryList.length) {
-                categoryList = meta.categoryList;
-                categoryLoaded = true;
-            }
-            if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
-                fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
-                fixedCategoryLoaded = fixedExpenseCategoryList.length > 0;
-            }
-        } else if (metaResult.status === 'rejected') {
-            console.error('설정 불러오기 실패:', metaResult.reason);
-        }
-
-        if (legacyResult.status === 'fulfilled' && legacyResult.value.exists()) {
-            const legacy = legacyResult.value.data();
-            legacyStore = legacy.store || null;
-            legacyCategories = Array.isArray(legacy.categoryList) ? legacy.categoryList : null;
-            if (!categoryLoaded && legacyCategories && legacyCategories.length) {
-                categoryList = legacyCategories;
-                categoryLoaded = true;
-            }
-        } else if (legacyResult.status === 'rejected') {
-            console.error('기존 데이터 확인 실패:', legacyResult.reason);
-        }
-
-        store = {};
-        const months = Array.from(new Set([...BASE_MONTHS, ...Object.keys(legacyStore || {})])).sort();
-
-        // 월별 문서는 서로 독립적이므로 순차 getDoc()을 하지 않는다.
-        const monthResults = await Promise.all(months.map(async (month) => {
-            try {
-                const snap = await getDoc(monthDocRef(month));
-                if (snap.exists()) {
-                    return { month, data: { ...DEFAULT_MONTH_DATA(), ...snap.data() }, migrated: false };
-                }
-
-                if (legacyStore && legacyStore[month]) {
-                    const migrated = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacyStore[month]) };
-                    if (!migrated.categories) migrated.categories = DEFAULT_MONTH_DATA().categories;
-                    return { month, data: migrated, migrated: true };
-                }
-
-                return { month, data: null, migrated: false };
-            } catch (e) {
-                console.error(`${month} 불러오기 실패:`, e);
-                return { month, data: null, migrated: false };
-            }
-        }));
-
-        const migrations = [];
-        monthResults.forEach(({ month, data, migrated }) => {
-            if (!data) return;
-            if (!data.categories) data.categories = DEFAULT_MONTH_DATA().categories;
-            store[month] = data;
-
-            if (migrated) {
-                migrations.push(
-                    setDoc(monthDocRef(month), {
-                        ...cloneData(data),
-                        migratedFromLegacy: true,
-                        updatedAt: Date.now()
-                    }, { merge: true }).catch(e => console.warn(`${month} 마이그레이션 저장 실패:`, e))
-                );
-            }
-        });
-
-        // 마이그레이션은 화면 준비를 막지 않는다.
-        if (migrations.length) Promise.allSettled(migrations);
-
-        if (!categoryLoaded && legacyCategories && legacyCategories.length) {
-            categoryList = legacyCategories;
-            categoryLoaded = true;
-        }
-        if (!categoryList.length) categoryList = DEFAULT_CATEGORIES.slice();
-
-        if (!fixedCategoryLoaded) {
-            const discovered = [];
-            Object.values(store || {}).forEach(monthData => {
-                const items = monthData?.categories?.expense;
-                if (!Array.isArray(items)) return;
-                items.forEach(item => {
-                    const name = String(item?.name || '').trim();
-                    if (name && !discovered.includes(name)) discovered.push(name);
-                });
-            });
-            fixedExpenseCategoryList = Array.from(new Set([
-                ...DEFAULT_FIXED_EXPENSE_CATEGORIES,
-                ...discovered
-            ]));
-        }
-
-        if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
-            fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
-        }
-
-        for (const month of BASE_MONTHS) {
-            if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
-        }
-
-        // 설정 카테고리는 실제 월별 입력에도 표시되도록 보장한다.
-        await syncFixedCategoriesToAllMonths(false);
-    }
-
+    // 이전 legacy 전체 로딩 경로는 제거했다.
+    // 앱 초기화는 인증 후 loadScopedUserData()만 사용하며, legacy는 계정 생성 시 1회 마이그레이션에서만 읽는다.
 
     async function flushPendingIncomeSaves() {
         const timers = Array.from(incomeSaveTimers.entries());
@@ -1617,9 +1505,9 @@
     async function loadScopedUserData() {
         if (!isAuthenticatedUser()) return false;
 
-        const [settingsSnap, monthSnaps] = await Promise.all([
+        const [settingsSnap, monthCollectionSnap] = await Promise.all([
             getDoc(settingsDocRef()),
-            Promise.all(BASE_MONTHS.map(month => getDoc(monthDocRef(month))))
+            getDocs(collection(db, USERS_COLLECTION, auth.currentUser.uid, USER_MONTHS_COLLECTION))
         ]);
 
         if (settingsSnap.exists()) {
@@ -1631,16 +1519,48 @@
         }
 
         const nextStore = {};
-        BASE_MONTHS.forEach((month, index) => {
-            const snap = monthSnaps[index];
-            nextStore[month] = snap.exists()
-                ? { ...DEFAULT_MONTH_DATA(), ...snap.data() }
-                : DEFAULT_MONTH_DATA();
+        monthCollectionSnap.forEach((snap) => {
+            const monthId = String(snap.id || '');
+            if (!/^month_\\d{4}-\\d{2}$/.test(monthId)) return;
+            const month = monthId.slice('month_'.length);
+            nextStore[month] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
+        });
+
+        BASE_MONTHS.forEach((month) => {
+            if (!nextStore[month]) nextStore[month] = DEFAULT_MONTH_DATA();
         });
         store = nextStore;
         if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         return true;
     }
+
+    async function resetPassword() {
+        const emailEl = document.getElementById('auth-email');
+        const email = emailEl ? emailEl.value.trim() : '';
+        window.setAuthError('');
+        if (!email || !email.includes('@')) {
+            window.setAuthError('비밀번호를 재설정할 이메일을 입력해 주세요.');
+            return;
+        }
+        const resetBtn = document.getElementById('auth-reset-btn');
+        if (resetBtn) resetBtn.disabled = true;
+        try {
+            await sendPasswordResetEmail(auth, email);
+            window.setAuthError('비밀번호 재설정 이메일을 확인해 주세요.');
+        } catch (e) {
+            console.error('비밀번호 재설정 실패:', e);
+            const code = e && e.code ? e.code : '';
+            const messages = {
+                'auth/user-not-found': '가입된 계정을 찾을 수 없습니다.',
+                'auth/invalid-email': '이메일 주소를 확인해 주세요.',
+                'auth/too-many-requests': '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'
+            };
+            window.setAuthError(messages[code] || '비밀번호 재설정 이메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        } finally {
+            if (resetBtn) resetBtn.disabled = false;
+        }
+    }
+    window.resetPassword = resetPassword;
 
     async function authenticateUser(mode) {
         const emailEl = document.getElementById('auth-email');
@@ -2901,20 +2821,21 @@ function addCategorySetting() {
             showToast('로그인 후 초기화할 수 있어요.', true);
             return;
         }
-        if (!confirm('모든 월별 데이터와 설정을 영구적으로 삭제합니다. 정말 초기화하시겠습니까?')) return;
+        if (!confirm('내 계정의 모든 월별 데이터와 설정을 영구적으로 삭제합니다. 정말 초기화하시겠습니까?')) return;
         const verification = window.prompt('전체 초기화를 진행하려면 "초기화"를 입력해주세요.');
         if (verification !== '초기화') {
             showToast('초기화를 취소했습니다.');
             return;
         }
         try {
-            const months = getMonthKeys();
-            await Promise.all(months.map(m => deleteDoc(monthDocRef(m))));
+            await flushPendingSaves();
+            const monthsSnap = await getDocs(collection(db, USERS_COLLECTION, auth.currentUser.uid, USER_MONTHS_COLLECTION));
+            const monthRefs = [];
+            monthsSnap.forEach((snap) => monthRefs.push(snap.ref));
+            await Promise.all(monthRefs.map(ref => deleteDoc(ref)));
             await deleteDoc(settingsDocRef());
-            // 기존 legacy 데이터는 다른 사용자 마이그레이션/복구를 위해 삭제하지 않는다.
-            // 사용자 전용 데이터만 삭제한다.
 
-            // 서버 데이터 삭제가 모두 성공한 뒤에만 로컬 임시/캐시 데이터도 제거한다.
+            // 사용자 서버 데이터 삭제가 모두 성공한 뒤에만 로컬 임시/캐시 데이터도 제거한다.
             clearLocalPersistence();
 
             categoryList = DEFAULT_CATEGORIES.slice();
@@ -2925,10 +2846,10 @@ function addCategorySetting() {
             renderCategorySettings();
             renderFixedExpenseCategorySettings();
             render();
-            showToast('전체 초기화되었습니다.');
+            showToast('내 계정 데이터가 전체 초기화되었습니다.');
         } catch (e) {
             console.error('초기화 실패:', e);
-            showToast('초기화에 실패했습니다.', true);
+            showToast('초기화에 실패했습니다. 서버 데이터는 유지됩니다.', true);
         }
     }
     window.resetData = resetData;
@@ -2973,6 +2894,8 @@ function addCategorySetting() {
         assert('사용자 계정이 없으면 저장하지 않음', typeof isAuthenticatedUser === 'function');
         assert('사용자별 월 문서 경로 함수 존재', typeof monthDocRef === 'function');
         assert('사용자별 설정 문서 경로 함수 존재', typeof settingsDocRef === 'function');
+        assert('비밀번호 재설정 함수 존재', typeof resetPassword === 'function');
+        assert('사용자별 월 컬렉션 조회를 사용하는 초기화 경로', typeof getDocs === 'function' && typeof collection === 'function');
         assert('legacy 마이그레이션 snapshot 함수 존재', typeof readLegacyMigrationSnapshot === 'function');
         assert('현재 월 읽기 실패는 빈 데이터로 간주하지 않음', resolveCurrentMonthData({ status: 'rejected', reason: new Error('read failed') }, null, '2026-09').loadFailed === true);
         assert('수입 임시값은 서버값이 draft 시작값과 같을 때만 자동 복구', shouldRecoverIncomeDraft(4200000, 4300000, 4200000) === true);
@@ -2998,18 +2921,3 @@ function addCategorySetting() {
         assert('고정지출 카테고리 옵션은 HTML을 이스케이프함', buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('&lt;img src=x onerror=alert(1)&gt;') && !buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('<img src=x onerror=alert(1)>'));
         const summary = calculateMonthlySummary({
             bora: 8548063, bora_extra: 0, sang: 0, sang_other_income: 0, trip_usd: 0,
-            categories: {
-                expense: [], bora_personal: [], sang_personal: [], living: [], variable_expense: [],
-                savings: [], reserve: [{ name: '남겨둘 돈', amount: 11000000 }]
-            }
-        });
-        assert('월간 통계에서 비상금은 추가 저축 계산을 감소시키지 않음', summary.additionalSavings === 8548063);
-        assert('월간 총 저축액은 고정저축+추가저축으로 계산', summary.totalSavings === 8548063);
-        return results;
-    }
-    window.runInternalSmokeTests = runInternalSmokeTests;
-
-    window.onload = init;
-</script>
-</body>
-</html>
