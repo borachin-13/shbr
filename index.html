@@ -636,7 +636,7 @@
                     <select id="global-month" onchange="window.changeMonth(this.value)">
                         <option value="2026-06">2026.06</option>
                         <option value="2026-07">2026.07</option>
-                        <option value="2026-08" selected>2026.08</option>
+                        <option value="2026-08">2026.08</option>
                         <option value="2026-09">2026.09</option>
                         <option value="2026-10">2026.10</option>
                         <option value="2026-11">2026.11</option>
@@ -981,7 +981,7 @@
     });
 
     let store = {};
-    let currentMonth = '2026-08';
+    let currentMonth = getLocalMonthKey();
     let currentTab = 'all';
     let monthlySelectedYear = 2026;
 
@@ -1590,7 +1590,18 @@
     async function init() {
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) {
-            currentMonth = globalMonthEl.value.replace('.', '-') || currentMonth;
+            // 화면에 하드코딩된 월이 아니라 실제 현재 월을 기본값으로 사용한다.
+            // 기존 데이터 범위 밖의 현재 월도 선택지에 안전하게 추가한다.
+            const currentOptionValue = currentMonth;
+            const hasCurrentOption = Array.from(globalMonthEl.options)
+                .some(option => option.value.replace('.', '-') === currentOptionValue);
+            if (!hasCurrentOption) {
+                const option = document.createElement('option');
+                option.value = currentOptionValue;
+                option.textContent = currentOptionValue.replace('-', '.');
+                globalMonthEl.appendChild(option);
+            }
+            globalMonthEl.value = currentOptionValue;
             globalMonthEl.onchange = async (e) => {
                 await changeMonth(e.target.value.replace('.', '-'));
             };
