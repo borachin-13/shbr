@@ -57,6 +57,15 @@ try {
   const monthSwitchMs = Date.now() - monthSwitchStarted;
   if (!monthSwitchResult) throw new Error('month switch benchmark failed');
 
+  // Generous CI regression guards: emulator timing is not a production SLA,
+  // but a sudden jump means a loading-path regression should be investigated.
+  if (signupA.timing.signupToAppMs > 5000 || signupB.timing.signupToAppMs > 5000) {
+    throw new Error(`Login/signup flow exceeded 5s: A=${signupA.timing.signupToAppMs}ms, B=${signupB.timing.signupToAppMs}ms`);
+  }
+  if (monthSwitchMs > 4000) {
+    throw new Error(`Lazy month load exceeded 4s: ${monthSwitchMs}ms`);
+  }
+
   const inputStarted = Date.now();
   const inputLatency = await pageA.evaluate(() => {
     const input = document.querySelector('#income-field-container input');
@@ -66,6 +75,9 @@ try {
     return performance.now() - started;
   });
   if (inputLatency == null) throw new Error('income input benchmark could not find input');
+  if (inputLatency > 100) {
+    throw new Error(`Income input handler exceeded 100ms: ${inputLatency.toFixed(2)}ms`);
+  }
 
   const smoke = await pageA.evaluate(() => window.runInternalSmokeTests());
   if (!Array.isArray(smoke) || smoke.some(item => !item.pass)) {
