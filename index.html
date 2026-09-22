@@ -2988,6 +2988,7 @@ function addCategorySetting() {
         });
     }
 
+    if (useFirebaseEmulators) {
     function runInternalSmokeTests() {
         const results = [];
         const assert = (name, condition) => results.push({ name, pass: !!condition });
@@ -3525,6 +3526,7 @@ function addCategorySetting() {
     };
 
     window.runInternalSmokeTests = runInternalSmokeTests;
+    }
 
     window.onload = init;
 </script>
