@@ -1560,15 +1560,17 @@
             const results = await Promise.all(months.map(async (month) => {
                 try {
                     const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${month}`));
-                    return { month, data: snap.exists() ? { ...DEFAULT_MONTH_DATA(), ...snap.data() } : DEFAULT_MONTH_DATA() };
+                    return { month, data: snap.exists() ? { ...DEFAULT_MONTH_DATA(), ...snap.data() } : DEFAULT_MONTH_DATA(), loadFailed: false };
                 } catch (e) {
                     console.warn(`${month} 백그라운드 로드 실패:`, e);
-                    return { month, data: DEFAULT_MONTH_DATA() };
+                    // 읽기 실패를 "빈 월"로 취급하면 이후 저장 시 실제 데이터를 덮어쓸 위험이 있다.
+                    return { month, data: null, loadFailed: true };
                 }
             }));
 
             results.forEach(({month, data}) => {
-                store[month] = data;
+                // Firestore 읽기 실패 시 기존 메모리 데이터를 보존한다.
+                if (data) store[month] = data;
             });
 
             // 이미 지난 월/현재 월에 환율이 없으면 해당 월 1일 기준환율을 한 번만 확정한다.
