@@ -1509,21 +1509,31 @@
         const existingSettings = await getDoc(settingsDocRef());
         if (existingCurrent.exists() || existingSettings.exists()) return false;
 
-        for (const [month, source] of Object.entries(snapshot.monthData || {})) {
-            await setDoc(monthDocRef(month), {
-                ...cloneData(source),
-                migratedFromLegacy: true,
-                migratedAt: Date.now()
-            }, { merge: true });
+        const monthEntries = Object.entries(snapshot.monthData || {});
+        // Migration is a one-time account initialization. Keep it atomic so a
+        // transient failure cannot leave a partially migrated financial dataset.
+        if (monthEntries.length + 1 > 500) {
+            throw new Error('legacy 마이그레이션 대상이 Firestore 배치 한도를 초과했습니다.');
         }
 
-        await setDoc(settingsDocRef(), {
+        const migratedAt = Date.now();
+        const batch = writeBatch(db);
+        monthEntries.forEach(([month, source]) => {
+            batch.set(monthDocRef(month), {
+                ...cloneData(source),
+                migratedFromLegacy: true,
+                migratedAt
+            }, { merge: true });
+        });
+
+        batch.set(settingsDocRef(), {
             categoryList: snapshot.categoryList,
             fixedExpenseCategoryList: snapshot.fixedExpenseCategoryList,
             migratedFromLegacy: true,
-            migratedAt: Date.now()
+            migratedAt
         }, { merge: true });
 
+        await batch.commit();
         return true;
     }
 
