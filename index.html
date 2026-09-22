@@ -3160,6 +3160,126 @@ function addCategorySetting() {
     }
     window.runEmulatorConcurrencyProbe = runEmulatorConcurrencyProbe;
 
+    async function runEmulatorIntegrityProbe() {
+        if (!window.location.search.includes('emulator=1')) {
+            return { pass: false, reason: '에뮬레이터 모드에서만 실행할 수 있습니다.' };
+        }
+        if (!isAuthenticatedUser()) {
+            return { pass: false, reason: '일반 사용자 계정으로 로그인해주세요.' };
+        }
+
+        const results = [];
+        const testMonthA = '2099-11';
+        const testMonthB = '2099-12';
+        const refA = monthDocRef(testMonthA);
+        const refB = monthDocRef(testMonthB);
+
+        try {
+            // 1) 월간 문서가 서로 독립적인지 확인
+            await setDoc(refA, {
+                bora: 1111111,
+                categories: {
+                    living: [{ name: 'A-생활비', amount: 100000 }],
+                    variable_expense: []
+                }
+            }, { merge: true });
+            await setDoc(refB, {
+                bora: 2222222,
+                categories: {
+                    living: [{ name: 'B-생활비', amount: 200000 }],
+                    variable_expense: []
+                }
+            }, { merge: true });
+
+            const [snapA1, snapB1] = await Promise.all([getDoc(refA), getDoc(refB)]);
+            const dataA1 = snapA1.data() || {};
+            const dataB1 = snapB1.data() || {};
+            results.push({
+                test: '월별 문서 서로 독립',
+                pass: dataA1.bora === 1111111 &&
+                      dataB1.bora === 2222222 &&
+                      dataA1.categories?.living?.[0]?.name === 'A-생활비' &&
+                      dataB1.categories?.living?.[0]?.name === 'B-생활비',
+                detail: `A=${dataA1.bora}, B=${dataB1.bora}`
+            });
+
+            // 2) 오래된 클라이언트가 다른 필드를 저장해도 최신 필드를 덮어쓰지 않는지 확인
+            await setDoc(refA, {
+                bora: 3333333,
+                sang: 4444444,
+                categories: {
+                    living: [{ name: '최신-생활비', amount: 300000 }]
+                }
+            }, { merge: true });
+
+            // "오래된 모바일"이 가진 낡은 전체 상태에서 sang만 수정했다고 가정.
+            // 실제 앱의 patch 저장과 동일하게 수정된 필드만 merge한다.
+            await setDoc(refA, {
+                sang: 5555555
+            }, { merge: true });
+
+            const staleMergeSnap = await getDoc(refA);
+            const staleMergeData = staleMergeSnap.data() || {};
+            results.push({
+                test: '오래된 클라이언트의 다른 필드 저장이 최신 데이터 보존',
+                pass: staleMergeData.bora === 3333333 &&
+                      staleMergeData.sang === 5555555 &&
+                      staleMergeData.categories?.living?.[0]?.name === '최신-생활비',
+                detail: `bora=${staleMergeData.bora}, sang=${staleMergeData.sang}, living=${staleMergeData.categories?.living?.[0]?.name}`
+            });
+
+            // 3) 중첩 객체 patch가 다른 카테고리를 메모리에서 보존하는지 확인
+            const merged = mergeNestedObjects(
+                {
+                    categories: {
+                        expense: [{ name: '월세', amount: 700000 }],
+                        savings: [{ name: '청년계좌', amount: 700000 }]
+                    }
+                },
+                {
+                    categories: {
+                        expense: [{ name: '월세', amount: 800000 }]
+                    }
+                }
+            );
+            results.push({
+                test: '중첩 데이터 merge 시 다른 카테고리 보존',
+                pass: merged.categories.expense[0].amount === 800000 &&
+                      merged.categories.savings[0].amount === 700000,
+                detail: JSON.stringify(merged.categories)
+            });
+
+            // 4) 같은 필드 동시 수정은 현재 의도된 last-write-wins 동작인지 확인
+            await setDoc(refA, { bora: 6000000 }, { merge: true });
+            await setDoc(refA, { bora: 7000000 }, { merge: true });
+            const conflictSnap = await getDoc(refA);
+            const conflictValue = conflictSnap.data()?.bora;
+            results.push({
+                test: '같은 필드 충돌은 단일 최종값으로 수렴',
+                pass: conflictValue === 7000000,
+                detail: `최종 bora=${conflictValue}`,
+                severity: 'P1'
+            });
+        } catch (e) {
+            results.push({
+                test: 'Emulator integrity probe 실행',
+                pass: false,
+                error: e?.code || e?.message || String(e)
+            });
+        } finally {
+            try {
+                await Promise.all([deleteDoc(refA), deleteDoc(refB)]);
+            } catch (cleanupError) {
+                console.warn('QA 테스트 문서 정리 실패:', cleanupError);
+            }
+        }
+
+        const pass = results.every(item => item.pass);
+        console.table(results);
+        return { pass, results };
+    }
+    window.runEmulatorIntegrityProbe = runEmulatorIntegrityProbe;
+
     window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
