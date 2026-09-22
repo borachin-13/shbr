@@ -1963,7 +1963,7 @@
             : beforeValue.length;
         const digitsBeforeCursor = (beforeValue.slice(0, beforeCursor).match(/\d/g) || []).length;
 
-        if (/[\\-+]/.test(beforeValue)) {
+        if (/[-+]/.test(beforeValue)) {
             showToast('금액은 0원 이상의 숫자만 입력할 수 있어요.', true);
             inputEl.value = formatNumberString(store[currentMonth]?.[key] || 0);
             return;
