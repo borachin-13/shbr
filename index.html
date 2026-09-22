@@ -3088,6 +3088,78 @@ function addCategorySetting() {
     }
     window.runCrossUserRulesTest = runCrossUserRulesTest;
 
+    async function runEmulatorConcurrencyProbe() {
+        if (!window.location.search.includes('emulator=1')) {
+            return { pass: false, reason: '에뮬레이터 모드에서만 실행할 수 있습니다.' };
+        }
+        if (!isAuthenticatedUser()) {
+            return { pass: false, reason: '로그인 후 실행해주세요.' };
+        }
+
+        const month = '2026-12';
+        const ref = monthDocRef(month);
+        const base = {
+            bora: 1000000,
+            sang: 2000000,
+            categories: {
+                expense: [{ name: '월세', amount: 700000 }],
+                living: [{ name: '생활비', amount: 400000 }],
+                variable_expense: []
+            },
+            updatedAt: Date.now()
+        };
+
+        // 테스트 문서를 먼저 확정된 상태로 만든다.
+        await setDoc(ref, base, { merge: true });
+
+        // 서로 다른 클라이언트가 같은 문서의 서로 다른 필드를 동시에 수정하는 상황을 직접 재현한다.
+        const clientA = setDoc(ref, {
+            bora: 1111111,
+            updatedAt: Date.now()
+        }, { merge: true });
+
+        const clientB = setDoc(ref, {
+            sang: 2222222,
+            updatedAt: Date.now()
+        }, { merge: true });
+
+        await Promise.all([clientA, clientB]);
+        const afterDifferentFields = await getDoc(ref);
+        const differentData = afterDifferentFields.data() || {};
+
+        const differentFieldsPass =
+            differentData.bora === 1111111 &&
+            differentData.sang === 2222222;
+
+        // 같은 필드를 두 클라이언트가 동시에 수정하면 현재 구조는 last-write-wins다.
+        const sameA = setDoc(ref, { bora: 3333333 }, { merge: true });
+        const sameB = setDoc(ref, { bora: 4444444 }, { merge: true });
+        await Promise.all([sameA, sameB]);
+        const afterSameField = await getDoc(ref);
+        const sameFieldValue = afterSameField.data()?.bora;
+
+        const results = [
+            {
+                test: '동시 수정 - 서로 다른 필드 보존',
+                pass: differentFieldsPass,
+                detail: `bora=${differentData.bora}, sang=${differentData.sang}`
+            },
+            {
+                test: '동시 수정 - 같은 필드 충돌은 last-write-wins',
+                pass: sameFieldValue === 3333333 || sameFieldValue === 4444444,
+                detail: `최종 bora=${sameFieldValue}`
+            }
+        ];
+
+        console.table(results);
+        return {
+            pass: results.every(item => item.pass),
+            results,
+            note: '같은 필드 충돌에서 어느 값이 최종 승자인지는 요청 완료 순서에 따라 달라질 수 있습니다.'
+        };
+    }
+    window.runEmulatorConcurrencyProbe = runEmulatorConcurrencyProbe;
+
     window.runInternalSmokeTests = runInternalSmokeTests;
 
     window.onload = init;
