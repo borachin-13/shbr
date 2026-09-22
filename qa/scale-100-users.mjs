@@ -70,6 +70,27 @@ try {
     ]);
   }));
 
+  // 100 users concurrently update their own month documents.
+  await Promise.all(users.map(async (user, i) => {
+    const { db } = apps[i];
+    await Promise.all([
+      setDoc(monthRef(db, user.uid, '2099-01'), { concurrentBora: 5000000 + i }, { merge: true }),
+      setDoc(monthRef(db, user.uid, '2099-01'), { concurrentSang: 6000000 + i }, { merge: true })
+    ]);
+  }));
+
+  const concurrentPreservation = await Promise.all(users.map(async (user, i) => {
+    const { db } = apps[i];
+    const snap = await getDoc(monthRef(db, user.uid, '2099-01'));
+    return snap.exists()
+      && snap.data().concurrentBora === 5000000 + i
+      && snap.data().concurrentSang === 6000000 + i
+      && snap.data().marker === `user-${i}`;
+  }));
+  if (!concurrentPreservation.every(Boolean)) {
+    throw new Error('100-user concurrent different-field writes were not preserved.');
+  }
+
   // Verify every user's own data and ensure adjacent users cannot read/write it.
   const ownReads = [];
   const crossChecks = [];
@@ -125,7 +146,8 @@ try {
       '100 unique accounts': uidSet.size === COUNT,
       '100 own-data reads': ownReads.every(Boolean),
       '100 cross-user read/write denials': crossChecks.every(Boolean),
-      '100 users x 2 months isolated': monthIsolation.every(Boolean)
+      '100 users x 2 months isolated': monthIsolation.every(Boolean),
+      '100-user concurrent writes preserved': concurrentPreservation.every(Boolean)
     }
   }, null, 2));
 } finally {
