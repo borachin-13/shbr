@@ -793,7 +793,6 @@
     import {
         getAuth,
         connectAuthEmulator,
-        signInAnonymously,
         createUserWithEmailAndPassword,
         signInWithEmailAndPassword,
         onAuthStateChanged,
@@ -1040,6 +1039,8 @@
     }
     const monthSaveQueues = new Map();
     const monthLoadFailures = new Set();
+    let backgroundMonthLoadPromise = null;
+    let monthLoadRequestId = 0;
     // PC/모바일 동시 수정 보호용 필드 버전
     const fieldVersions = new Map();
     const remoteUnsubscribe = new Map();
@@ -1646,7 +1647,7 @@
             }
 
             await loadScopedUserData();
-            await syncFixedCategoriesToAllMonths(false);
+            await syncFixedCategoriesToMonth(currentMonth, false);
             document.getElementById('lock-screen').style.display = 'none';
             const badge = document.getElementById('auth-status-badge');
             if (badge) {
@@ -1696,7 +1697,6 @@
         const passwordEl = document.getElementById('auth-password');
         if (emailEl) emailEl.value = '';
         if (passwordEl) passwordEl.value = '';
-        await signInAnonymously(auth);
         return true;
     }
     window.logoutUser = logoutUser;
@@ -1733,45 +1733,66 @@
     // 모듈 로딩이 끝나는 즉시 시작한다. 사용자는 비밀번호를 입력하는 동안 기다릴 필요가 없다.
     window.gotganReadyPromise = warmupFirebase();
 
-    async function loadRemainingMonthsInBackground() {
-        if (!isAuthenticatedUser()) return;
+    async function loadMonthFromServer(month, options = {}) {
+        if (!isAuthenticatedUser() || !month) return false;
+        const requestId = ++monthLoadRequestId;
+        const timeoutMs = Number(options.timeoutMs) || 3500;
+        const startedAt = performance.now();
+
         try {
-            const current = currentMonth;
-            const months = BASE_MONTHS.filter(month => month !== current);
-            const results = await Promise.all(months.map(async (month) => {
-                try {
-                    const snap = await getDoc(monthDocRef(month));
-                    return { month, data: snap.exists() ? { ...DEFAULT_MONTH_DATA(), ...snap.data() } : DEFAULT_MONTH_DATA(), loadFailed: false };
-                } catch (e) {
-                    console.warn(`${month} 백그라운드 로드 실패:`, e);
-                    // 읽기 실패를 "빈 월"로 취급하면 이후 저장 시 실제 데이터를 덮어쓸 위험이 있다.
-                    return { month, data: null, loadFailed: true };
-                }
-            }));
+            const snap = await Promise.race([
+                getDoc(monthDocRef(month)),
+                new Promise((_, reject) => setTimeout(() => {
+                    const timeout = new Error('month-load-timeout');
+                    timeout.code = 'month-load-timeout';
+                    reject(timeout);
+                }, timeoutMs))
+            ]);
 
-            results.forEach(({month, data, loadFailed}) => {
-                if (loadFailed) {
-                    monthLoadFailures.add(month);
-                    return;
-                }
-                monthLoadFailures.delete(month);
-                if (data) store[month] = data;
-            });
+            if (requestId !== monthLoadRequestId && month !== currentMonth) return false;
 
-            // 이미 지난 월/현재 월에 환율이 없으면 해당 월 1일 기준환율을 한 번만 확정한다.
-            for (const month of months) {
-                if (isMonthStarted(month)) {
-                    await ensureMonthExchangeRate(month, true);
-                }
+            store[month] = snap.exists()
+                ? { ...DEFAULT_MONTH_DATA(), ...snap.data() }
+                : DEFAULT_MONTH_DATA();
+            monthLoadFailures.delete(month);
+
+            if (isMonthStarted(month)) {
+                // 환율은 월 화면을 먼저 보여준 뒤 별도로 확정한다.
+                ensureMonthExchangeRate(month, true).catch(e => {
+                    console.warn(`${month} 환율 백그라운드 확정 실패:`, e);
+                });
             }
 
-            await syncFixedCategoriesToAllMonths(false);
+            console.info(`[PERF] ${month} month load ${Math.round(performance.now() - startedAt)}ms`);
+            return true;
+        } catch (e) {
+            monthLoadFailures.add(month);
+            console.warn(`${month} 월 데이터 로드 실패:`, e);
+            return false;
+        }
+    }
+
+    async function loadRemainingMonthsInBackground() {
+        if (!isAuthenticatedUser()) return false;
+        if (backgroundMonthLoadPromise) return backgroundMonthLoadPromise;
+
+        // 전체 월을 로그인 직후 읽지 않는다. 현재 화면에 인접한 월 1개만
+        // idle 시점에 미리 읽어 두고, 나머지는 사용자가 선택할 때 가져온다.
+        const candidates = [getAdjacentMonth(currentMonth, -1), getAdjacentMonth(currentMonth, 1)]
+            .filter(Boolean)
+            .filter(month => BASE_MONTHS.includes(month) && month !== currentMonth);
+
+        backgroundMonthLoadPromise = (async () => {
+            await Promise.all(candidates.map(month => loadMonthFromServer(month, { timeoutMs: 2500 })));
             renderCategorySettings();
             renderFixedExpenseCategorySettings();
             render();
-        } catch (e) {
-            console.warn('월별 백그라운드 로드 실패:', e);
-        }
+            return true;
+        })().finally(() => {
+            backgroundMonthLoadPromise = null;
+        });
+
+        return backgroundMonthLoadPromise;
     }
 
     async function init() {
@@ -1803,7 +1824,6 @@
         renderCategorySettings();
         renderFixedExpenseCategorySettings();
         render();
-        loadRemainingMonthsInBackground();
     }
 
     function toggleIncomeCard() {
@@ -2836,6 +2856,18 @@ function addCategorySetting() {
     }
     window.setMemberTab = setMemberTab;
 
+    function setMonthLoading(isLoading, message = '데이터를 불러오는 중…') {
+        let el = document.getElementById('month-loading-indicator');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'month-loading-indicator';
+            el.style.cssText = 'position:fixed;left:50%;top:72px;transform:translateX(-50%);z-index:1500;background:rgba(26,32,44,.92);color:#fff;padding:8px 14px;border-radius:18px;font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.12);pointer-events:none;opacity:0;transition:opacity .15s ease;';
+            document.body.appendChild(el);
+        }
+        el.textContent = message;
+        el.style.opacity = isLoading ? '1' : '0';
+    }
+
     async function refreshCurrentMonthFromServer() {
         if (!isAuthenticatedUser() || !navigator.onLine) return false;
 
@@ -2869,28 +2901,25 @@ function addCategorySetting() {
         const flushed = await flushPendingSaves();
         if (!flushed || !isAuthenticatedUser()) return false;
 
-        const targetMonth = m;
-        const needsRemoteLoad = monthLoadFailures.has(targetMonth) || !store[targetMonth];
+        const targetMonth = String(m || '').replace('.', '-');
+        if (!/^\\d{4}-\\d{2}$/.test(targetMonth)) return false;
 
+        const needsRemoteLoad = monthLoadFailures.has(targetMonth) || !store[targetMonth];
         if (needsRemoteLoad) {
-            try {
-                const snap = await getDoc(monthDocRef(targetMonth));
-                if (snap.exists()) {
-                    store[targetMonth] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
-                } else {
-                    store[targetMonth] = DEFAULT_MONTH_DATA();
-                }
-                monthLoadFailures.delete(targetMonth);
-            } catch (e) {
-                monthLoadFailures.add(targetMonth);
-                console.error('월별 데이터 불러오기 실패:', targetMonth, e);
-                showToast('이 달의 데이터를 불러오지 못했습니다. 현재 달을 유지합니다.', true);
+            setMonthLoading(true, '월 데이터를 불러오는 중…');
+            const loaded = await loadMonthFromServer(targetMonth, { timeoutMs: 3000 });
+            setMonthLoading(false);
+            if (!loaded) {
+                showToast('데이터를 불러오는 데 시간이 걸리고 있어요. 현재 달을 유지합니다.', true);
                 return false;
             }
         }
 
         currentMonth = targetMonth;
-        await ensureMonthExchangeRate(targetMonth, true);
+        if (isMonthStarted(targetMonth) && !store[targetMonth].usdRate) {
+            // 환율 때문에 월 전환 자체를 기다리지 않는다.
+            ensureMonthExchangeRate(targetMonth, true).catch(e => console.warn('환율 확정 실패:', e));
+        }
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) globalMonthEl.value = currentMonth;
         render();
