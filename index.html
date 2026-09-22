@@ -1040,7 +1040,6 @@
     const monthSaveQueues = new Map();
     const monthLoadFailures = new Set();
     let backgroundMonthLoadPromise = null;
-    let monthLoadRequestId = 0;
     // PC/모바일 동시 수정 보호용 필드 버전
     const fieldVersions = new Map();
     const remoteUnsubscribe = new Map();
@@ -1733,9 +1732,14 @@
     // 모듈 로딩이 끝나는 즉시 시작한다. 사용자는 비밀번호를 입력하는 동안 기다릴 필요가 없다.
     window.gotganReadyPromise = warmupFirebase();
 
+    function getAdjacentMonth(month, delta) {
+        const parts = String(month).split('-').map(Number);
+        const date = new Date(Date.UTC(parts[0], parts[1] - 1 + delta, 1));
+        return String(date.getUTCFullYear()) + '-' + String(date.getUTCMonth() + 1).padStart(2, '0');
+    }
+
     async function loadMonthFromServer(month, options = {}) {
         if (!isAuthenticatedUser() || !month) return false;
-        const requestId = ++monthLoadRequestId;
         const timeoutMs = Number(options.timeoutMs) || 3500;
         const startedAt = performance.now();
 
@@ -1748,8 +1752,6 @@
                     reject(timeout);
                 }, timeoutMs))
             ]);
-
-            if (requestId !== monthLoadRequestId && month !== currentMonth) return false;
 
             store[month] = snap.exists()
                 ? { ...DEFAULT_MONTH_DATA(), ...snap.data() }
@@ -2902,7 +2904,7 @@ function addCategorySetting() {
         if (!flushed || !isAuthenticatedUser()) return false;
 
         const targetMonth = String(m || '').replace('.', '-');
-        if (!/^\\d{4}-\\d{2}$/.test(targetMonth)) return false;
+        if (!/^\d{4}-\d{2}$/.test(targetMonth)) return false;
 
         const needsRemoteLoad = monthLoadFailures.has(targetMonth) || !store[targetMonth];
         if (needsRemoteLoad) {
