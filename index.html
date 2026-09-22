@@ -2984,3 +2984,18 @@ function addCategorySetting() {
         assert('고정지출 카테고리 옵션은 HTML을 이스케이프함', buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('&lt;img src=x onerror=alert(1)&gt;') && !buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('<img src=x onerror=alert(1)>'));
         const summary = calculateMonthlySummary({
             bora: 8548063, bora_extra: 0, sang: 0, sang_other_income: 0, trip_usd: 0,
+            categories: {
+                expense: [], bora_personal: [], sang_personal: [], living: [], variable_expense: [],
+                savings: [], reserve: [{ name: '남겨둘 돈', amount: 11000000 }]
+            }
+        });
+        assert('월간 통계에서 비상금은 추가 저축 계산을 감소시키지 않음', summary.additionalSavings === 8548063);
+        assert('월간 총 저축액은 고정저축+추가저축으로 계산', summary.totalSavings === 8548063);
+        return results;
+    }
+    window.runInternalSmokeTests = runInternalSmokeTests;
+
+    window.onload = init;
+</script>
+</body>
+</html>
