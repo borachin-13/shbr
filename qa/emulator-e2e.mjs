@@ -42,6 +42,11 @@ try {
     throw new Error('CI accounts did not receive distinct authenticated UIDs.');
   }
 
+  const smoke = await pageA.evaluate(() => window.runInternalSmokeTests());
+  if (!Array.isArray(smoke) || smoke.some(item => !item.pass)) {
+    throw new Error(`internal smoke tests failed: ${JSON.stringify(smoke)}`);
+  }
+
   const integrity = await assertProbe(pageA, 'runEmulatorIntegrityProbe');
   const concurrency = await assertProbe(pageA, 'runEmulatorConcurrencyProbe');
 
@@ -87,6 +92,7 @@ try {
     pass: true,
     uidA,
     uidB,
+    smoke,
     integrity,
     concurrency,
     authRecovery,
