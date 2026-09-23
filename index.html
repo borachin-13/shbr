@@ -283,6 +283,35 @@
         .kpi-sub-item { text-align: center; }
         .kpi-sub-item .sub-lbl { font-size: 11px; color: var(--text-sub); margin-bottom: 2px; }
         .kpi-sub-item .sub-val { font-size: 14px; font-weight: 700; }
+        .kpi-breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .kpi-breakdown-item {
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: #fff;
+        }
+        .kpi-breakdown-item .breakdown-label {
+            font-size: 10px;
+            color: var(--text-sub);
+            margin-bottom: 3px;
+        }
+        .kpi-breakdown-item .breakdown-value {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+        .kpi-breakdown-item.highlight .breakdown-value { color: var(--savings-color); }
+        .dashboard-section-note {
+            font-size: 11px;
+            color: var(--text-sub);
+            line-height: 1.5;
+            margin-top: 4px;
+        }
 
         .progress-bar-container {
             height: 8px;
@@ -661,6 +690,16 @@
                             <div class="sub-val" id="kpi-expense" style="color:var(--expense-color);">0원</div>
                         </div>
                     </div>
+                    <div class="kpi-breakdown-grid">
+                        <div class="kpi-breakdown-item">
+                            <div class="breakdown-label">고정 저축</div>
+                            <div class="breakdown-value" id="kpi-planned-savings">0원</div>
+                        </div>
+                        <div class="kpi-breakdown-item highlight">
+                            <div class="breakdown-label">총 저축 예정</div>
+                            <div class="breakdown-value" id="kpi-total-savings">0원</div>
+                        </div>
+                    </div>
                     <div class="progress-bar-container">
                         <div id="bar-exp-pct" class="bar-fill-exp" style="width: 0%;"></div>
                         <div id="bar-sav-pct" class="bar-fill-sav" style="width: 0%;"></div>
@@ -674,8 +713,9 @@
                 <!-- AI 안내 카드 -->
                 <div class="card" style="background:#ebf8ff; border-color:#bee3f8;">
                     <div style="font-size:12px; color:#2b6cb0; line-height:1.5;" id="ai-advice-text">
-                        고정지출 및 생활비를 제외하고 남은 예산을 계산 중입니다...
+                        이번 달 수입과 지출을 기준으로 저축 가능 금액을 계산하고 있습니다...
                     </div>
+                    <div class="dashboard-section-note">고정 저축을 먼저 반영한 뒤, 남은 금액을 추가 저축 가능액으로 보여줍니다.</div>
                 </div>
 
                 <!-- 지출 아코디언 -->
@@ -2242,9 +2282,13 @@
         const elInc = document.getElementById('kpi-income');
         const elExp = document.getElementById('kpi-expense');
         const elSav = document.getElementById('kpi-savings');
+        const elPlannedSav = document.getElementById('kpi-planned-savings');
+        const elTotalSav = document.getElementById('kpi-total-savings');
         if(elInc) elInc.innerText = formatAmount(activeIncomeWon);
         if(elExp) elExp.innerText = formatAmount(activeExpenseWon);
         if(elSav) elSav.innerText = formatAmount(activeSavingsWon);
+        if(elPlannedSav) elPlannedSav.innerText = formatAmount(savForTab);
+        if(elTotalSav) elTotalSav.innerText = formatAmount(savForTab + activeSavingsWon);
 
         const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
         const savPct = activeIncomeWon > 0 ? Math.min(Math.round((activeSavingsWon / activeIncomeWon) * 100), 100 - expPct) : 0;
