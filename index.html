@@ -1662,6 +1662,11 @@
             }
 
             await loadScopedUserData();
+            // 로그인할 때마다 항상 대시보드에서 시작한다.
+            // 로그아웃 전에 어떤 화면(월별 데이터/설정)을 보고 있었든
+            // 다음 로그인에서는 대시보드가 첫 화면으로 열린다.
+            const dashboardBtn = document.querySelector('.gnb-btn[onclick*="navigate(\'dashboard\'"]');
+            navigate('dashboard', dashboardBtn);
             // 고정 지출 기본 항목은 로컬 화면에서만 동기화한다.
             // 로그인 완료를 불필요하게 지연시키지 않는다.
             syncFixedCategoriesToMonth(currentMonth, false);
