@@ -1556,21 +1556,9 @@
     async function loadScopedUserData() {
         if (!isAuthenticatedUser()) return false;
 
-        // 로그인 직후에는 "설정 + 현재 월"만 읽는다.
-        // 전체 월 컬렉션을 기다리면 데이터가 늘어날수록 첫 화면 진입 시간이 길어지므로,
-        // 나머지 월은 화면을 먼저 보여준 뒤 백그라운드에서 채운다.
-        const [settingsSnap, currentMonthSnap] = await Promise.all([
-            getDoc(settingsDocRef()),
-            getDoc(monthDocRef(currentMonth))
-        ]);
-
-        if (settingsSnap.exists()) {
-            const meta = settingsSnap.data();
-            if (Array.isArray(meta.categoryList) && meta.categoryList.length) categoryList = meta.categoryList;
-            if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
-                fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
-            }
-        }
+        // 로그인 직후에는 현재 월 데이터만 먼저 읽는다.
+        // 설정 문서는 첫 화면 진입을 막지 않도록 백그라운드에서 읽는다.
+        const currentMonthSnap = await getDoc(monthDocRef(currentMonth));
 
         const nextStore = {};
         BASE_MONTHS.forEach((month) => {
@@ -1585,6 +1573,20 @@
         monthLoadFailures.delete(currentMonth);
         loadedMonths.clear();
         loadedMonths.add(currentMonth);
+
+        // 설정은 화면 표시 후 백그라운드에서 반영한다.
+        getDoc(settingsDocRef()).then((settingsSnap) => {
+            if (!settingsSnap.exists() || !isAuthenticatedUser()) return;
+            const meta = settingsSnap.data();
+            if (Array.isArray(meta.categoryList) && meta.categoryList.length) categoryList = meta.categoryList;
+            if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
+                fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
+            }
+            renderCategorySettings();
+            renderFixedExpenseCategorySettings();
+            render();
+        }).catch((e) => console.warn('설정 백그라운드 로드 실패:', e));
+
         return true;
     }
 
@@ -1616,7 +1618,12 @@
     }
     window.resetPassword = resetPassword;
 
+    let authenticationInProgress = false;
+
     async function authenticateUser(mode) {
+        if (authenticationInProgress) return;
+        authenticationInProgress = true;
+
         const emailEl = document.getElementById('auth-email');
         const passwordEl = document.getElementById('auth-password');
         const loginBtn = document.getElementById('auth-login-btn');
@@ -1634,8 +1641,14 @@
             return;
         }
 
-        if (loginBtn) loginBtn.disabled = true;
+        if (loginBtn) {
+            loginBtn.disabled = true;
+            loginBtn.innerText = '로그인 중…';
+        }
         if (signupBtn) signupBtn.disabled = true;
+
+        const helpText = document.getElementById('auth-help-text');
+        if (helpText) helpText.innerText = '인증 중입니다. 잠시만 기다려 주세요…';
 
         try {
             if (mode === 'signup') {
@@ -1649,7 +1662,9 @@
             }
 
             await loadScopedUserData();
-            await syncFixedCategoriesToMonth(currentMonth, false);
+            // 고정 지출 기본 항목은 로컬 화면에서만 동기화한다.
+            // 로그인 완료를 불필요하게 지연시키지 않는다.
+            syncFixedCategoriesToMonth(currentMonth, false);
             document.getElementById('lock-screen').style.display = 'none';
             const badge = document.getElementById('auth-status-badge');
             if (badge) {
@@ -1677,8 +1692,13 @@
             };
             window.setAuthError(messages[code] || '계정 인증에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         } finally {
-            if (loginBtn) loginBtn.disabled = false;
+            authenticationInProgress = false;
+            if (loginBtn) {
+                loginBtn.disabled = false;
+                loginBtn.innerText = '로그인';
+            }
             if (signupBtn) signupBtn.disabled = false;
+            if (helpText) helpText.innerText = '내 계정으로 안전하게 접속해 주세요.';
         }
     }
     window.authenticateUser = authenticateUser;
