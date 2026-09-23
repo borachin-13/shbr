@@ -7,7 +7,8 @@ import {
   connectAuthEmulator,
   createUserWithEmailAndPassword,
   deleteUser,
-  signOut
+  signOut,
+  signInWithEmailAndPassword
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -91,6 +92,34 @@ try {
     throw new Error('100-user concurrent different-field writes were not preserved.');
   }
 
+  // Same-account dual-client sync probe: two clients share one authenticated UID.
+  const secondApp = initializeApp(config, 'qa-same-user-' + stamp);
+  const secondAuth = getAuth(secondApp);
+  connectAuthEmulator(secondAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  const secondDb = getFirestore(secondApp);
+  connectFirestoreEmulator(secondDb, '127.0.0.1', 8080);
+  const sameUser = users[0];
+  await signInWithEmailAndPassword(secondAuth, sameUser.email, 'QaScale1234!');
+  const sameUserRefA = monthRef(apps[0].db, sameUser.uid, '2099-03');
+  const sameUserRefB = monthRef(secondDb, sameUser.uid, '2099-03');
+  await setDoc(sameUserRefA, { bora: 11110000, sang: 22220000, marker: 'dual-client-base' }, { merge: true });
+  await Promise.all([
+    setDoc(sameUserRefA, { bora: 33330000 }, { merge: true }),
+    setDoc(sameUserRefB, { sang: 44440000 }, { merge: true })
+  ]);
+  const dualClientSnap = await getDoc(sameUserRefA);
+  const dualClientData = dualClientSnap.data() || {};
+  const sameAccountSyncPass =
+    dualClientData.bora === 33330000 &&
+    dualClientData.sang === 44440000 &&
+    dualClientData.marker === 'dual-client-base';
+  if (!sameAccountSyncPass) {
+    throw new Error('Same-account dual-client sync failed: ' + JSON.stringify(dualClientData));
+  }
+  try { await deleteDoc(sameUserRefA); } catch (_) {}
+  try { await signOut(secondAuth); } catch (_) {}
+  try { await deleteApp(secondApp); } catch (_) {}
+
   // Verify every user's own data and ensure adjacent users cannot read/write it.
   const ownReads = [];
   const crossChecks = [];
@@ -142,12 +171,14 @@ try {
     ownDataReads: ownReads.filter(Boolean).length,
     crossUserIsolationChecks: crossChecks.filter(Boolean).length,
     monthIndependenceChecks: monthIsolation.filter(Boolean).length,
+    sameAccountDualClientSync: sameAccountSyncPass,
     summary: {
       '100 unique accounts': uidSet.size === COUNT,
       '100 own-data reads': ownReads.every(Boolean),
       '100 cross-user read/write denials': crossChecks.every(Boolean),
       '100 users x 2 months isolated': monthIsolation.every(Boolean),
-      '100-user concurrent writes preserved': concurrentPreservation.every(Boolean)
+      '100-user concurrent writes preserved': concurrentPreservation.every(Boolean),
+      'same-account dual-client different-field sync': sameAccountSyncPass
     }
   }, null, 2));
 } finally {
