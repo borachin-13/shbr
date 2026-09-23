@@ -1,0 +1,13 @@
+{
+  "name": "shbr-qa",
+  "private": true,
+  "scripts": {
+    "qa:emulator": "node qa/emulator-e2e.mjs",
+    "qa:scale": "node qa/scale-100-users.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "firebase-tools": "^15.30.2",
+    "firebase": "^10.12.0"
+  }
+}
