@@ -3479,6 +3479,89 @@ function addCategorySetting() {
         return isAuthenticatedUser() ? auth.currentUser.uid : null;
     };
 
+    window.runMonthIsolationQA = async function() {
+        if (!isAuthenticatedUser()) {
+            return { pass: false, error: '로그인이 필요합니다.' };
+        }
+
+        // 실제 2026년 데이터를 건드리지 않고 테스트 전용 미래 월 문서를 사용한다.
+        const qaMonths = ['2099-08', '2099-09'];
+        const qaValues = {
+            '2099-08': { bora: 9088888, sang: 9088889, qaMarker: 'month-08' },
+            '2099-09': { bora: 9099999, sang: 9099998, qaMarker: 'month-09' }
+        };
+        const refs = qaMonths.map(month => monthDocRef(month));
+        const results = [];
+
+        try {
+            // 1) 두 월을 서로 다른 값으로 저장
+            for (const month of qaMonths) {
+                const saved = await saveMonthPatch(month, qaValues[month], '');
+                results.push({
+                    test: month + ' 독립 저장',
+                    pass: saved === true
+                });
+                if (!saved) throw new Error(month + ' 저장 실패');
+            }
+
+            // 2) 서버에서 각각 다시 읽어서 서로 섞이지 않았는지 검증
+            const snapshots = await Promise.all(refs.map(ref => getDoc(ref)));
+            const a = snapshots[0].exists() ? snapshots[0].data() : {};
+            const b = snapshots[1].exists() ? snapshots[1].data() : {};
+
+            const month08Correct =
+                a.bora === qaValues['2099-08'].bora &&
+                a.sang === qaValues['2099-08'].sang &&
+                a.qaMarker === qaValues['2099-08'].qaMarker &&
+                a.bora !== qaValues['2099-09'].bora;
+
+            const month09Correct =
+                b.bora === qaValues['2099-09'].bora &&
+                b.sang === qaValues['2099-09'].sang &&
+                b.qaMarker === qaValues['2099-09'].qaMarker &&
+                b.bora !== qaValues['2099-08'].bora;
+
+            results.push({ test: '2099-08 ↔ 2099-09 월 격리', pass: month08Correct && month09Correct });
+
+            // 3) 한 월의 일부 필드만 수정했을 때 다른 필드/다른 월이 보존되는지 검증
+            const patchSaved = await saveMonthPatch('2099-08', { bora: 8000001 }, '');
+            const afterPatch08 = await getDoc(refs[0]);
+            const afterPatch09 = await getDoc(refs[1]);
+            const p08 = afterPatch08.exists() ? afterPatch08.data() : {};
+            const p09 = afterPatch09.exists() ? afterPatch09.data() : {};
+
+            const partialPatchSafe =
+                patchSaved === true &&
+                p08.bora === 8000001 &&
+                p08.sang === qaValues['2099-08'].sang &&
+                p08.qaMarker === qaValues['2099-08'].qaMarker &&
+                p09.bora === qaValues['2099-09'].bora &&
+                p09.sang === qaValues['2099-09'].sang;
+
+            results.push({ test: '부분 수정 시 다른 필드/다른 월 보존', pass: partialPatchSafe });
+
+            // 4) 테스트 문서 정리
+            await Promise.all(refs.map(ref => deleteDoc(ref)));
+
+            const pass = results.every(item => item.pass);
+            console.info('[QA] 월별 데이터 격리 테스트', { pass, results });
+            return { pass, results, cleanup: true };
+        } catch (e) {
+            try {
+                await Promise.all(refs.map(ref => deleteDoc(ref)));
+            } catch (cleanupError) {
+                console.warn('[QA] 테스트 데이터 정리 실패:', cleanupError);
+            }
+            console.error('[QA] 월별 데이터 격리 테스트 실패:', e);
+            return {
+                pass: false,
+                results,
+                cleanup: false,
+                error: e?.message || String(e)
+            };
+        }
+    };
+    
     window.runEmulatorSaveFailureRecoveryProbe = async function() {
         if (!window.location.search.includes('emulator=1') || !isAuthenticatedUser()) {
             return { pass: false, error: 'emulator-auth-required' };
