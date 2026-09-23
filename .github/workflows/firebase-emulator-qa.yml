@@ -63,3 +63,5 @@ jobs:
         with:
           name: firebase-emulator-log
           path: /tmp/firebase-emulator.log
+
+# Full regression suite is intentionally run on every QA-branch push.
