@@ -1894,6 +1894,22 @@
     }
 
     async function init() {
+        // 로그인 입력창에서 Enter를 누르면 로그인 버튼을 누른 것과 동일하게 동작한다.
+        const authEmailEl = document.getElementById('auth-email');
+        const authPasswordEl = document.getElementById('auth-password');
+        if (authEmailEl && authPasswordEl) {
+            const handleAuthEnter = (event) => {
+                if (event.key !== 'Enter' || event.isComposing) return;
+                event.preventDefault();
+                const loginBtn = document.getElementById('auth-login-btn');
+                if (loginBtn && !loginBtn.disabled) {
+                    loginBtn.click();
+                }
+            };
+            authEmailEl.addEventListener('keydown', handleAuthEnter);
+            authPasswordEl.addEventListener('keydown', handleAuthEnter);
+        }
+
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) {
             const currentOptionValue = currentMonth;
