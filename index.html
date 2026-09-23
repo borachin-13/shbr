@@ -1921,7 +1921,7 @@
         // Firebase Auth가 local persistence에서 기존 로그인 세션을 복원했다면
         // 로그인 화면을 다시 거치지 않고 바로 대시보드로 진입한다.
         // (직접 로그아웃한 경우에는 auth.currentUser가 없으므로 기존 로그인 화면 유지)
-        const dashboardBtn = document.querySelector('.gnb-btn[onclick*="navigate(\\'dashboard\\'"]');
+        const dashboardBtn = Array.from(document.querySelectorAll('.gnb-btn')).find(btn => btn.textContent.includes('대시보드')) || null;
         navigate('dashboard', dashboardBtn);
         const lockScreen = document.getElementById('lock-screen');
         if (lockScreen) lockScreen.style.display = 'none';
