@@ -312,6 +312,32 @@
             line-height: 1.5;
             margin-top: 4px;
         }
+        .quick-ledger-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 14px;
+        }
+        .quick-ledger-copy { min-width: 0; }
+        .quick-ledger-title { font-size: 12px; font-weight: 800; color: var(--text-main); }
+        .quick-ledger-desc { font-size: 10px; color: var(--text-sub); margin-top: 3px; }
+        .quick-ledger-btn {
+            flex: 0 0 auto;
+            border: 0;
+            border-radius: 9px;
+            padding: 10px 13px;
+            background: var(--primary);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .quick-ledger-btn:active { transform: translateY(1px); }
 
         .progress-bar-container {
             height: 8px;
@@ -663,6 +689,15 @@
             <!-- 1. 대시보드 페이지 -->
             <div id="page-dashboard" class="page-view active">
                 
+                <!-- 가계부 빠른 입력 -->
+                <div class="quick-ledger-card">
+                    <div class="quick-ledger-copy">
+                        <div class="quick-ledger-title">🧾 오늘 지출을 바로 기록하세요</div>
+                        <div class="quick-ledger-desc">날짜·카테고리·누가 썼는지만 입력하면 저장할 수 있어요.</div>
+                    </div>
+                    <button class="quick-ledger-btn" onclick="window.quickAddExpense()">＋ 지출 기록</button>
+                </div>
+
                 <!-- 접을 수 있는 수입 카드 -->
                 <div class="card">
                     <div class="income-header-toggle" onclick="window.toggleIncomeCard()">
@@ -2512,6 +2547,35 @@
         if(el) el.classList.toggle('open'); 
     }
     window.toggleAccordion = toggleAccordion;
+
+    function quickAddExpense() {
+        openModal('expense');
+        // 기존 지출 편집 모달을 재사용해 데이터 구조와 저장 로직을 그대로 유지한다.
+        setTimeout(() => {
+            const variableBtn = Array.from(document.querySelectorAll('#modal-subtabs-container .modal-subtab-btn'))
+                .find(btn => btn.textContent.includes('변동지출'));
+            if (variableBtn) variableBtn.click();
+
+            const group = document.getElementById('modal-group-variable_expense');
+            if (!group) return;
+            const rows = group.querySelector('.modal-rows-container');
+            if (!rows) return;
+
+            if (!rows.querySelector('.sub-row')) {
+                addExpenseSubModal('variable_expense');
+            }
+
+            const row = rows.querySelector('.sub-row:last-child');
+            if (!row) return;
+            const dateInput = row.querySelector('.inp-date');
+            const nameInput = row.querySelector('.inp-name');
+            if (dateInput && !dateInput.value) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+            if (nameInput) nameInput.focus();
+        }, 0);
+    }
+    window.quickAddExpense = quickAddExpense;
 
     function openModal(type) {
         const modal = document.getElementById('custom-modal');
