@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>우리 곳간</title>
     <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://shbr-family.firebaseapp.com" crossorigin>
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+    <link rel="dns-prefetch" href="//identitytoolkit.googleapis.com">
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js">
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js">
@@ -793,7 +797,8 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import {
-        getAuth,
+        initializeAuth,
+        browserLocalPersistence,
         connectAuthEmulator,
         createUserWithEmailAndPassword,
         signInWithEmailAndPassword,
@@ -816,7 +821,13 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
+
+    // 이 앱은 이메일/비밀번호 로그인만 사용하므로 getAuth()의 기본
+    // IndexedDB/redirect 관련 의존성을 끌어오지 않고 localStorage 기반 Auth만 사용한다.
+    // Firebase 공식 문서의 initializeAuth 커스텀 초기화 방식이다.
+    const auth = initializeAuth(app, {
+        persistence: browserLocalPersistence
+    });
     const db = getFirestore(app);
 
     // Local QA only: add ?emulator=1 to the app URL to use local Auth/Firestore.
