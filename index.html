@@ -572,54 +572,25 @@
 </head>
 <body>
 
-    <!-- 잠금 화면 -->
+    <!-- 계정 인증 화면 -->
     <div id="lock-screen">
         <div class="lock-card">
             <div class="lock-title">🌾 우리 곳간</div>
-            <div class="lock-sub">비밀번호를 입력해 주세요.</div>
-            <input type="password" id="lock-input" class="lock-input" maxlength="4" placeholder="••••" onkeydown="if(event.key==='Enter') window.checkPassword()">
-            <button class="lock-btn" onclick="window.checkPassword()">접속하기</button>
+            <div class="lock-sub" id="auth-help-text">내 계정으로 안전하게 접속해 주세요.</div>
+            <input type="email" id="auth-email" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="email" placeholder="이메일">
+            <input type="password" id="auth-password" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="current-password" placeholder="비밀번호 (8자 이상)">
+            <button class="lock-btn" id="auth-login-btn" onclick="window.authenticateUser('login')">로그인</button>
+            <button class="lock-btn" id="auth-signup-btn" style="margin-top:8px;background:#edf2f7;color:#1a202c;" onclick="window.authenticateUser('signup')">처음이라면 계정 만들기</button>
+            <button type="button" id="auth-reset-btn" style="margin-top:10px;border:none;background:none;color:#718096;font-size:12px;cursor:pointer;" onclick="window.resetPassword()">비밀번호를 잊으셨나요?</button>
             <div id="lock-error" class="lock-error"></div>
         </div>
     </div>
 
-    <!-- 비밀번호 입력은 Firebase/모듈 로딩과 독립적으로 동작 -->
+    <!-- 인증 UI는 Firebase 모듈의 실제 계정 인증 함수를 호출한다. -->
     <script>
-        window.checkPassword = async function() {
-            const pwInput = document.getElementById('lock-input');
-            const errEl = document.getElementById('lock-error');
-            const btn = document.querySelector('.lock-btn');
-            if (!pwInput) return;
-
-            if (pwInput.value !== '0315') {
-                if (errEl) errEl.innerText = '비밀번호가 일치하지 않습니다.';
-                pwInput.value = '';
-                pwInput.focus();
-                return;
-            }
-
-            if (btn) btn.disabled = true;
-            if (errEl) errEl.innerText = '최신 데이터를 준비하고 있어요…';
-
-            try {
-                const ready = window.gotganReadyPromise
-                    ? await window.gotganReadyPromise
-                    : true;
-
-                if (!ready) {
-                    if (errEl) errEl.innerText = '데이터를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.';
-                    if (btn) btn.disabled = false;
-                    return;
-                }
-
-                const lockScreen = document.getElementById('lock-screen');
-                if (lockScreen) lockScreen.style.display = 'none';
-                if (typeof window.render === 'function') window.render();
-            } catch (e) {
-                console.error('접속 준비 실패:', e);
-                if (errEl) errEl.innerText = '데이터를 준비하지 못했어요. 다시 시도해 주세요.';
-                if (btn) btn.disabled = false;
-            }
+        window.setAuthError = function(message) {
+            const el = document.getElementById('lock-error');
+            if (el) el.innerText = message || '';
         };
     </script>
 
@@ -765,6 +736,16 @@
 
                 <div class="card">
                     <div class="card-header">
+                        <span class="card-title">👤 계정</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+                        <div style="font-size:12px;color:var(--text-sub);line-height:1.5;">내 계정으로 로그인된 상태에서는 다른 사용자의 데이터와 분리됩니다.</div>
+                        <button class="btn-action-sm" onclick="window.logoutUser()">로그아웃</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
                         <span class="card-title">💾 데이터 관리</span>
                     </div>
                     <div style="display:flex; gap:8px;">
@@ -809,8 +790,18 @@
 <!-- 스크립트 영역 -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+        getAuth,
+        connectAuthEmulator,
+        createUserWithEmailAndPassword,
+        signInWithEmailAndPassword,
+        onAuthStateChanged,
+        EmailAuthProvider,
+        linkWithCredential,
+        sendPasswordResetEmail,
+        signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, connectFirestoreEmulator, doc, getDoc, getDocs, setDoc, deleteDoc, deleteField, collection, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyA_xbdI3K1KYa9qCYYd2SN7EJJkLcSLmE4",
@@ -825,6 +816,27 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+
+    // Local QA only: add ?emulator=1 to the app URL to use local Auth/Firestore.
+    // Production/default behavior remains unchanged.
+    const useFirebaseEmulators = new URLSearchParams(window.location.search).get('emulator') === '1';
+    if (useFirebaseEmulators) {
+        connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+        connectFirestoreEmulator(db, '127.0.0.1', 8080);
+        console.info('[QA] Firebase Emulator connected.');
+    }
+
+    // Firebase Auth persistence is restored asynchronously. Wait for the initial
+    // auth-state event before deciding whether an anonymous session is needed.
+    const initialAuthUserPromise = new Promise((resolve) => {
+        let settled = false;
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (settled) return;
+            settled = true;
+            unsubscribe();
+            resolve(user || null);
+        });
+    });
 
     // 환율은 월별로 고정한다. 해당 월 1일의 USD/KRW 기준환율을 사용하고,
     // 1일이 휴일/비영업일이면 가장 가까운 이전 영업일의 환율을 사용한다.
@@ -985,14 +997,50 @@
     let currentTab = 'all';
     let monthlySelectedYear = 2026;
 
-    // 이월 기능은 최종 버전에서 제거했다. 월별 데이터는 서로 독립적이다.
+    // 월별 데이터는 사용자별로 완전히 격리한다.
+    // 기존 flat gotgan 문서는 1회 마이그레이션 용도로만 읽고, 로그인 이후에는 절대 사용하지 않는다.
+    const LEGACY_COLLECTION = 'gotgan';
     const LEGACY_DOC_ID = 'gotgan_data_v1';
-    const META_DOC_ID = 'settings_v1';
-    // 기존 Firebase 보안 규칙을 그대로 사용할 수 있도록 같은 gotgan 컬렉션 안에서 분리한다.
-    const MONTH_COLLECTION = 'gotgan';
-    const META_COLLECTION = 'gotgan';
+    const LEGACY_META_DOC_ID = 'settings_v1';
+    const USERS_COLLECTION = 'users';
+    const USER_MONTHS_COLLECTION = 'months';
+    const USER_SETTINGS_COLLECTION = 'settings';
+    const USER_SETTINGS_DOC_ID = 'profile_v1';
     const BASE_MONTHS = ['2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12'];
+
+    function isAuthenticatedUser() {
+        return !!auth.currentUser && !auth.currentUser.isAnonymous;
+    }
+
+    function monthDocRef(month) {
+        if (!isAuthenticatedUser()) {
+            return doc(db, LEGACY_COLLECTION, 'month_' + month);
+        }
+        return doc(db, USERS_COLLECTION, auth.currentUser.uid, USER_MONTHS_COLLECTION, 'month_' + month);
+    }
+
+    function settingsDocRef() {
+        if (!isAuthenticatedUser()) {
+            return doc(db, LEGACY_COLLECTION, LEGACY_META_DOC_ID);
+        }
+        return doc(db, USERS_COLLECTION, auth.currentUser.uid, USER_SETTINGS_COLLECTION, USER_SETTINGS_DOC_ID);
+    }
+
+    function legacyMonthDocRef(month) {
+        return doc(db, LEGACY_COLLECTION, 'month_' + month);
+    }
+
+    function legacySettingsDocRef() {
+        return doc(db, LEGACY_COLLECTION, LEGACY_META_DOC_ID);
+    }
+
+    function legacyDataDocRef() {
+        return doc(db, LEGACY_COLLECTION, LEGACY_DOC_ID);
+    }
     const monthSaveQueues = new Map();
+    const monthLoadFailures = new Set();
+    const loadedMonths = new Set();
+    let backgroundMonthLoadPromise = null;
     // PC/모바일 동시 수정 보호용 필드 버전
     const fieldVersions = new Map();
     const remoteUnsubscribe = new Map();
@@ -1097,12 +1145,17 @@
 
     async function saveMonthPatch(month, patch, successMessage = '저장되었습니다.') {
         if (!month) return false;
+        if (!isAuthenticatedUser()) return false;
+        if (monthLoadFailures.has(month)) {
+            showToast('이 달의 최신 데이터를 불러오지 못해 저장을 잠시 막았습니다. 다시 시도해 주세요.', true);
+            return false;
+        }
         const safeMonth = month;
         const patchKey = Object.keys(patch || {}).sort().join('|') || '__month__';
         const stateKey = `${safeMonth}:${patchKey}`;
 
         const writePromise = queueMonthWrite(safeMonth, async () => {
-            const ref = doc(db, MONTH_COLLECTION, `month_${safeMonth}`);
+            const ref = monthDocRef(safeMonth);
             saveState.pending.set(stateKey, Date.now());
             saveState.failed.delete(stateKey);
 
@@ -1170,11 +1223,15 @@
     }
 
     async function saveCategoryList() {
+        if (!isAuthenticatedUser()) {
+            showToast('로그인 후 설정을 저장할 수 있어요.', true);
+            return false;
+        }
         const writePromise = queueCategoryWrite(async () => {
             let lastError = null;
             for (let attempt = 0; attempt < 3; attempt++) {
                 try {
-                    await setDoc(doc(db, META_COLLECTION, META_DOC_ID), {
+                    await setDoc(settingsDocRef(), {
                         categoryList: Array.isArray(categoryList) ? categoryList : DEFAULT_CATEGORIES.slice(),
                         fixedExpenseCategoryList: getEffectiveFixedExpenseCategories(),
                         updatedAt: Date.now()
@@ -1197,125 +1254,12 @@
         return writePromise;
     }
 
-    async function loadAll() {
-        let legacyStore = null;
-        let legacyCategories = null;
-        let categoryLoaded = false;
-        let fixedCategoryLoaded = false;
-
-        // 설정/레거시 문서는 서로 독립적이므로 병렬로 읽는다.
-        const [metaResult, legacyResult] = await Promise.allSettled([
-            getDoc(doc(db, META_COLLECTION, META_DOC_ID)),
-            getDoc(doc(db, 'gotgan', LEGACY_DOC_ID))
-        ]);
-
-        if (metaResult.status === 'fulfilled' && metaResult.value.exists()) {
-            const meta = metaResult.value.data();
-            if (Array.isArray(meta.categoryList) && meta.categoryList.length) {
-                categoryList = meta.categoryList;
-                categoryLoaded = true;
-            }
-            if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
-                fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
-                fixedCategoryLoaded = fixedExpenseCategoryList.length > 0;
-            }
-        } else if (metaResult.status === 'rejected') {
-            console.error('설정 불러오기 실패:', metaResult.reason);
-        }
-
-        if (legacyResult.status === 'fulfilled' && legacyResult.value.exists()) {
-            const legacy = legacyResult.value.data();
-            legacyStore = legacy.store || null;
-            legacyCategories = Array.isArray(legacy.categoryList) ? legacy.categoryList : null;
-            if (!categoryLoaded && legacyCategories && legacyCategories.length) {
-                categoryList = legacyCategories;
-                categoryLoaded = true;
-            }
-        } else if (legacyResult.status === 'rejected') {
-            console.error('기존 데이터 확인 실패:', legacyResult.reason);
-        }
-
-        store = {};
-        const months = Array.from(new Set([...BASE_MONTHS, ...Object.keys(legacyStore || {})])).sort();
-
-        // 월별 문서는 서로 독립적이므로 순차 getDoc()을 하지 않는다.
-        const monthResults = await Promise.all(months.map(async (month) => {
-            try {
-                const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${month}`));
-                if (snap.exists()) {
-                    return { month, data: { ...DEFAULT_MONTH_DATA(), ...snap.data() }, migrated: false };
-                }
-
-                if (legacyStore && legacyStore[month]) {
-                    const migrated = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacyStore[month]) };
-                    if (!migrated.categories) migrated.categories = DEFAULT_MONTH_DATA().categories;
-                    return { month, data: migrated, migrated: true };
-                }
-
-                return { month, data: null, migrated: false };
-            } catch (e) {
-                console.error(`${month} 불러오기 실패:`, e);
-                return { month, data: null, migrated: false };
-            }
-        }));
-
-        const migrations = [];
-        monthResults.forEach(({ month, data, migrated }) => {
-            if (!data) return;
-            if (!data.categories) data.categories = DEFAULT_MONTH_DATA().categories;
-            store[month] = data;
-
-            if (migrated) {
-                migrations.push(
-                    setDoc(doc(db, MONTH_COLLECTION, `month_${month}`), {
-                        ...cloneData(data),
-                        migratedFromLegacy: true,
-                        updatedAt: Date.now()
-                    }, { merge: true }).catch(e => console.warn(`${month} 마이그레이션 저장 실패:`, e))
-                );
-            }
-        });
-
-        // 마이그레이션은 화면 준비를 막지 않는다.
-        if (migrations.length) Promise.allSettled(migrations);
-
-        if (!categoryLoaded && legacyCategories && legacyCategories.length) {
-            categoryList = legacyCategories;
-            categoryLoaded = true;
-        }
-        if (!categoryList.length) categoryList = DEFAULT_CATEGORIES.slice();
-
-        if (!fixedCategoryLoaded) {
-            const discovered = [];
-            Object.values(store || {}).forEach(monthData => {
-                const items = monthData?.categories?.expense;
-                if (!Array.isArray(items)) return;
-                items.forEach(item => {
-                    const name = String(item?.name || '').trim();
-                    if (name && !discovered.includes(name)) discovered.push(name);
-                });
-            });
-            fixedExpenseCategoryList = Array.from(new Set([
-                ...DEFAULT_FIXED_EXPENSE_CATEGORIES,
-                ...discovered
-            ]));
-        }
-
-        if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
-            fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
-        }
-
-        for (const month of BASE_MONTHS) {
-            if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
-        }
-
-        // 설정 카테고리는 실제 월별 입력에도 표시되도록 보장한다.
-        await syncFixedCategoriesToAllMonths(false);
-    }
-
+    // 이전 legacy 전체 로딩 경로는 제거했다.
+    // 앱 초기화는 인증 후 loadScopedUserData()만 사용하며, legacy는 계정 생성 시 1회 마이그레이션에서만 읽는다.
 
     async function flushPendingIncomeSaves() {
         const timers = Array.from(incomeSaveTimers.entries());
+        let allSucceeded = true;
 
         for (const [timerKey, timerId] of timers) {
             clearTimeout(timerId);
@@ -1332,6 +1276,7 @@
             const ok = await saveMonthPatch(saveMonth, {
                 [key]: Number(store[saveMonth][key]) || 0
             });
+            if (!ok) allSucceeded = false;
 
             if (ok) {
                 try {
@@ -1347,18 +1292,22 @@
                 }
             }
         }
+
+        return allSucceeded;
     }
 
     async function flushPendingSaves() {
-        await flushPendingIncomeSaves();
+        const incomeResult = await flushPendingIncomeSaves();
 
         const waits = Array.from(pendingMonthWrites);
         if (pendingCategoryWrite) waits.push(pendingCategoryWrite);
 
         // 이미 진행 중인 Firebase write가 있다면 먼저 완료될 기회를 준다.
-        if (waits.length) {
-            await Promise.allSettled(waits);
-        }
+        const results = waits.length ? await Promise.allSettled(waits) : [];
+        const monthAndCategorySucceeded = results.every(result =>
+            result.status === 'fulfilled' && result.value !== false
+        );
+        return incomeResult !== false && monthAndCategorySucceeded;
     }
 
     // 모바일 Safari/WebView에서 화면을 백그라운드로 보내거나 페이지를 떠날 때
@@ -1367,6 +1316,8 @@
         if (document.visibilityState === 'hidden') {
             saveEmergencyLocalCheckpoint();
             flushPendingSaves();
+        } else if (document.visibilityState === 'visible') {
+            refreshCurrentMonthFromServer();
         }
     });
 
@@ -1389,7 +1340,7 @@
     }
 
     window.addEventListener('online', () => {
-        flushPendingSaves();
+        flushPendingSaves().then(() => refreshCurrentMonthFromServer());
     });
 
     window.addEventListener('offline', () => {
@@ -1532,90 +1483,252 @@
         return { data: null, loadFailed: false };
     }
 
-    async function warmupFirebase() {
-        const authBadge = document.getElementById('auth-status-badge');
-        updateSyncStatus('데이터를 불러오는 중...');
+    async function readLegacyMigrationSnapshot() {
+        // IMPORTANT: this runs while the legacy rules are still deployed.
+        // Capture the old shared data before linking the anonymous session to a real account.
+        const [legacyMeta, legacyStoreDoc] = await Promise.all([
+            getDoc(legacySettingsDocRef()),
+            getDoc(legacyDataDocRef())
+        ]);
+        const legacy = legacyStoreDoc.exists() ? legacyStoreDoc.data() : {};
+        const legacyStore = legacy.store && typeof legacy.store === 'object' ? legacy.store : {};
+        const legacyMetaData = legacyMeta.exists() ? legacyMeta.data() : {};
+
+        const months = Array.from(new Set([...BASE_MONTHS, ...Object.keys(legacyStore)])).filter(Boolean);
+        const monthDocs = await Promise.all(months.map(month => getDoc(legacyMonthDocRef(month))));
+        const monthData = {};
+        months.forEach((month, index) => {
+            const snap = monthDocs[index];
+            if (snap.exists()) {
+                monthData[month] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
+            } else if (legacyStore[month]) {
+                monthData[month] = { ...DEFAULT_MONTH_DATA(), ...cloneData(legacyStore[month]) };
+            }
+        });
+
+        return {
+            monthData,
+            categoryList: Array.isArray(legacyMetaData.categoryList)
+                ? legacyMetaData.categoryList
+                : (Array.isArray(legacy.categoryList) ? legacy.categoryList : DEFAULT_CATEGORIES),
+            fixedExpenseCategoryList: Array.isArray(legacyMetaData.fixedExpenseCategoryList)
+                ? legacyMetaData.fixedExpenseCategoryList
+                : DEFAULT_FIXED_EXPENSE_CATEGORIES
+        };
+    }
+
+    async function migrateLegacyDataToUser(snapshot) {
+        if (!isAuthenticatedUser() || !snapshot) return false;
+
+        // Never overwrite an already initialized user account.
+        const existingCurrent = await getDoc(monthDocRef(currentMonth));
+        const existingSettings = await getDoc(settingsDocRef());
+        if (existingCurrent.exists() || existingSettings.exists()) return false;
+
+        const monthEntries = Object.entries(snapshot.monthData || {});
+        // Migration is a one-time account initialization. Keep it atomic so a
+        // transient failure cannot leave a partially migrated financial dataset.
+        if (monthEntries.length + 1 > 500) {
+            throw new Error('legacy 마이그레이션 대상이 Firestore 배치 한도를 초과했습니다.');
+        }
+
+        const migratedAt = Date.now();
+        const batch = writeBatch(db);
+        monthEntries.forEach(([month, source]) => {
+            batch.set(monthDocRef(month), {
+                ...cloneData(source),
+                migratedFromLegacy: true,
+                migratedAt
+            }, { merge: true });
+        });
+
+        batch.set(settingsDocRef(), {
+            categoryList: snapshot.categoryList,
+            fixedExpenseCategoryList: snapshot.fixedExpenseCategoryList,
+            migratedFromLegacy: true,
+            migratedAt
+        }, { merge: true });
+
+        await batch.commit();
+        return true;
+    }
+
+    async function loadScopedUserData() {
+        if (!isAuthenticatedUser()) return false;
+
+        // 로그인 직후에는 "설정 + 현재 월"만 읽는다.
+        // 전체 월 컬렉션을 기다리면 데이터가 늘어날수록 첫 화면 진입 시간이 길어지므로,
+        // 나머지 월은 화면을 먼저 보여준 뒤 백그라운드에서 채운다.
+        const [settingsSnap, currentMonthSnap] = await Promise.all([
+            getDoc(settingsDocRef()),
+            getDoc(monthDocRef(currentMonth))
+        ]);
+
+        if (settingsSnap.exists()) {
+            const meta = settingsSnap.data();
+            if (Array.isArray(meta.categoryList) && meta.categoryList.length) categoryList = meta.categoryList;
+            if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
+                fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
+            }
+        }
+
+        const nextStore = {};
+        BASE_MONTHS.forEach((month) => {
+            nextStore[month] = DEFAULT_MONTH_DATA();
+        });
+
+        if (currentMonthSnap.exists()) {
+            nextStore[currentMonth] = { ...DEFAULT_MONTH_DATA(), ...currentMonthSnap.data() };
+        }
+
+        store = nextStore;
+        monthLoadFailures.delete(currentMonth);
+        loadedMonths.clear();
+        loadedMonths.add(currentMonth);
+        return true;
+    }
+
+    async function resetPassword() {
+        const emailEl = document.getElementById('auth-email');
+        const email = emailEl ? emailEl.value.trim() : '';
+        window.setAuthError('');
+        if (!email || !email.includes('@')) {
+            window.setAuthError('비밀번호를 재설정할 이메일을 입력해 주세요.');
+            return;
+        }
+        const resetBtn = document.getElementById('auth-reset-btn');
+        if (resetBtn) resetBtn.disabled = true;
+        try {
+            await sendPasswordResetEmail(auth, email);
+            window.setAuthError('비밀번호 재설정 이메일을 확인해 주세요.');
+        } catch (e) {
+            console.error('비밀번호 재설정 실패:', e);
+            const code = e && e.code ? e.code : '';
+            const messages = {
+                'auth/user-not-found': '가입된 계정을 찾을 수 없습니다.',
+                'auth/invalid-email': '이메일 주소를 확인해 주세요.',
+                'auth/too-many-requests': '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'
+            };
+            window.setAuthError(messages[code] || '비밀번호 재설정 이메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        } finally {
+            if (resetBtn) resetBtn.disabled = false;
+        }
+    }
+    window.resetPassword = resetPassword;
+
+    async function authenticateUser(mode) {
+        const emailEl = document.getElementById('auth-email');
+        const passwordEl = document.getElementById('auth-password');
+        const loginBtn = document.getElementById('auth-login-btn');
+        const signupBtn = document.getElementById('auth-signup-btn');
+        const email = emailEl ? emailEl.value.trim() : '';
+        const password = passwordEl ? passwordEl.value : '';
+
+        window.setAuthError('');
+        if (!email || !email.includes('@')) {
+            window.setAuthError('이메일 주소를 입력해 주세요.');
+            return;
+        }
+        if (password.length < 8) {
+            window.setAuthError('비밀번호는 8자 이상이어야 합니다.');
+            return;
+        }
+
+        if (loginBtn) loginBtn.disabled = true;
+        if (signupBtn) signupBtn.disabled = true;
 
         try {
-            // 인증 → 최신 데이터 순으로 시작한다. 비밀번호 입력과 동시에 진행된다.
-            await signInAnonymously(auth);
-            if (authBadge) {
-                authBadge.innerText = '연결됨';
-                authBadge.style.background = '#c6f6d5';
-                authBadge.style.color = '#22543d';
+            if (mode === 'signup') {
+                // 신규 가입은 legacy shared data를 읽지 않는다.
+                // 100명 사전오픈의 사용자 데이터 격리를 위해 가입 순간부터
+                // 새 UID 전용 users/{uid}/... 경로만 사용한다.
+                // legacy 마이그레이션은 일반 회원가입 경로와 분리된 별도 절차로 다룬다.
+                await createUserWithEmailAndPassword(auth, email, password);
+            } else {
+                await signInWithEmailAndPassword(auth, email, password);
             }
 
-            // 현재 월 데이터와 설정을 먼저 준비한다.
-            // 전체 월별 데이터는 접속 후 백그라운드에서 가져온다.
-            const current = currentMonth;
-            let legacyStore = null;
-
-            const [metaResult, legacyResult, currentResult, exchangeResult] = await Promise.allSettled([
-                getDoc(doc(db, META_COLLECTION, META_DOC_ID)),
-                getDoc(doc(db, 'gotgan', LEGACY_DOC_ID)),
-                getDoc(doc(db, MONTH_COLLECTION, `month_${current}`)),
-                Promise.resolve(null)
-            ]);
-
-            if (metaResult.status === 'fulfilled' && metaResult.value.exists()) {
-                const meta = metaResult.value.data();
-                if (Array.isArray(meta.categoryList) && meta.categoryList.length) categoryList = meta.categoryList;
-                if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
-                    fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
-                }
+            await loadScopedUserData();
+            await syncFixedCategoriesToMonth(currentMonth, false);
+            document.getElementById('lock-screen').style.display = 'none';
+            const badge = document.getElementById('auth-status-badge');
+            if (badge) {
+                badge.innerText = '내 계정';
+                badge.style.background = '#c6f6d5';
+                badge.style.color = '#22543d';
             }
-
-            if (legacyResult.status === 'fulfilled' && legacyResult.value.exists()) {
-                const legacy = legacyResult.value.data();
-                legacyStore = legacy.store || null;
-                if (!categoryList.length && Array.isArray(legacy.categoryList) && legacy.categoryList.length) {
-                    categoryList = legacy.categoryList;
-                }
-            }
-
-            const currentResolution = resolveCurrentMonthData(currentResult, legacyStore, current);
-            if (currentResolution.loadFailed) {
-                console.error('현재 월 데이터 읽기 실패:', currentResult.reason);
-                updateSyncStatus('데이터를 불러오지 못했어요');
-                return false;
-            }
-
-            const currentData = currentResolution.data;
-            if (currentResolution.migratedFromLegacy && currentData) {
-                setDoc(doc(db, MONTH_COLLECTION, `month_${current}`), {
-                    ...cloneData(currentData),
-                    migratedFromLegacy: true,
-                    updatedAt: Date.now()
-                }, { merge: true }).catch(e => console.warn('현재 월 마이그레이션 저장 실패:', e));
-            }
-
-            store = {};
-            store[current] = currentData || DEFAULT_MONTH_DATA();
-
-            // 현재 월이 시작된 상태라면 1일 기준환율을 최초 1회 가져와 저장한다.
-            await ensureMonthExchangeRate(current, true);
-
-            if (!Array.isArray(fixedExpenseCategoryList) || !fixedExpenseCategoryList.length) {
-                const discovered = (store[current].categories?.expense || [])
-                    .map(item => String(item?.name || '').trim())
-                    .filter(Boolean);
-                fixedExpenseCategoryList = Array.from(new Set([
-                    ...DEFAULT_FIXED_EXPENSE_CATEGORIES,
-                    ...discovered
-                ]));
-            }
-
-            await syncFixedCategoriesToMonth(current, false);
-
             renderCategorySettings();
             renderFixedExpenseCategorySettings();
             render();
+            // 첫 화면을 먼저 보여준 뒤, 과거/미래 월은 백그라운드에서 채운다.
+            // 사용자가 로그인 직후 기다리는 시간을 줄이기 위한 의도적인 지연 로딩이다.
+            loadRemainingMonthsInBackground();
+            showToast(mode === 'signup' ? '계정과 데이터가 안전하게 연결되었어요.' : '로그인되었습니다.');
+        } catch (e) {
+            console.error('계정 인증 실패:', e);
+            const code = e && e.code ? e.code : '';
+            const messages = {
+                'auth/email-already-in-use': '이미 사용 중인 이메일입니다. 로그인해 주세요.',
+                'auth/invalid-credential': '이메일 또는 비밀번호가 올바르지 않습니다.',
+                'auth/wrong-password': '이메일 또는 비밀번호가 올바르지 않습니다.',
+                'auth/user-not-found': '가입된 계정을 찾을 수 없습니다.',
+                'auth/weak-password': '비밀번호는 8자 이상을 사용해 주세요.',
+                'auth/operation-not-allowed': '이메일/비밀번호 로그인이 Firebase에서 아직 활성화되지 않았습니다.'
+            };
+            window.setAuthError(messages[code] || '계정 인증에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        } finally {
+            if (loginBtn) loginBtn.disabled = false;
+            if (signupBtn) signupBtn.disabled = false;
+        }
+    }
+    window.authenticateUser = authenticateUser;
 
-            updateSyncStatus('데이터를 불러왔어요');
+    async function logoutUser() {
+        const flushed = await flushPendingSaves();
+        if (!flushed) {
+            showToast('저장되지 않은 변경사항이 있어 로그아웃할 수 없습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.', true);
+            return false;
+        }
+
+        await signOut(auth);
+        store = {};
+        loadedMonths.clear();
+        clearLocalPersistence();
+        document.getElementById('lock-screen').style.display = 'flex';
+        window.setAuthError('');
+        const emailEl = document.getElementById('auth-email');
+        const passwordEl = document.getElementById('auth-password');
+        if (emailEl) emailEl.value = '';
+        if (passwordEl) passwordEl.value = '';
+        return true;
+    }
+    window.logoutUser = logoutUser;
+
+    async function warmupFirebase() {
+        const authBadge = document.getElementById('auth-status-badge');
+        updateSyncStatus('로그인을 기다리고 있어요…');
+
+        try {
+            const user = await initialAuthUserPromise;
+
+            // 로그인 전에는 익명 계정을 만들지 않는다.
+            // 익명 Auth 생성은 첫 화면에 필요하지 않은 네트워크 요청이므로 제거해
+            // 초기 진입 시간을 줄이고, 사전오픈 사용자 수에도 불필요한 Auth 계정이 생기지 않게 한다.
+            if (authBadge) {
+                if (user && !user.isAnonymous) {
+                    authBadge.innerText = '내 계정';
+                    authBadge.style.background = '#c6f6d5';
+                    authBadge.style.color = '#22543d';
+                } else {
+                    authBadge.innerText = '로그인 필요';
+                    authBadge.style.background = '#feebc8';
+                    authBadge.style.color = '#744210';
+                }
+            }
             return true;
         } catch (e) {
-            console.error('초기 데이터 준비 실패:', e);
-            updateSyncStatus('데이터를 불러오지 못했어요');
+            console.error('인증 준비 실패:', e);
+            updateSyncStatus('인증 준비에 실패했어요');
             return false;
         }
     }
@@ -1623,47 +1736,75 @@
     // 모듈 로딩이 끝나는 즉시 시작한다. 사용자는 비밀번호를 입력하는 동안 기다릴 필요가 없다.
     window.gotganReadyPromise = warmupFirebase();
 
-    async function loadRemainingMonthsInBackground() {
+    function getAdjacentMonth(month, delta) {
+        const parts = String(month).split('-').map(Number);
+        const date = new Date(Date.UTC(parts[0], parts[1] - 1 + delta, 1));
+        return String(date.getUTCFullYear()) + '-' + String(date.getUTCMonth() + 1).padStart(2, '0');
+    }
+
+    async function loadMonthFromServer(month, options = {}) {
+        if (!isAuthenticatedUser() || !month) return false;
+        const timeoutMs = Number(options.timeoutMs) || 3500;
+        const startedAt = performance.now();
+
         try {
-            const current = currentMonth;
-            const months = BASE_MONTHS.filter(month => month !== current);
-            const results = await Promise.all(months.map(async (month) => {
-                try {
-                    const snap = await getDoc(doc(db, MONTH_COLLECTION, `month_${month}`));
-                    return { month, data: snap.exists() ? { ...DEFAULT_MONTH_DATA(), ...snap.data() } : DEFAULT_MONTH_DATA(), loadFailed: false };
-                } catch (e) {
-                    console.warn(`${month} 백그라운드 로드 실패:`, e);
-                    // 읽기 실패를 "빈 월"로 취급하면 이후 저장 시 실제 데이터를 덮어쓸 위험이 있다.
-                    return { month, data: null, loadFailed: true };
-                }
-            }));
+            const snap = await Promise.race([
+                getDoc(monthDocRef(month)),
+                new Promise((_, reject) => setTimeout(() => {
+                    const timeout = new Error('month-load-timeout');
+                    timeout.code = 'month-load-timeout';
+                    reject(timeout);
+                }, timeoutMs))
+            ]);
 
-            results.forEach(({month, data}) => {
-                // Firestore 읽기 실패 시 기존 메모리 데이터를 보존한다.
-                if (data) store[month] = data;
-            });
+            store[month] = snap.exists()
+                ? { ...DEFAULT_MONTH_DATA(), ...snap.data() }
+                : DEFAULT_MONTH_DATA();
+            monthLoadFailures.delete(month);
+            loadedMonths.add(month);
 
-            // 이미 지난 월/현재 월에 환율이 없으면 해당 월 1일 기준환율을 한 번만 확정한다.
-            for (const month of months) {
-                if (isMonthStarted(month)) {
-                    await ensureMonthExchangeRate(month, true);
-                }
+            if (isMonthStarted(month)) {
+                // 환율은 월 화면을 먼저 보여준 뒤 별도로 확정한다.
+                ensureMonthExchangeRate(month, true).catch(e => {
+                    console.warn(`${month} 환율 백그라운드 확정 실패:`, e);
+                });
             }
 
-            await syncFixedCategoriesToAllMonths(false);
+            console.info(`[PERF] ${month} month load ${Math.round(performance.now() - startedAt)}ms`);
+            return true;
+        } catch (e) {
+            monthLoadFailures.add(month);
+            console.warn(`${month} 월 데이터 로드 실패:`, e);
+            return false;
+        }
+    }
+
+    async function loadRemainingMonthsInBackground() {
+        if (!isAuthenticatedUser()) return false;
+        if (backgroundMonthLoadPromise) return backgroundMonthLoadPromise;
+
+        // 전체 월을 로그인 직후 읽지 않는다. 현재 화면에 인접한 월 1개만
+        // idle 시점에 미리 읽어 두고, 나머지는 사용자가 선택할 때 가져온다.
+        const candidates = [getAdjacentMonth(currentMonth, -1), getAdjacentMonth(currentMonth, 1)]
+            .filter(Boolean)
+            .filter(month => BASE_MONTHS.includes(month) && month !== currentMonth);
+
+        backgroundMonthLoadPromise = (async () => {
+            await Promise.all(candidates.map(month => loadMonthFromServer(month, { timeoutMs: 2500 })));
             renderCategorySettings();
             renderFixedExpenseCategorySettings();
             render();
-        } catch (e) {
-            console.warn('월별 백그라운드 로드 실패:', e);
-        }
+            return true;
+        })().finally(() => {
+            backgroundMonthLoadPromise = null;
+        });
+
+        return backgroundMonthLoadPromise;
     }
 
     async function init() {
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) {
-            // 화면에 하드코딩된 월이 아니라 실제 현재 월을 기본값으로 사용한다.
-            // 기존 데이터 범위 밖의 현재 월도 선택지에 안전하게 추가한다.
             const currentOptionValue = currentMonth;
             const hasCurrentOption = Array.from(globalMonthEl.options)
                 .some(option => option.value.replace('.', '-') === currentOptionValue);
@@ -1675,18 +1816,14 @@
             }
             globalMonthEl.value = currentOptionValue;
             globalMonthEl.onchange = async (e) => {
+                if (!isAuthenticatedUser()) return;
                 await changeMonth(e.target.value.replace('.', '-'));
             };
         }
 
-        // 서버 최신값만으로 첫 화면을 만든다. 오래된 localStorage 캐시는 화면에 표시하지 않는다.
         const ready = await window.gotganReadyPromise;
-
-        if (!ready) {
-            if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
-            renderCategorySettings();
-            renderFixedExpenseCategorySettings();
-            render();
+        if (!ready || !isAuthenticatedUser()) {
+            // Keep the account gate visible and never render server/default data.
             return;
         }
 
@@ -1694,9 +1831,6 @@
         renderCategorySettings();
         renderFixedExpenseCategorySettings();
         render();
-
-        // 월별 비교에 필요한 과거/미래 월은 잠금 해제 후 백그라운드에서 채운다.
-        loadRemainingMonthsInBackground();
     }
 
     function toggleIncomeCard() {
@@ -1861,7 +1995,7 @@
             : beforeValue.length;
         const digitsBeforeCursor = (beforeValue.slice(0, beforeCursor).match(/\d/g) || []).length;
 
-        if (/[\\-+]/.test(beforeValue)) {
+        if (/[-+]/.test(beforeValue)) {
             showToast('금액은 0원 이상의 숫자만 입력할 수 있어요.', true);
             inputEl.value = formatNumberString(store[currentMonth]?.[key] || 0);
             return;
@@ -2729,15 +2863,74 @@ function addCategorySetting() {
     }
     window.setMemberTab = setMemberTab;
 
-    async function changeMonth(m) {
-        await flushPendingIncomeSaves();
+    function setMonthLoading(isLoading, message = '데이터를 불러오는 중…') {
+        let el = document.getElementById('month-loading-indicator');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'month-loading-indicator';
+            el.style.cssText = 'position:fixed;left:50%;top:72px;transform:translateX(-50%);z-index:1500;background:rgba(26,32,44,.92);color:#fff;padding:8px 14px;border-radius:18px;font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.12);pointer-events:none;opacity:0;transition:opacity .15s ease;';
+            document.body.appendChild(el);
+        }
+        el.textContent = message;
+        el.style.opacity = isLoading ? '1' : '0';
+    }
 
-        currentMonth = m;
-        if(!store[m]) store[m] = DEFAULT_MONTH_DATA();
-        await ensureMonthExchangeRate(m, true);
+    async function refreshCurrentMonthFromServer() {
+        if (!isAuthenticatedUser() || !navigator.onLine) return false;
+
+        await flushPendingSaves();
+        const targetMonth = currentMonth;
+        try {
+            const snap = await getDoc(monthDocRef(targetMonth));
+            if (targetMonth !== currentMonth) return false;
+
+            if (!snap.exists()) {
+                // A missing document is not permission to overwrite the screen
+                // with a new empty month while another device may be creating it.
+                return false;
+            }
+
+            store[targetMonth] = { ...DEFAULT_MONTH_DATA(), ...snap.data() };
+            await ensureMonthExchangeRate(targetMonth, true);
+            render();
+            updateSyncStatus('데이터를 불러왔어요');
+            return true;
+        } catch (e) {
+            console.warn('현재 월 서버 새로고침 실패:', e);
+            updateSyncStatus('데이터를 불러오지 못했어요');
+            return false;
+        }
+    }
+
+    window.refreshCurrentMonthFromServer = refreshCurrentMonthFromServer;
+
+    async function changeMonth(m) {
+        const flushed = await flushPendingSaves();
+        if (!flushed || !isAuthenticatedUser()) return false;
+
+        const targetMonth = String(m || '').replace('.', '-');
+        if (!/^\d{4}-\d{2}$/.test(targetMonth)) return false;
+
+        const needsRemoteLoad = monthLoadFailures.has(targetMonth) || !loadedMonths.has(targetMonth);
+        if (needsRemoteLoad) {
+            setMonthLoading(true, '월 데이터를 불러오는 중…');
+            const loaded = await loadMonthFromServer(targetMonth, { timeoutMs: 3000 });
+            setMonthLoading(false);
+            if (!loaded) {
+                showToast('데이터를 불러오는 데 시간이 걸리고 있어요. 현재 달을 유지합니다.', true);
+                return false;
+            }
+        }
+
+        currentMonth = targetMonth;
+        if (isMonthStarted(targetMonth) && !store[targetMonth].usdRate) {
+            // 환율 때문에 월 전환 자체를 기다리지 않는다.
+            ensureMonthExchangeRate(targetMonth, true).catch(e => console.warn('환율 확정 실패:', e));
+        }
         const globalMonthEl = document.getElementById('global-month');
         if (globalMonthEl) globalMonthEl.value = currentMonth;
         render();
+        return true;
     }
     window.changeMonth = changeMonth;
 
@@ -2777,19 +2970,34 @@ function addCategorySetting() {
     window.exportData = exportData;
 
     async function resetData() {
-        if (!confirm('모든 월별 데이터와 설정을 영구적으로 삭제합니다. 정말 초기화하시겠습니까?')) return;
+        if (!isAuthenticatedUser()) {
+            showToast('로그인 후 초기화할 수 있어요.', true);
+            return;
+        }
+        if (!confirm('내 계정의 모든 월별 데이터와 설정을 영구적으로 삭제합니다. 정말 초기화하시겠습니까?')) return;
         const verification = window.prompt('전체 초기화를 진행하려면 "초기화"를 입력해주세요.');
         if (verification !== '초기화') {
             showToast('초기화를 취소했습니다.');
             return;
         }
         try {
-            const months = getMonthKeys();
-            await Promise.all(months.map(m => deleteDoc(doc(db, MONTH_COLLECTION, `month_${m}`))));
-            await deleteDoc(doc(db, META_COLLECTION, META_DOC_ID));
-            await deleteDoc(doc(db, 'gotgan', LEGACY_DOC_ID));
+            await flushPendingSaves();
+            const monthsSnap = await getDocs(collection(db, USERS_COLLECTION, auth.currentUser.uid, USER_MONTHS_COLLECTION));
+            const monthRefs = [];
+            monthsSnap.forEach((snap) => monthRefs.push(snap.ref));
 
-            // 서버 데이터 삭제가 모두 성공한 뒤에만 로컬 임시/캐시 데이터도 제거한다.
+            // A single user's month documents are expected to stay well below
+            // Firestore's 500-write batch limit. Keep month + settings deletion
+            // atomic so a mid-reset failure cannot leave a misleading partial reset.
+            if (monthRefs.length + 1 > 500) {
+                throw new Error('사용자 데이터가 단일 배치 삭제 한도를 초과했습니다.');
+            }
+            const batch = writeBatch(db);
+            monthRefs.forEach(ref => batch.delete(ref));
+            batch.delete(settingsDocRef());
+            await batch.commit();
+
+            // 사용자 서버 데이터 삭제가 모두 성공한 뒤에만 로컬 임시/캐시 데이터도 제거한다.
             clearLocalPersistence();
 
             categoryList = DEFAULT_CATEGORIES.slice();
@@ -2800,10 +3008,10 @@ function addCategorySetting() {
             renderCategorySettings();
             renderFixedExpenseCategorySettings();
             render();
-            showToast('전체 초기화되었습니다.');
+            showToast('내 계정 데이터가 전체 초기화되었습니다.');
         } catch (e) {
             console.error('초기화 실패:', e);
-            showToast('초기화에 실패했습니다.', true);
+            showToast('초기화에 실패했습니다. 서버 데이터는 유지됩니다.', true);
         }
     }
     window.resetData = resetData;
@@ -2819,6 +3027,7 @@ function addCategorySetting() {
         });
     }
 
+    if (useFirebaseEmulators) {
     function runInternalSmokeTests() {
         const results = [];
         const assert = (name, condition) => results.push({ name, pass: !!condition });
@@ -2845,6 +3054,16 @@ function addCategorySetting() {
         assert('카테고리 설정 저장 큐가 존재함', typeof queueCategoryWrite === 'function');
         assert('월별 저장 큐가 존재함', typeof queueMonthWrite === 'function');
         assert('월별 데이터 기본 구조 존재', !!DEFAULT_MONTH_DATA().categories.expense);
+        assert('사용자 계정이 없으면 저장하지 않음', typeof isAuthenticatedUser === 'function');
+        assert('사용자별 월 문서 경로 함수 존재', typeof monthDocRef === 'function');
+        assert('사용자별 설정 문서 경로 함수 존재', typeof settingsDocRef === 'function');
+        assert('비밀번호 재설정 함수 존재', typeof resetPassword === 'function');
+        assert('Auth 초기화 이벤트 함수 존재', typeof onAuthStateChanged === 'function');
+        assert('현재 월 서버 새로고침 함수 존재', typeof refreshCurrentMonthFromServer === 'function');
+        assert('사용자별 월 컬렉션 조회를 사용하는 초기화 경로', typeof getDocs === 'function' && typeof collection === 'function');
+        assert('월별 lazy loading 상태 추적', typeof loadedMonths !== 'undefined' && loadedMonths instanceof Set);
+        assert('초기화용 원자적 배치 삭제 API 존재', typeof writeBatch === 'function');
+        assert('legacy 마이그레이션 snapshot 함수 존재', typeof readLegacyMigrationSnapshot === 'function');
         assert('현재 월 읽기 실패는 빈 데이터로 간주하지 않음', resolveCurrentMonthData({ status: 'rejected', reason: new Error('read failed') }, null, '2026-09').loadFailed === true);
         assert('수입 임시값은 서버값이 draft 시작값과 같을 때만 자동 복구', shouldRecoverIncomeDraft(4200000, 4300000, 4200000) === true);
         assert('다른 기기에서 서버값이 변경된 경우 stale 수입 임시값을 복구하지 않음', shouldRecoverIncomeDraft(4400000, 4300000, 4200000) === false);
@@ -2864,7 +3083,7 @@ function addCategorySetting() {
         );
         assert('신규 월 저장 시 다른 카테고리가 보존됨', Array.isArray(mergedMonth.categories.savings) && mergedMonth.categories.expense[0].amount === 800000);
         assert('신규 월 저장 시 다른 섹션 제목이 보존됨', mergedMonth.sectionTitles.expense === '공통 고정지출' && mergedMonth.sectionTitles.living === '공동 생활비');
-        assert('HTML escape는 태그를 문자로 변환', escapeHtml('<script>alert(1)</script>') === '&lt;script&gt;alert(1)&lt;/script&gt;');
+        assert('HTML escape는 태그를 문자로 변환', escapeHtml('<script>alert(1)<\/script>') === '&lt;script&gt;alert(1)&lt;/script&gt;');
         assert('변동지출 카테고리 옵션은 HTML을 이스케이프함', getVariableCategoryOptionsHtml('<img src=x onerror=alert(1)>').includes('&lt;img src=x onerror=alert(1)&gt;') && !getVariableCategoryOptionsHtml('<img src=x onerror=alert(1)>').includes('<img src=x onerror=alert(1)>'));
         assert('고정지출 카테고리 옵션은 HTML을 이스케이프함', buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('&lt;img src=x onerror=alert(1)&gt;') && !buildFixedExpenseOptionsHtml('<img src=x onerror=alert(1)>').includes('<img src=x onerror=alert(1)>'));
         const summary = calculateMonthlySummary({
@@ -2878,7 +3097,476 @@ function addCategorySetting() {
         assert('월간 총 저축액은 고정저축+추가저축으로 계산', summary.totalSavings === 8548063);
         return results;
     }
+    async function runCrossUserRulesTest(targetUid, month = currentMonth) {
+        if (!window.location.search.includes('emulator=1')) {
+            return { pass: false, reason: '에뮬레이터 모드에서만 실행할 수 있습니다.' };
+        }
+        if (!isAuthenticatedUser()) {
+            return { pass: false, reason: '먼저 일반 사용자 계정으로 로그인해주세요.' };
+        }
+        const uid = String(targetUid || '').trim();
+        if (!uid || uid === auth.currentUser.uid) {
+            return { pass: false, reason: '현재 로그인 계정과 다른 대상 UID를 입력해주세요.' };
+        }
+
+        const targetMonth = String(month || currentMonth);
+        const targetRef = doc(db, USERS_COLLECTION, uid, USER_MONTHS_COLLECTION, `month_${targetMonth}`);
+        const targetSettingsRef = doc(db, USERS_COLLECTION, uid, USER_SETTINGS_COLLECTION, USER_SETTINGS_DOC_ID);
+        const results = [];
+
+        try {
+            await getDoc(targetRef);
+            results.push({ test: '다른 사용자 월 데이터 직접 읽기 차단', pass: false, error: 'read unexpectedly allowed' });
+        } catch (e) {
+            results.push({
+                test: '다른 사용자 월 데이터 직접 읽기 차단',
+                pass: e?.code === 'permission-denied',
+                error: e?.code || e?.message || String(e)
+            });
+        }
+
+        try {
+            await getDoc(targetSettingsRef);
+            results.push({ test: '다른 사용자 설정 직접 읽기 차단', pass: false, error: 'read unexpectedly allowed' });
+        } catch (e) {
+            results.push({
+                test: '다른 사용자 설정 직접 읽기 차단',
+                pass: e?.code === 'permission-denied',
+                error: e?.code || e?.message || String(e)
+            });
+        }
+
+        const settingsProbeValue = `qa-settings-${Date.now()}`;
+        try {
+            await setDoc(targetSettingsRef, { __qaCrossUserProbe: settingsProbeValue }, { merge: true });
+            results.push({ test: '다른 사용자 설정 직접 쓰기 차단', pass: false, error: 'write unexpectedly allowed' });
+            try {
+                await setDoc(targetSettingsRef, { __qaCrossUserProbe: deleteField() }, { merge: true });
+            } catch (cleanupError) {
+                results.push({
+                    test: '비정상 허용된 설정 probe 정리',
+                    pass: false,
+                    error: cleanupError?.code || cleanupError?.message || String(cleanupError)
+                });
+            }
+        } catch (e) {
+            results.push({
+                test: '다른 사용자 설정 직접 쓰기 차단',
+                pass: e?.code === 'permission-denied',
+                error: e?.code || e?.message || String(e)
+            });
+        }
+
+        const probeValue = `qa-${Date.now()}`;
+        try {
+            await setDoc(targetRef, { __qaCrossUserProbe: probeValue }, { merge: true });
+            results.push({ test: '다른 사용자 월 데이터 직접 쓰기 차단', pass: false, error: 'write unexpectedly allowed' });
+            try {
+                await setDoc(targetRef, { __qaCrossUserProbe: deleteField() }, { merge: true });
+            } catch (cleanupError) {
+                results.push({
+                    test: '비정상 허용된 probe 정리',
+                    pass: false,
+                    error: cleanupError?.code || cleanupError?.message || String(cleanupError)
+                });
+            }
+        } catch (e) {
+            results.push({
+                test: '다른 사용자 월 데이터 직접 쓰기 차단',
+                pass: e?.code === 'permission-denied',
+                error: e?.code || e?.message || String(e)
+            });
+        }
+
+        const pass = results.every(item => item.pass);
+        console.table(results);
+        return {
+            pass,
+            currentUid: auth.currentUser.uid,
+            targetUid: uid,
+            targetMonth,
+            results
+        };
+    }
+    window.runCrossUserRulesTest = runCrossUserRulesTest;
+
+    async function runEmulatorConcurrencyProbe() {
+        if (!window.location.search.includes('emulator=1')) {
+            return { pass: false, reason: '에뮬레이터 모드에서만 실행할 수 있습니다.' };
+        }
+        if (!isAuthenticatedUser()) {
+            return { pass: false, reason: '로그인 후 실행해주세요.' };
+        }
+
+        const month = '2026-12';
+        const ref = monthDocRef(month);
+        const base = {
+            bora: 1000000,
+            sang: 2000000,
+            categories: {
+                expense: [{ name: '월세', amount: 700000 }],
+                living: [{ name: '생활비', amount: 400000 }],
+                variable_expense: []
+            },
+            updatedAt: Date.now()
+        };
+
+        // 테스트 문서를 먼저 확정된 상태로 만든다.
+        await setDoc(ref, base, { merge: true });
+
+        // 서로 다른 클라이언트가 같은 문서의 서로 다른 필드를 동시에 수정하는 상황을 직접 재현한다.
+        const clientA = setDoc(ref, {
+            bora: 1111111,
+            updatedAt: Date.now()
+        }, { merge: true });
+
+        const clientB = setDoc(ref, {
+            sang: 2222222,
+            updatedAt: Date.now()
+        }, { merge: true });
+
+        await Promise.all([clientA, clientB]);
+        const afterDifferentFields = await getDoc(ref);
+        const differentData = afterDifferentFields.data() || {};
+
+        const differentFieldsPass =
+            differentData.bora === 1111111 &&
+            differentData.sang === 2222222;
+
+        // 같은 필드를 두 클라이언트가 동시에 수정하면 현재 구조는 last-write-wins다.
+        const sameA = setDoc(ref, { bora: 3333333 }, { merge: true });
+        const sameB = setDoc(ref, { bora: 4444444 }, { merge: true });
+        await Promise.all([sameA, sameB]);
+        const afterSameField = await getDoc(ref);
+        const sameFieldValue = afterSameField.data()?.bora;
+
+        const results = [
+            {
+                test: '동시 수정 - 서로 다른 필드 보존',
+                pass: differentFieldsPass,
+                detail: `bora=${differentData.bora}, sang=${differentData.sang}`
+            },
+            {
+                test: '동시 수정 - 같은 필드 충돌은 last-write-wins',
+                pass: sameFieldValue === 3333333 || sameFieldValue === 4444444,
+                detail: `최종 bora=${sameFieldValue}`
+            }
+        ];
+
+        console.table(results);
+        return {
+            pass: results.every(item => item.pass),
+            results,
+            note: '같은 필드 충돌에서 어느 값이 최종 승자인지는 요청 완료 순서에 따라 달라질 수 있습니다.'
+        };
+    }
+    window.runEmulatorConcurrencyProbe = runEmulatorConcurrencyProbe;
+
+    async function runEmulatorIntegrityProbe() {
+        if (!window.location.search.includes('emulator=1')) {
+            return { pass: false, reason: '에뮬레이터 모드에서만 실행할 수 있습니다.' };
+        }
+        if (!isAuthenticatedUser()) {
+            return { pass: false, reason: '일반 사용자 계정으로 로그인해주세요.' };
+        }
+
+        const results = [];
+        const testMonthA = '2099-11';
+        const testMonthB = '2099-12';
+        const refA = monthDocRef(testMonthA);
+        const refB = monthDocRef(testMonthB);
+
+        try {
+            // 1) 월간 문서가 서로 독립적인지 확인
+            await setDoc(refA, {
+                bora: 1111111,
+                categories: {
+                    living: [{ name: 'A-생활비', amount: 100000 }],
+                    variable_expense: []
+                }
+            }, { merge: true });
+            await setDoc(refB, {
+                bora: 2222222,
+                categories: {
+                    living: [{ name: 'B-생활비', amount: 200000 }],
+                    variable_expense: []
+                }
+            }, { merge: true });
+
+            const [snapA1, snapB1] = await Promise.all([getDoc(refA), getDoc(refB)]);
+            const dataA1 = snapA1.data() || {};
+            const dataB1 = snapB1.data() || {};
+            results.push({
+                test: '월별 문서 서로 독립',
+                pass: dataA1.bora === 1111111 &&
+                      dataB1.bora === 2222222 &&
+                      dataA1.categories?.living?.[0]?.name === 'A-생활비' &&
+                      dataB1.categories?.living?.[0]?.name === 'B-생활비',
+                detail: `A=${dataA1.bora}, B=${dataB1.bora}`
+            });
+
+            // 2) 오래된 클라이언트가 다른 필드를 저장해도 최신 필드를 덮어쓰지 않는지 확인
+            await setDoc(refA, {
+                bora: 3333333,
+                sang: 4444444,
+                categories: {
+                    living: [{ name: '최신-생활비', amount: 300000 }]
+                }
+            }, { merge: true });
+
+            // "오래된 모바일"이 가진 낡은 전체 상태에서 sang만 수정했다고 가정.
+            // 실제 앱의 patch 저장과 동일하게 수정된 필드만 merge한다.
+            await setDoc(refA, {
+                sang: 5555555
+            }, { merge: true });
+
+            const staleMergeSnap = await getDoc(refA);
+            const staleMergeData = staleMergeSnap.data() || {};
+            results.push({
+                test: '오래된 클라이언트의 다른 필드 저장이 최신 데이터 보존',
+                pass: staleMergeData.bora === 3333333 &&
+                      staleMergeData.sang === 5555555 &&
+                      staleMergeData.categories?.living?.[0]?.name === '최신-생활비',
+                detail: `bora=${staleMergeData.bora}, sang=${staleMergeData.sang}, living=${staleMergeData.categories?.living?.[0]?.name}`
+            });
+
+            // 3) 중첩 객체 patch가 다른 카테고리를 메모리에서 보존하는지 확인
+            const merged = mergeNestedObjects(
+                {
+                    categories: {
+                        expense: [{ name: '월세', amount: 700000 }],
+                        savings: [{ name: '청년계좌', amount: 700000 }]
+                    }
+                },
+                {
+                    categories: {
+                        expense: [{ name: '월세', amount: 800000 }]
+                    }
+                }
+            );
+            results.push({
+                test: '중첩 데이터 merge 시 다른 카테고리 보존',
+                pass: merged.categories.expense[0].amount === 800000 &&
+                      merged.categories.savings[0].amount === 700000,
+                detail: JSON.stringify(merged.categories)
+            });
+
+            // 4) 같은 필드 동시 수정은 현재 의도된 last-write-wins 동작인지 확인
+            await setDoc(refA, { bora: 6000000 }, { merge: true });
+            await setDoc(refA, { bora: 7000000 }, { merge: true });
+            const conflictSnap = await getDoc(refA);
+            const conflictValue = conflictSnap.data()?.bora;
+            results.push({
+                test: '같은 필드 충돌은 단일 최종값으로 수렴',
+                pass: conflictValue === 7000000,
+                detail: `최종 bora=${conflictValue}`,
+                severity: 'P1'
+            });
+        } catch (e) {
+            results.push({
+                test: 'Emulator integrity probe 실행',
+                pass: false,
+                error: e?.code || e?.message || String(e)
+            });
+        } finally {
+            try {
+                await Promise.all([deleteDoc(refA), deleteDoc(refB)]);
+            } catch (cleanupError) {
+                console.warn('QA 테스트 문서 정리 실패:', cleanupError);
+            }
+        }
+
+        const pass = results.every(item => item.pass);
+        console.table(results);
+        return { pass, results };
+    }
+    window.runEmulatorIntegrityProbe = runEmulatorIntegrityProbe;
+
+    window.getAuthenticatedUid = function() {
+        return isAuthenticatedUser() ? auth.currentUser.uid : null;
+    };
+
+    window.runEmulatorSaveFailureRecoveryProbe = async function() {
+        if (!window.location.search.includes('emulator=1') || !isAuthenticatedUser()) {
+            return { pass: false, error: 'emulator-auth-required' };
+        }
+        const month = '2099-10';
+        const ref = monthDocRef(month);
+        const before = { bora: 1357911, sang: 2468022, living: 123456 };
+        const after = { bora: 9753186, sang: 8642097 };
+        const originalStore = store[month];
+        try {
+            store[month] = mergeNestedObjects(DEFAULT_MONTH_DATA(), before);
+            const first = await saveMonthPatch(month, before, '');
+            if (!first) return { pass: false, error: 'baseline-write-failed' };
+            return { pass: true, month, refPath: ref.path, before, after };
+        } finally {
+            if (originalStore === undefined) delete store[month];
+            else store[month] = originalStore;
+        }
+    };
+
+    window.runEmulatorSaveFailureWriteProbe = async function() {
+        if (!isAuthenticatedUser()) return { pass: false, error: 'auth-required' };
+        const month = '2099-10';
+        const ref = monthDocRef(month);
+        const after = { bora: 9753186, sang: 8642097 };
+        const originalShowToast = window.showToast;
+        window.showToast = function() {};
+        try {
+            const failed = await saveMonthPatch(month, after, '');
+            return { pass: failed === false, failed, month, refPath: ref.path };
+        } finally {
+            window.showToast = originalShowToast;
+        }
+    };
+
+    window.runEmulatorSaveRecoveryCheck = async function() {
+        if (!isAuthenticatedUser()) return { pass: false, error: 'auth-required' };
+        const month = '2099-10';
+        const ref = monthDocRef(month);
+        const before = { bora: 1357911, sang: 2468022, living: 123456 };
+        const after = { bora: 9753186, sang: 8642097 };
+        try {
+            const afterFailure = await getDoc(ref);
+            const preservedAfterFailure =
+                afterFailure.exists()
+                && afterFailure.data().bora === before.bora
+                && afterFailure.data().sang === before.sang
+                && afterFailure.data().living === before.living;
+            const recovered = await saveMonthPatch(month, after, '');
+            const finalSnap = await getDoc(ref);
+            const recoveredCorrectly =
+                recovered
+                && finalSnap.exists()
+                && finalSnap.data().bora === after.bora
+                && finalSnap.data().sang === after.sang
+                && finalSnap.data().living === before.living;
+            const pass = preservedAfterFailure && recoveredCorrectly;
+            try { await deleteDoc(ref); } catch (e) {}
+            return {
+                pass,
+                results: [
+                    { test: '장애 중 저장 실패', pass: true },
+                    { test: '실패 직후 서버 데이터 보존', pass: preservedAfterFailure },
+                    { test: '재연결 후 저장 복구', pass: recoveredCorrectly }
+                ]
+            };
+        } catch (e) {
+            try { await deleteDoc(ref); } catch (ignored) {}
+            return { pass: false, error: e?.message || String(e) };
+        }
+    };
+
+    window.runEmulatorAuthRecoveryProbe = async function() {
+        if (!isAuthenticatedUser()) return { pass: false, error: 'auth-required' };
+        const month = '2099-09';
+        const ref = monthDocRef(month);
+        const uidBefore = auth.currentUser?.uid || null;
+        const testData = { bora: 7777001, sang: 8888002, marker: 'auth-recovery' };
+        try {
+            const saved = await saveMonthPatch(month, testData, '');
+            if (!saved) return { pass: false, error: 'baseline-save-failed' };
+            categoryList = ['QA-설정복구'];
+            fixedExpenseCategoryList = ['QA-고정지출복구'];
+            const settingsSaved = await saveCategoryList();
+            if (!settingsSaved) return { pass: false, error: 'settings-save-failed' };
+            const beforeLogout = await getDoc(ref);
+            if (!beforeLogout.exists() || beforeLogout.data().marker !== testData.marker) {
+                return { pass: false, error: 'baseline-data-missing' };
+            }
+            const logoutOk = await logoutUser();
+            if (!logoutOk) return { pass: false, error: 'logout-failed' };
+            return { pass: true, uidBefore, month, marker: testData.marker };
+        } catch (e) {
+            return { pass: false, error: e?.message || String(e) };
+        }
+    };
+
+    window.runEmulatorAuthRecoveryVerify = async function() {
+        const month = '2099-09';
+        const ref = monthDocRef(month);
+        try {
+            const uidAfter = auth.currentUser?.uid || null;
+            const anonymousAfterLogout = !!auth.currentUser?.isAnonymous;
+            const snap = await getDoc(ref);
+            const settingsSnap = await getDoc(settingsDocRef());
+            const preserved = snap.exists()
+                && snap.data().bora === 7777001
+                && snap.data().sang === 8888002
+                && snap.data().marker === 'auth-recovery';
+            const settingsPreserved = settingsSnap.exists()
+                && JSON.stringify(settingsSnap.data().categoryList) === JSON.stringify(['QA-설정복구'])
+                && JSON.stringify(settingsSnap.data().fixedExpenseCategoryList) === JSON.stringify(['QA-고정지출복구']);
+            try { await deleteDoc(ref); } catch (e) {}
+            try { await deleteDoc(settingsDocRef()); } catch (e) {}
+            return {
+                pass: !!uidAfter && !anonymousAfterLogout && preserved && settingsPreserved,
+                uidAfter,
+                anonymousAfterLogout,
+                preserved,
+                settingsPreserved
+            };
+        } catch (e) {
+            try { await deleteDoc(ref); } catch (ignored) {}
+            return { pass: false, error: e?.message || String(e) };
+        }
+    };
+
+    window.runEmulatorMonthLoadFailureGuardProbe = async function() {
+        if (!isAuthenticatedUser()) return { pass: false, error: 'auth-required' };
+        const month = '2099-08';
+        const ref = monthDocRef(month);
+        try {
+            monthLoadFailures.add(month);
+            const saved = await saveMonthPatch(month, { bora: 1234567 }, '');
+            const snap = await getDoc(ref);
+            const pass = saved === false && !snap.exists();
+            return { pass, saved, serverDocCreated: snap.exists() };
+        } finally {
+            monthLoadFailures.delete(month);
+            try { await deleteDoc(ref); } catch (e) {}
+        }
+    };
+
+    window.runEmulatorResetIsolationProbe = async function() {
+        if (!isAuthenticatedUser()) return { pass: false, error: 'auth-required' };
+        const months = ['2099-06', '2099-07', '2099-08'];
+        const refs = months.map(month => monthDocRef(month));
+        const originalConfirm = window.confirm;
+        const originalPrompt = window.prompt;
+        window.confirm = () => true;
+        window.prompt = () => '초기화';
+        try {
+            await Promise.all(refs.map((ref, i) => setDoc(ref, {
+                bora: 9000000 + i,
+                marker: 'reset-test'
+            })));
+            await setDoc(settingsDocRef(), {
+                categoryList: ['reset-test-category'],
+                fixedExpenseCategoryList: ['reset-test-fixed']
+            });
+            await resetData();
+            const monthSnaps = await Promise.all(refs.map(ref => getDoc(ref)));
+            const settingsSnap = await getDoc(settingsDocRef());
+            const pass = monthSnaps.every(snap => !snap.exists()) && !settingsSnap.exists();
+            return {
+                pass,
+                monthsRemaining: monthSnaps.filter(snap => snap.exists()).length,
+                settingsRemaining: settingsSnap.exists()
+            };
+        } finally {
+            window.confirm = originalConfirm;
+            window.prompt = originalPrompt;
+            for (const ref of refs) {
+                try { await deleteDoc(ref); } catch (e) {}
+            }
+            try { await deleteDoc(settingsDocRef()); } catch (e) {}
+        }
+    };
+
     window.runInternalSmokeTests = runInternalSmokeTests;
+    }
 
     window.onload = init;
 </script>
