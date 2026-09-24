@@ -286,7 +286,11 @@
         .month-extra strong{font-size:18px;color:var(--savings-color)}
         .goal-apply-btn{width:100%;border:1px solid #cbd5e0;background:#fff;border-radius:10px;padding:10px;font-size:11px;font-weight:800;color:var(--primary);cursor:pointer}
         .goal-apply-btn.applied{background:#f0fff4;border-color:#c6f6d5;color:#276749}
-        .goal-apply-note{font-size:10px;color:var(--text-sub);line-height:1.4;text-align:center;padding:7px 4px 0}
+        .goal-milestone{margin-top:8px;text-align:center;font-size:10px;font-weight:700;color:var(--text-sub)}
+        .dashboard-budget-card{padding:12px 14px}
+        .dashboard-budget-action{min-height:34px;padding:7px 11px}
+        .dashboard-budget-meta{margin-top:5px}
+        .dashboard-budget-setting{display:none}
         /* Simplified dashboard */
         .dashboard-hero{background:#fff;border:1px solid var(--border-color);border-radius:20px;padding:20px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
         .dashboard-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
@@ -329,11 +333,8 @@
         .dashboard-mini-stats>div{text-align:center;min-width:0}
         .dashboard-mini-stats span{display:block;font-size:9px;color:var(--text-sub)}
         .dashboard-mini-stats strong{display:block;font-size:11px;color:var(--primary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .quick-ledger-main{width:100%;border:0;border-radius:12px;padding:14px;background:var(--primary);color:#fff;font-size:14px;font-weight:800;margin-bottom:10px;cursor:pointer}
-        .dashboard-quick-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:0 0 10px}
-        .dashboard-quick-action{border:1px solid var(--border-color);background:#fff;border-radius:10px;padding:10px 5px;color:var(--primary);font-size:11px;font-weight:800;cursor:pointer}
-        .dashboard-quick-action:active{transform:translateY(1px)}
-        .dashboard-compare-card{padding:13px 15px;margin-bottom:10px}
+        .quick-ledger-main{width:100%;border:0;border-radius:14px;padding:15px;background:var(--primary);color:#fff;font-size:14px;font-weight:800;margin:0 0 10px;cursor:pointer;min-height:50px}
+        .dashboard-compare-card{padding:12px 14px;margin-bottom:10px}
         .dashboard-compare-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
         .dashboard-compare-title{font-size:12px;font-weight:800;color:var(--primary)}
         .dashboard-compare-month{font-size:10px;color:var(--text-sub)}
@@ -361,7 +362,7 @@
         .budget-modal-note{font-size:11px;color:var(--text-sub);line-height:1.5;margin-bottom:10px}
 
 
-        .recent-expense-card{padding:15px 17px}
+        .recent-expense-card{padding:12px 14px}
         .dashboard-card-title{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:800;color:var(--primary);margin-bottom:9px}
         .dashboard-recent-expenses{display:flex;flex-direction:column}
         .dashboard-expense-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #edf2f7;font-size:11px}
@@ -896,6 +897,7 @@
                         <span id="goal-progress-pct">0%</span>
                         <span id="goal-remaining-amount">목표까지 1억 5천</span>
                     </div>
+                    <div class="goal-milestone" id="goal-next-milestone">첫 번째 목표까지 1,500만원</div>
                 </section>
 
                 <section class="month-money-card">
@@ -909,7 +911,6 @@
                         <span>추가로 모을 수 있어요</span>
                         <strong id="kpi-savings">0원</strong>
                     </div>
-                    <div class="goal-apply-note" id="goal-apply-note">현재까지 기록된 저축·지출을 기준으로 이번 달 추가 저축 가능액을 계산해요.</div>
                 </section>
 
                 <section class="card dashboard-budget-card">
@@ -928,14 +929,7 @@
                         <span id="dashboard-budget-status" class="dashboard-budget-status">예산을 설정해 주세요.</span>
                         <span id="dashboard-budget-pct">—</span>
                     </div>
-                    <div class="dashboard-budget-setting" id="dashboard-budget-setting">지출 기록을 저장할 때 예산 초과 여부를 알려드려요.</div>
                 </section>
-
-                <div class="dashboard-quick-actions">
-                    <button class="dashboard-quick-action" onclick="window.openModal('income')">✏️ 수입 수정</button>
-                    <button class="dashboard-quick-action" onclick="window.openModal('expense')">✏️ 지출 수정</button>
-                    <button class="dashboard-quick-action" onclick="window.openModal('savings')">✏️ 저축 수정</button>
-                </div>
 
                 <button class="quick-ledger-main" onclick="window.quickAddExpense()">＋ 지출 기록</button>
 
@@ -2487,7 +2481,6 @@
         const barEl = document.getElementById('dashboard-budget-bar');
         const statusEl = document.getElementById('dashboard-budget-status');
         const pctEl = document.getElementById('dashboard-budget-pct');
-        const settingEl = document.getElementById('dashboard-budget-setting');
 
         if (usedEl) usedEl.innerText = formatAmount(used);
 
@@ -2502,7 +2495,6 @@
                 statusEl.classList.remove('warn', 'over');
             }
             if (pctEl) pctEl.innerText = '—';
-            if (settingEl) settingEl.innerText = '예산을 설정하면 지출 저장 시 초과 여부를 알려드려요.';
             return;
         }
 
@@ -2791,10 +2783,22 @@
         const goalBarEl=document.getElementById('goal-progress-bar');
         const goalPctEl=document.getElementById('goal-progress-pct');
         const goalRemainEl=document.getElementById('goal-remaining-amount');
+        const goalMilestoneEl=document.getElementById('goal-next-milestone');
         if(goalCurrentEl) goalCurrentEl.innerText=formatAmount(goalTotal);
         if(goalBarEl) goalBarEl.style.width=goalPct.toFixed(1)+'%';
         if(goalPctEl) goalPctEl.innerText=goalPct.toFixed(1)+'%';
-        if(goalRemainEl) goalRemainEl.innerText=goalRemaining>0 ? '목표까지 '+formatAmount(goalRemaining) : '목표 달성 🎉';
+        if(goalRemainEl) goalRemainEl.innerText=goalRemaining>0 ? '남은 금액 '+formatAmount(goalRemaining) : '목표 달성 🎉';
+        if(goalMilestoneEl){
+            const milestones=[0.10,0.25,0.50,0.75,1];
+            const next=milestones.find(rate=>goalTotal < goalTarget*rate);
+            if(next){
+                const milestoneAmount=Math.round(goalTarget*next);
+                const toNext=Math.max(milestoneAmount-goalTotal,0);
+                goalMilestoneEl.innerText='다음 '+Math.round(next*100)+'%까지 '+formatAmount(toNext);
+            }else{
+                goalMilestoneEl.innerText='모든 목표 달성 🎉';
+            }
+        }
 
 
         const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
