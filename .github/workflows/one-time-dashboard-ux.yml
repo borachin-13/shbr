@@ -1,0 +1,153 @@
+name: one-time-dashboard-ux
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-time-dashboard-ux.yml"
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Apply dashboard UX patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("index.html")
+          s = p.read_text()
+
+          old = '''                <section class="card dashboard-budget-card">
+                    <div class="dashboard-budget-head">
+                        <span class="dashboard-budget-title">📌 이번 달 지출 예산</span>
+                        <button class="dashboard-budget-action" onclick="window.openModal('budget')">예산 설정</button>
+                    </div>
+                    <div class="dashboard-budget-summary">
+                        <strong class="dashboard-budget-used" id="dashboard-budget-used">0원</strong>
+                        <span class="dashboard-budget-limit" id="dashboard-budget-limit"></span>
+                    </div>
+                    <div class="dashboard-budget-track" aria-label="예산 사용량">
+                        <div class="dashboard-budget-bar" id="dashboard-budget-bar"></div>
+                    </div>
+                    <div class="dashboard-budget-meta">
+                        <span id="dashboard-budget-status" class="dashboard-budget-status"></span>
+                        <span id="dashboard-budget-pct"></span>
+                    </div>
+                </section>
+
+                <button class="quick-ledger-main" onclick="window.quickAddExpense()">＋ 지출 기록</button>
+
+                <section class="card dashboard-compare-card">
+                    <div class="dashboard-compare-head">
+                        <span class="dashboard-compare-title">📈 전월 대비</span>
+                        <span class="dashboard-compare-month" id="dashboard-compare-month">지난달과 비교</span>
+                    </div>
+                    <div class="dashboard-compare-grid" id="dashboard-compare-grid">
+                        <div class="dashboard-empty">지난달 데이터를 불러오는 중…</div>
+                    </div>
+                </section>
+
+                <section class="card recent-expense-card">
+                    <div class="dashboard-card-title">최근 지출</div>
+                    <div id="dashboard-recent-expenses" class="dashboard-recent-expenses">
+                        <div class="dashboard-empty">아직 지출이 없어요.</div>
+                    </div>
+                </section>
+'''
+          new = '''                <button class="quick-ledger-main dashboard-primary-expense" onclick="window.quickAddExpense()">＋ 지출 기록</button>
+
+                <section class="card recent-expense-card">
+                    <div class="dashboard-card-title">
+                        <span>최근 지출</span>
+                        <span class="dashboard-card-hint">최근 5건</span>
+                    </div>
+                    <div id="dashboard-recent-expenses" class="dashboard-recent-expenses">
+                        <div class="dashboard-empty">아직 지출이 없어요.</div>
+                    </div>
+                </section>
+
+                <section class="card dashboard-budget-card" id="dashboard-budget-card">
+                    <div class="dashboard-budget-head">
+                        <span class="dashboard-budget-title">이번 달 지출 예산</span>
+                        <button class="dashboard-budget-action" onclick="window.openModal('budget')">설정</button>
+                    </div>
+                    <div class="dashboard-budget-summary">
+                        <strong class="dashboard-budget-used" id="dashboard-budget-used">0원</strong>
+                        <span class="dashboard-budget-limit" id="dashboard-budget-limit"></span>
+                    </div>
+                    <div class="dashboard-budget-track" aria-label="예산 사용량">
+                        <div class="dashboard-budget-bar" id="dashboard-budget-bar"></div>
+                    </div>
+                    <div class="dashboard-budget-meta">
+                        <span id="dashboard-budget-status" class="dashboard-budget-status"></span>
+                        <span id="dashboard-budget-pct"></span>
+                    </div>
+                </section>
+
+                <section class="card dashboard-compare-card" id="dashboard-compare-card">
+                    <div class="dashboard-compare-head">
+                        <span class="dashboard-compare-title">전월 대비</span>
+                        <span class="dashboard-compare-month" id="dashboard-compare-month">지난달과 비교</span>
+                    </div>
+                    <div class="dashboard-compare-grid" id="dashboard-compare-grid">
+                        <div class="dashboard-empty">지난달 데이터를 불러오는 중…</div>
+                    </div>
+                </section>
+'''
+          if old not in s:
+              raise SystemExit("dashboard block not found")
+          s = s.replace(old, new, 1)
+
+          s = s.replace(
+              "        const used = Math.max(Number(summary.expense) || 0, 0);\n        const usedEl = document.getElementById('dashboard-budget-used');",
+              "        const used = Math.max(Number(summary.expense) || 0, 0);\n        const cardEl = document.getElementById('dashboard-budget-card');\n        const usedEl = document.getElementById('dashboard-budget-used');",
+              1)
+          s = s.replace(
+              "        if (!budget) {\n            if (limitEl) limitEl.innerText = '';",
+              "        if (!budget) {\n            if (cardEl) cardEl.style.display = 'none';\n            if (limitEl) limitEl.innerText = '';",
+              1)
+          s = s.replace(
+              "            return;\n        }\n\n        const pct = (used / budget) * 100;",
+              "            return;\n        }\n\n        if (cardEl) cardEl.style.display = 'block';\n        const pct = (used / budget) * 100;",
+              1)
+          s = s.replace(
+              "        if (settingEl) {\n            settingEl.innerText = isOver\n                ? '예산을 초과한 지출은 저장 전에 확인을 요청해요.'\n                : isWarn\n                    ? '예산을 80% 이상 사용했어요. 남은 지출을 확인해 보세요.'\n                    : '지출을 기록할 때 예산 초과 여부를 확인해 드려요.';\n        }\n",
+              "",
+              1)
+
+          s = s.replace(
+              "        const grid = document.getElementById('dashboard-compare-grid');\n        const monthEl = document.getElementById('dashboard-compare-month');\n        if (!grid) return;",
+              "        const grid = document.getElementById('dashboard-compare-grid');\n        const monthEl = document.getElementById('dashboard-compare-month');\n        const cardEl = document.getElementById('dashboard-compare-card');\n        if (!grid) return;",
+              1)
+          start = s.find("        if (!cur || !prev) {", s.find("function renderDashboardComparison"))
+          end = s.find("        const items = [", start)
+          if start < 0 or end < 0:
+              raise SystemExit("comparison guard not found")
+          replacement = """        if (!cur || !prev) {
+            if (cardEl) cardEl.style.display = 'none';
+            return;
+        }
+        if (cardEl) cardEl.style.display = 'block';
+        if (monthEl) monthEl.innerText = prevMonth.replace('-', '.') + ' → ' + currentMonth.replace('-', '.');
+"""
+          s = s[:start] + replacement + s[end:]
+
+          marker = "        .dashboard-budget-card{padding:13px 15px;margin-bottom:10px}"
+          addition = "        .dashboard-primary-expense{margin-bottom:10px}\n        .dashboard-card-hint{font-size:9px;color:var(--text-sub);font-weight:600}\n"
+          if marker not in s:
+              raise SystemExit("CSS marker not found")
+          s = s.replace(marker, addition + marker, 1)
+
+          p.write_text(s)
+          PY
+      - name: Commit patch and remove one-time workflow
+        run: |
+          rm -f .github/workflows/one-time-dashboard-ux.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/one-time-dashboard-ux.yml
+          git diff --cached --quiet || git commit -m "Refine dashboard for daily-use UX"
+          git push
