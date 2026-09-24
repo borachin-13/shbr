@@ -999,7 +999,7 @@
                         
                     </div>
                     <div class="dashboard-section-total"><strong id="dashboard-saving-total">0원</strong><span>고정저축</span></div>
-                    <div class="dashboard-saving-detail" id="dashboard-saving-detail">보라 0원 · 상훈 0원</div>
+                    <div class="dashboard-saving-detail" id="dashboard-saving-detail">우리 집 고정저축</div>
                 </section>
                 <section class="card dashboard-section-card recent-expense-card">
                     <div class="dashboard-card-title"><span>🧾 최근 지출</span><span class="dashboard-card-hint" id="dashboard-recent-hint"></span></div>
@@ -2863,9 +2863,11 @@
 
     function renderDashboardMoney(d) {
         const summary=calculateMonthlySummary(d);
-        const remaining=Math.max(Number(summary.income)-Number(summary.expense)-Number(summary.plannedSavings),0);
+        const remaining=Number(summary.income)-Number(summary.expense)-Number(summary.plannedSavings);
         const set=(id,val)=>{const el=document.getElementById(id);if(el)el.innerText=val;};
         set('dashboard-remaining-money',formatAmount(remaining));
+        const remainingEl=document.getElementById('dashboard-remaining-money');
+        if(remainingEl) remainingEl.style.color=remaining<0?'var(--expense-color)':'var(--primary)';
         set('dashboard-income-value',formatAmount(summary.income));
         set('dashboard-expense-value',formatAmount(summary.expense));
         set('dashboard-saving-value',formatAmount(summary.plannedSavings));
@@ -2873,7 +2875,7 @@
         const savings=Array.isArray(d?.categories?.savings)?d.categories.savings:[];
         const bora=savings.filter(x=>x.owner==='bora').reduce((n,x)=>n+(Number(x.amount)||0),0);
         const sang=savings.filter(x=>x.owner==='sang').reduce((n,x)=>n+(Number(x.amount)||0),0);
-        set('dashboard-saving-detail','보라 '+formatAmount(bora)+' · 상훈 '+formatAmount(sang));
+        set('dashboard-saving-detail', '우리 집 고정저축 '+formatAmount(summary.plannedSavings));
         const groups=[['고정지출',sumCat(d.categories?.expense)],['공동생활',sumCat(d.categories?.living)],['개인지출',sumCat(d.categories?.bora_personal)+sumCat(d.categories?.sang_personal)],['변동지출',sumCat(d.categories?.variable_expense)]].filter(x=>x[1]>0);
         const box=document.getElementById('dashboard-expense-breakdown');
         if(box){const max=Math.max(...groups.map(x=>x[1]),1);box.innerHTML=groups.length?groups.map(([name,value])=>'<div class="dashboard-breakdown-row"><span class="dashboard-breakdown-label">'+name+'</span><div class="dashboard-breakdown-track"><div class="dashboard-breakdown-fill" style="width:'+Math.round(value/max*100)+'%"></div></div><span class="dashboard-breakdown-value">'+formatAmount(value)+'</span></div>').join(''):'<div class="dashboard-empty">아직 지출 데이터가 없어요.</div>';}
@@ -3990,28 +3992,49 @@ function addCategorySetting() {
     const el=document.getElementById('records-list');
     if(!el)return;
     const d=store[currentMonth]||DEFAULT_MONTH_DATA();
+    const isAll=currentTab==='all';
 
-    const incomeItems=[
-        {name:'보라 급여',amount:Number(d.bora)||0,type:'income',meta:'보라 · 급여'},
-        {name:'보라 기타수입',amount:Number(d.bora_extra)||0,type:'income',meta:'보라 · 기타수입'},
-        {name:'상훈 급여',amount:Number(d.sang)||0,type:'income',meta:'상훈 · 급여'},
-        {name:'상훈 기타수입',amount:Number(d.sang_other_income)||0,type:'income',meta:'상훈 · 기타수입'},
-        {name:'출장 외화수입',amount:(Number(d.trip_usd)||0)*(Number(d.usdRate)||0),type:'income',meta:'상훈 · 출장수입'}
-    ].filter(x=>x.amount>0);
+    // 통합 화면은 사람별 수입을 나열하지 않고 '우리 집 수입'으로 묶는다.
+    // 개인 탭에서는 해당 구성원의 원래 데이터를 그대로 확인할 수 있다.
+    const totalIncome =
+        (Number(d.bora)||0) +
+        (Number(d.bora_extra)||0) +
+        (Number(d.sang)||0) +
+        (Number(d.sang_other_income)||0) +
+        ((Number(d.trip_usd)||0)*(Number(d.usdRate)||0));
 
+    const incomeItems=isAll
+        ? [{name:'우리 집 수입',amount:totalIncome,type:'income',meta:'이번 달 수입 합계'}]
+        : currentTab==='bora'
+            ? [
+                {name:'급여',amount:Number(d.bora)||0,type:'income',meta:'보라 · 급여'},
+                {name:'기타수입',amount:Number(d.bora_extra)||0,type:'income',meta:'보라 · 기타수입'}
+              ]
+            : [
+                {name:'급여',amount:Number(d.sang)||0,type:'income',meta:'상훈 · 급여'},
+                {name:'기타수입',amount:Number(d.sang_other_income)||0,type:'income',meta:'상훈 · 기타수입'},
+                {name:'출장 외화수입',amount:(Number(d.trip_usd)||0)*(Number(d.usdRate)||0),type:'income',meta:'상훈 · 출장수입'}
+              ];
+    
     const expenseItems=[
         ...(Array.isArray(d?.categories?.expense)?d.categories.expense.map(x=>({...x,type:'expense',meta:'고정지출'})):[]),
         ...(Array.isArray(d?.categories?.living)?d.categories.living.map(x=>({...x,type:'expense',meta:'공동생활'})):[]),
-        ...(Array.isArray(d?.categories?.bora_personal)?d.categories.bora_personal.map(x=>({...x,type:'expense',meta:'보라 · 개인'})):[]),
-        ...(Array.isArray(d?.categories?.sang_personal)?d.categories.sang_personal.map(x=>({...x,type:'expense',meta:'상훈 · 개인'})):[]),
-        ...(Array.isArray(d?.categories?.variable_expense)?d.categories.variable_expense.map(x=>({...x,type:'expense',meta:x.owner==='bora'?'보라':x.owner==='sang'?'상훈':'공통'})):[])
+        ...(currentTab!=='sang' && Array.isArray(d?.categories?.bora_personal)?d.categories.bora_personal.map(x=>({...x,type:'expense',meta:isAll?'개인지출':'보라 · 개인'})):[]),
+        ...(currentTab!=='bora' && Array.isArray(d?.categories?.sang_personal)?d.categories.sang_personal.map(x=>({...x,type:'expense',meta:isAll?'개인지출':'상훈 · 개인'})):[]),
+        ...(Array.isArray(d?.categories?.variable_expense)
+            ?d.categories.variable_expense
+                .filter(x=>currentTab==='all' || x.owner==='shared' || x.owner===currentTab)
+                .map(x=>({...x,type:'expense',meta:isAll?'변동지출':(x.owner==='shared'?'공통':currentTab==='bora'?'보라 · 개인':'상훈 · 개인')}))
+            :[])
     ].filter(x=>(Number(x.amount)||0)>0);
 
-    const savingItems=Array.isArray(d?.categories?.savings)
-        ?d.categories.savings.filter(x=>(Number(x.amount)||0)>0).map(x=>({...x,type:'saving',meta:x.owner==='bora'?'보라':x.owner==='sang'?'상훈':'공통'}))
-        :[];
+    const savingSource=Array.isArray(d?.categories?.savings)?d.categories.savings:[];
+    const savingItems=savingSource
+        .filter(x=>(Number(x.amount)||0)>0 && (isAll || x.owner==='shared' || x.owner===currentTab))
+        .map(x=>({...x,type:'saving',meta:isAll?'고정저축':(x.owner==='shared'?'공통':currentTab==='bora'?'보라':'상훈')}));
 
-    const items=[...incomeItems,...expenseItems,...savingItems];
+    const items=[...incomeItems,...expenseItems,...savingItems]
+        .filter(x=>(Number(x.amount)||0)>0);
     const filtered=recordsFilter==='all'?items:items.filter(x=>x.type===recordsFilter);
 
     if(!filtered.length){
