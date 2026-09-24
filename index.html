@@ -341,6 +341,13 @@
         .dashboard-mini-stats>div{text-align:center;min-width:0}
         .dashboard-mini-stats span{display:block;font-size:9px;color:var(--text-sub)}
         .dashboard-mini-stats strong{display:block;font-size:11px;color:var(--primary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .dashboard-spend-card{background:#fff;border-radius:20px;padding:22px 20px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
+        .dashboard-spend-month{font-size:13px;font-weight:800;color:var(--text-sub);margin-bottom:18px}
+        .dashboard-spend-label{font-size:12px;font-weight:700;color:var(--text-sub)}
+        .dashboard-spend-total{display:block;margin-top:5px;font-size:34px;line-height:1.1;font-weight:900;letter-spacing:-1px;color:var(--primary)}
+        .dashboard-spend-meta{margin-top:10px;font-size:11px;font-weight:600;color:var(--text-sub)}
+        .dashboard-primary-expense{margin-bottom:12px}
+        .dashboard-card-hint{font-size:9px;color:var(--text-sub);font-weight:600}
         .quick-ledger-main{width:100%;border:0;border-radius:14px;padding:15px;background:var(--primary);color:#fff;font-size:14px;font-weight:800;margin:0 0 10px;cursor:pointer;min-height:50px}
         .dashboard-compare-card{padding:12px 14px;margin-bottom:10px}
         .dashboard-compare-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -896,34 +903,31 @@
         <div class="page-content">
             <!-- 1. 대시보드 페이지 -->
             <div id="page-dashboard" class="page-view active">
-                <section class="goal-hero">
-                    <div class="goal-month" id="dashboard-month-title">9월</div>
-                    <div class="goal-label">1억 5천 목표</div>
-                    <div class="goal-percent" id="goal-progress-pct">0.0%</div>
-                    <div class="goal-progress-track"><div class="goal-progress-bar" id="goal-progress-bar"></div></div>
-                    <div class="goal-progress-row">
-                        <span id="goal-current-amount">현재 0원</span>
-                        <span id="goal-next-milestone">이번 달 저축 0원</span>
+                <section class="dashboard-spend-card">
+                    <div class="dashboard-spend-month" id="dashboard-month-title">9월</div>
+                    <div class="dashboard-spend-label">이번 달 지출</div>
+                    <strong class="dashboard-spend-total" id="kpi-expense">0원</strong>
+                    <div class="dashboard-spend-meta">
+                        <span id="dashboard-expense-count">지출 기록 0건</span>
                     </div>
                 </section>
 
-                <section class="month-money-card">
-                    <div class="month-money-title">이번 달</div>
-                    <div class="month-money-grid">
-                        <div><span>수입</span><strong id="kpi-income">0원</strong></div>
-                        <div><span>지출</span><strong id="kpi-expense">0원</strong></div>
-                        <div><span>고정저축</span><strong id="kpi-planned-savings">0원</strong></div>
+                <button class="quick-ledger-main dashboard-primary-expense" onclick="window.quickAddExpense()">＋ 지출 기록</button>
+
+                <section class="card recent-expense-card">
+                    <div class="dashboard-card-title">
+                        <span>최근 지출</span>
+                        <span class="dashboard-card-hint">최근 5건</span>
                     </div>
-                    <div class="month-extra">
-                        <span>추가로 모을 수 있어요</span>
-                        <strong id="kpi-savings">0원</strong>
+                    <div id="dashboard-recent-expenses" class="dashboard-recent-expenses">
+                        <div class="dashboard-empty">아직 지출이 없어요.</div>
                     </div>
                 </section>
 
-                <section class="card dashboard-budget-card">
+                <section class="card dashboard-budget-card" id="dashboard-budget-card">
                     <div class="dashboard-budget-head">
-                        <span class="dashboard-budget-title">📌 이번 달 지출 예산</span>
-                        <button class="dashboard-budget-action" onclick="window.openModal('budget')">예산 설정</button>
+                        <span class="dashboard-budget-title">이번 달 지출 예산</span>
+                        <button class="dashboard-budget-action" onclick="window.openModal('budget')">설정</button>
                     </div>
                     <div class="dashboard-budget-summary">
                         <strong class="dashboard-budget-used" id="dashboard-budget-used">0원</strong>
@@ -935,25 +939,6 @@
                     <div class="dashboard-budget-meta">
                         <span id="dashboard-budget-status" class="dashboard-budget-status"></span>
                         <span id="dashboard-budget-pct"></span>
-                    </div>
-                </section>
-
-                <button class="quick-ledger-main" onclick="window.quickAddExpense()">＋ 지출 기록</button>
-
-                <section class="card dashboard-compare-card">
-                    <div class="dashboard-compare-head">
-                        <span class="dashboard-compare-title">📈 전월 대비</span>
-                        <span class="dashboard-compare-month" id="dashboard-compare-month">지난달과 비교</span>
-                    </div>
-                    <div class="dashboard-compare-grid" id="dashboard-compare-grid">
-                        <div class="dashboard-empty">지난달 데이터를 불러오는 중…</div>
-                    </div>
-                </section>
-
-                <section class="card recent-expense-card">
-                    <div class="dashboard-card-title">최근 지출</div>
-                    <div id="dashboard-recent-expenses" class="dashboard-recent-expenses">
-                        <div class="dashboard-empty">아직 지출이 없어요.</div>
                     </div>
                 </section>
 
@@ -2805,10 +2790,12 @@
 
     function renderDashboardRecentExpenses(d) {
         const el = document.getElementById('dashboard-recent-expenses');
+        const countEl = document.getElementById('dashboard-expense-count');
         if (!el) return;
         const items = Array.isArray(d?.categories?.variable_expense)
             ? d.categories.variable_expense.slice().sort((a,b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 5)
             : [];
+        if (countEl) countEl.innerText = '지출 기록 ' + items.length + '건';
         if (!items.length) {
             el.innerHTML = '<div class="dashboard-empty">아직 지출이 없어요.</div>';
             return;
