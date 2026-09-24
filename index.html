@@ -861,9 +861,16 @@
                     await window.enterAuthenticatedApp();
                 }
             } else {
-                // 임시로 이메일 로그인 화면은 사용하지 않는다.
-                // 이미 로그인된 Firebase 세션이 있는 브라우저에서는 바로 앱으로 진입한다.
-                if (error) error.innerText = 'PIN은 확인됐어요. 이 브라우저에 로그인된 계정이 없어요.';
+                // 이메일 로그인 UI는 임시로 숨겼지만, PIN 통과 후에는
+                // 앱 화면 자체는 보여주고 Firebase 인증이 없으면 안내만 표시한다.
+                if (pinGate) pinGate.style.display = 'none';
+                const lockScreen = document.getElementById('lock-screen');
+                if (lockScreen) lockScreen.style.display = 'none';
+                const appContainer = document.getElementById('app-container');
+                if (appContainer) appContainer.style.display = 'block';
+                render();
+                if (error) error.innerText = '';
+                showToast('PIN으로 접속했어요. 저장 기능은 계정 연결 후 사용할 수 있어요.');
             }
         };
 
