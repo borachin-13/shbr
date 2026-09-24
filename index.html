@@ -2896,7 +2896,9 @@
         el.innerHTML = items.map(item => {
             const owner = item.owner === 'bora' ? '보라' : item.owner === 'sang' ? '상훈' : '공통';
             const label = item.name || item.category || '지출';
-            const meta = item.category ? `· ${escapeHtml(item.category)} · ${owner}` : owner;
+            const meta = item.category
+                ? (currentTab === 'all' ? `· ${escapeHtml(item.category)}` : `· ${escapeHtml(item.category)} · ${owner}`)
+                : (currentTab === 'all' ? '' : owner);
             return `<div class="dashboard-expense-row"><div><div>${escapeHtml(label)}</div><div class="dashboard-expense-meta">${meta}</div></div><div class="dashboard-expense-amount">${formatAmount(Number(item.amount)||0)}</div></div>`;
         }).join('');
     }
