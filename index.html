@@ -887,6 +887,30 @@
         .btn-action-sm {
             padding: 5px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;
         }
+            .records-subtitle{font-size:10px;color:var(--text-sub);margin-top:3px}
+        .dashboard-overview-card{background:#fff;border:1px solid var(--border-color);border-radius:20px;padding:20px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
+        .dashboard-overview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+        .dashboard-overview-label{font-size:12px;font-weight:800;color:var(--text-sub);margin-top:3px}
+        .dashboard-overview-total{display:block;margin-top:7px;font-size:34px;line-height:1.1;font-weight:900;letter-spacing:-1.2px;color:var(--primary)}
+        .dashboard-overview-caption{font-size:10px;color:var(--text-sub);margin-top:6px}
+        .dashboard-flow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:17px;padding-top:13px;border-top:1px solid #edf0f2}
+        .dashboard-flow div{min-width:0}.dashboard-flow span{display:block;font-size:10px;color:var(--text-sub);font-weight:700}.dashboard-flow strong{display:block;margin-top:4px;font-size:12px;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .dashboard-section-card{padding:17px 18px;margin-bottom:12px;border:1px solid var(--border-color)}
+        .dashboard-card-title{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;font-weight:800;color:var(--primary);margin-bottom:9px}
+        .dashboard-inline-link{border:0;background:transparent;padding:2px 0;color:var(--text-sub);font-size:10px;font-weight:800;cursor:pointer}
+        .dashboard-section-total{display:flex;align-items:baseline;justify-content:space-between;margin-top:7px}
+        .dashboard-section-total strong{font-size:25px;line-height:1.15;font-weight:900;color:var(--primary)}
+        .dashboard-section-total span{font-size:10px;color:var(--text-sub)}
+        .dashboard-expense-breakdown{margin-top:12px}
+        .dashboard-breakdown-row{display:grid;grid-template-columns:66px 1fr 78px;align-items:center;gap:8px;margin-top:9px}
+        .dashboard-breakdown-label{font-size:10px;color:var(--text-sub);font-weight:700}.dashboard-breakdown-track{height:6px;background:#eef1f3;border-radius:99px;overflow:hidden}.dashboard-breakdown-fill{height:100%;background:var(--primary);border-radius:99px}.dashboard-breakdown-value{font-size:10px;color:var(--primary);font-weight:800;text-align:right}
+        .dashboard-saving-detail{margin-top:8px;font-size:11px;color:var(--text-sub);font-weight:700}
+        .dashboard-primary-expense{margin-bottom:12px}
+        .dashboard-card-hint{font-size:10px;color:var(--text-sub);font-weight:700}
+        .dashboard-expense-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #edf2f7}
+        .dashboard-expense-row:last-child{border-bottom:0}
+        .dashboard-expense-meta{margin-top:3px;font-size:10px;color:var(--text-sub)}
+        .dashboard-expense-amount{font-size:13px;font-weight:900;color:var(--primary);white-space:nowrap}
     </style>
 </head>
 <body>
@@ -960,18 +984,15 @@
                         <div><span>저축</span><strong id="dashboard-saving-value">0원</strong></div>
                     </div>
                 </section>
-
                 <button class="quick-ledger-main dashboard-primary-expense" onclick="window.quickAddExpense()">＋ 지출 기록</button>
-
                 <section class="card dashboard-section-card">
                     <div class="dashboard-card-title">
                         <span>💸 이번 달 지출</span>
                         <button type="button" class="dashboard-inline-link" onclick="window.navigate('records', this)">전체 내역 →</button>
                     </div>
-                    <div class="dashboard-section-total"><strong id="kpi-expense">0원</strong><span id="dashboard-expense-change">이번 달</span></div>
+                    <div class="dashboard-section-total"><strong id="kpi-expense">0원</strong><span>이번 달</span></div>
                     <div id="dashboard-expense-breakdown" class="dashboard-expense-breakdown"></div>
                 </section>
-
                 <section class="card dashboard-section-card dashboard-saving-section">
                     <div class="dashboard-card-title">
                         <span>🏦 이번 달 저축</span>
@@ -980,17 +1001,10 @@
                     <div class="dashboard-section-total"><strong id="dashboard-saving-total">0원</strong><span>고정저축</span></div>
                     <div class="dashboard-saving-detail" id="dashboard-saving-detail">보라 0원 · 상훈 0원</div>
                 </section>
-
                 <section class="card dashboard-section-card recent-expense-card">
-                    <div class="dashboard-card-title">
-                        <span>🧾 최근 내역</span>
-                        <span class="dashboard-card-hint" id="dashboard-recent-hint"></span>
-                    </div>
-                    <div id="dashboard-recent-expenses" class="dashboard-recent-expenses">
-                        <div class="dashboard-empty">아직 기록된 지출이 없어요.</div>
-                    </div>
+                    <div class="dashboard-card-title"><span>🧾 최근 지출</span><span class="dashboard-card-hint" id="dashboard-recent-hint"></span></div>
+                    <div id="dashboard-recent-expenses" class="dashboard-recent-expenses"><div class="dashboard-empty">아직 지출 기록이 없어요.</div></div>
                 </section>
-
                 <div style="display:none;" aria-hidden="true">
                     <span id="dashboard-expense-count"></span><span id="kpi-target-label"></span><span id="kpi-total-savings">0원</span>
                     <span id="bar-exp-pct">0%</span><span id="bar-sav-pct">0%</span><span id="lbl-exp-pct">0%</span><span id="lbl-sav-pct">0%</span>
@@ -1001,14 +1015,17 @@
 
             <!-- 2. 내역 페이지 -->
             <div id="page-records" class="page-view">
-                <div class="records-toolbar"><div class="records-title">이번 달 내역</div><button class="records-add-btn" type="button" onclick="window.quickAddExpense()">＋ 기록</button></div>
-                <div class="records-summary" id="records-summary"></div>
+                <div class="records-toolbar">
+                    <div><div class="records-title">이번 달 내역</div><div class="records-subtitle">수입 · 지출 · 저축을 한 곳에서 봐요</div></div>
+                    <button class="records-add-btn" type="button" onclick="window.quickAddExpense()">＋ 기록</button>
+                </div>
                 <div class="records-filter-bar">
                     <button class="records-filter active" onclick="window.filterRecords('all', this)">전체</button>
-                    <button class="records-filter" onclick="window.filterRecords('shared', this)">공통</button>
-                    <button class="records-filter" onclick="window.filterRecords('bora', this)">보라</button>
-                    <button class="records-filter" onclick="window.filterRecords('sang', this)">상훈</button>
+                    <button class="records-filter" onclick="window.filterRecords('income', this)">수입</button>
+                    <button class="records-filter" onclick="window.filterRecords('expense', this)">지출</button>
+                    <button class="records-filter" onclick="window.filterRecords('saving', this)">저축</button>
                 </div>
+                <div class="records-summary" id="records-summary"></div>
                 <section class="card records-list-card"><div id="records-list"><div class="dashboard-empty">내역을 불러오는 중…</div></div></section>
             </div>
 
@@ -2859,13 +2876,13 @@
     }
 
     function renderDashboardRecentExpenses(d) {
-        const hintEl = document.getElementById('dashboard-recent-hint');
-        if (hintEl) hintEl.innerText = items.length ? `최근 ${Math.min(items.length, 5)}건` : '';
         const el = document.getElementById('dashboard-recent-expenses');
         if (!el) return;
         const items = Array.isArray(d?.categories?.variable_expense)
             ? d.categories.variable_expense.slice().sort((a,b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 5)
             : [];
+        const hintEl = document.getElementById('dashboard-recent-hint');
+        if (hintEl) hintEl.innerText = items.length ? `최근 ${Math.min(items.length, 5)}건` : '';
         if (!items.length) {
             el.innerHTML = '<div class="dashboard-empty">아직 지출 기록이 없어요.</div>';
             return;
@@ -3975,8 +3992,51 @@ function addCategorySetting() {
     window.changeMonth = changeMonth;
 
     let recordsFilter = 'all';
-    function renderRecords(){const el=document.getElementById('records-list');if(!el)return;const d=store[currentMonth]||DEFAULT_MONTH_DATA();const items=Array.isArray(d?.categories?.variable_expense)?d.categories.variable_expense.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))):[];const filtered=recordsFilter==='all'?items:items.filter(x=>(x.owner||'shared')===recordsFilter);const sum=filtered.reduce((n,x)=>n+(Number(x.amount)||0),0);const summary=document.getElementById('records-summary');if(summary)summary.innerHTML='<span>기록 '+filtered.length+'건</span><strong>'+formatAmount(sum)+'</strong>';if(!filtered.length){el.innerHTML='<div class="dashboard-empty">아직 기록된 지출이 없어요.</div>';return;}el.innerHTML=filtered.map(item=>{const owner=item.owner==='bora'?'보라':item.owner==='sang'?'상훈':'공통';const label=item.name||item.category||'지출';const meta=[item.date,item.category,owner].filter(Boolean).map(escapeHtml).join(' · ');return '<div class="record-row"><div><div class="record-name">'+escapeHtml(label)+'</div><div class="record-meta">'+meta+'</div></div><div class="record-amount">'+formatAmount(Number(item.amount)||0)+'</div></div>';}).join('');}
+    function renderRecords(){
+        const el=document.getElementById('records-list');
+        if(!el)return;
+        const d=store[currentMonth]||DEFAULT_MONTH_DATA();
+
+        const incomeItems=[
+            {name:'보라 급여',amount:Number(d.bora)||0,type:'income',meta:'보라 · 급여'},
+            {name:'보라 기타수입',amount:Number(d.bora_extra)||0,type:'income',meta:'보라 · 기타수입'},
+            {name:'상훈 급여',amount:Number(d.sang)||0,type:'income',meta:'상훈 · 급여'},
+            {name:'상훈 기타수입',amount:Number(d.sang_other_income)||0,type:'income',meta:'상훈 · 기타수입'},
+            {name:'출장 외화수입',amount:(Number(d.trip_usd)||0)*(Number(d.usdRate)||0),type:'income',meta:'상훈 · 출장수입'}
+        ].filter(x=>x.amount>0);
+
+        const expenseItems=[
+            ...(Array.isArray(d?.categories?.expense)?d.categories.expense.map(x=>({...x,type:'expense',meta:'고정지출'})):[]),
+            ...(Array.isArray(d?.categories?.living)?d.categories.living.map(x=>({...x,type:'expense',meta:'공동생활'})):[]),
+            ...(Array.isArray(d?.categories?.bora_personal)?d.categories.bora_personal.map(x=>({...x,type:'expense',meta:'보라 · 개인'})):[]),
+            ...(Array.isArray(d?.categories?.sang_personal)?d.categories.sang_personal.map(x=>({...x,type:'expense',meta:'상훈 · 개인'})):[]),
+            ...(Array.isArray(d?.categories?.variable_expense)?d.categories.variable_expense.map(x=>({...x,type:'expense',meta:x.owner==='bora'?'보라':x.owner==='sang'?'상훈':'공통'})):[])
+        ].filter(x=>(Number(x.amount)||0)>0);
+
+        const savingItems=Array.isArray(d?.categories?.savings)
+            ?d.categories.savings.filter(x=>(Number(x.amount)||0)>0).map(x=>({...x,type:'saving',meta:x.owner==='bora'?'보라':x.owner==='sang'?'상훈':'공통'}))
+            :[];
+
+        const items=[...incomeItems,...expenseItems,...savingItems];
+        const filtered=recordsFilter==='all'?items:items.filter(x=>x.type===recordsFilter);
+        const sum=filtered.reduce((n,x)=>n+(Number(x.amount)||0),0);
+
+        const summary=document.getElementById('records-summary');
+        if(summary)summary.innerHTML='<span>'+ (filtered.length?'현재 표시 '+filtered.length+'건':'표시할 내역이 없어요') +'</span><strong>'+formatAmount(sum)+'</strong>';
+
+        if(!filtered.length){
+            el.innerHTML='<div class="dashboard-empty">아직 기록된 내역이 없어요.</div>';
+            return;
+        }
+
+        el.innerHTML=filtered.map(item=>{
+            const label=item.name||item.category||'내역';
+            const typeLabel=item.type==='income'?'수입':item.type==='saving'?'저축':'지출';
+            return '<div class="record-row"><div><div class="record-name">'+escapeHtml(label)+'</div><div class="record-meta">'+escapeHtml(item.meta||typeLabel)+' · '+typeLabel+'</div></div><div class="record-amount">'+formatAmount(Number(item.amount)||0)+'</div></div>';
+        }).join('');
+    }
     function filterRecords(filter,btn){recordsFilter=filter||'all';document.querySelectorAll('.records-filter').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderRecords();} window.filterRecords=filterRecords;
+
     function openMonthManage(){const m=document.getElementById('month-manage-modal'),t=document.getElementById('month-manage-title');if(!m)return;if(t){const p=currentMonth.split('-');t.innerText=Number(p[1])+'월 관리';}m.classList.add('open');m.style.display='flex';m.style.pointerEvents='auto';m.setAttribute('aria-hidden','false');} window.openMonthManage=openMonthManage;
     function closeMonthManage(){const m=document.getElementById('month-manage-modal');if(!m)return;m.classList.remove('open');m.style.display='none';m.style.pointerEvents='none';m.setAttribute('aria-hidden','true');} window.closeMonthManage=closeMonthManage;
 
