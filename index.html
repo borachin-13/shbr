@@ -345,6 +345,30 @@
         .dashboard-month-manage{border:0;background:#f2f4f6;color:var(--primary);border-radius:999px;padding:7px 11px;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer}
         .records-summary{display:flex;justify-content:space-between;align-items:baseline;margin:2px 2px 10px;padding:14px 16px;background:#fff;border-radius:16px}.records-summary span{font-size:11px;color:var(--text-sub);font-weight:700}.records-summary strong{font-size:18px;color:var(--primary);font-weight:900}
         .records-toolbar{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px}.records-title{font-size:20px;font-weight:900;color:var(--primary)}.records-add-btn{border:0;background:var(--primary);color:#fff;border-radius:999px;padding:8px 13px;font-size:11px;font-weight:800}.records-filter-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:12px}.records-filter{border:0;background:#e9edf1;color:var(--text-sub);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:800;white-space:nowrap}.records-filter.active{background:var(--primary);color:#fff}.records-list-card{padding:8px 18px}.record-row{display:flex;justify-content:space-between;gap:12px;padding:15px 2px;border-bottom:1px solid #f0f2f4}.record-row:last-child{border-bottom:0}.record-name{font-size:14px;font-weight:800;color:var(--primary)}.record-meta{margin-top:4px;font-size:10px;color:var(--text-sub)}.record-amount{font-size:14px;font-weight:900;color:var(--primary);white-space:nowrap}.month-manage-card{width:100%;max-width:480px;background:#fff;border-radius:28px 28px 0 0;padding:22px 20px calc(24px + env(safe-area-inset-bottom));box-shadow:var(--shadow-float);animation:slideUp .25s cubic-bezier(.16,1,.3,1)}.month-manage-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.month-manage-kicker{font-size:11px;color:var(--text-sub);font-weight:700}.month-manage-head strong{display:block;margin-top:2px;font-size:21px;color:var(--primary)}.month-manage-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.month-manage-grid button{min-height:74px;text-align:left;border:1px solid var(--border-color);background:#f8fafb;border-radius:15px;padding:12px;cursor:pointer}.month-manage-grid strong{display:block;font-size:13px;color:var(--primary)}.month-manage-grid span{display:block;margin-top:4px;font-size:10px;color:var(--text-sub)}
+        .dashboard-money-card{background:#fff;border-radius:22px;padding:22px 20px 18px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
+        .dashboard-money-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+        .dashboard-money-label{font-size:12px;font-weight:800;color:var(--text-sub);margin-top:4px}
+        .dashboard-money-total{display:block;margin-top:6px;font-size:32px;line-height:1.12;font-weight:900;letter-spacing:-1px;color:var(--primary)}
+        .dashboard-money-sub{font-size:10px;color:var(--text-sub);margin-top:7px}
+        .dashboard-money-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid #f0f2f4}
+        .dashboard-money-row div{min-width:0}
+        .dashboard-money-row span{display:block;font-size:10px;color:var(--text-sub);font-weight:700}
+        .dashboard-money-row strong{display:block;margin-top:4px;font-size:12px;color:var(--primary);white-space:nowrap}
+        .dashboard-inline-link{border:0;background:none;padding:0;color:var(--text-sub);font-size:10px;font-weight:800;cursor:pointer}
+        .dashboard-expense-card,.dashboard-saving-card{padding:18px 18px}
+        .dashboard-expense-total-line{display:flex;align-items:baseline;justify-content:space-between;margin-top:8px}
+        .dashboard-expense-total-line strong{font-size:24px;color:var(--primary);font-weight:900}
+        .dashboard-expense-total-line span{font-size:10px;color:var(--text-sub)}
+        .dashboard-expense-breakdown{margin-top:15px}
+        .dashboard-breakdown-row{display:grid;grid-template-columns:66px 1fr 76px;align-items:center;gap:8px;margin-top:9px}
+        .dashboard-breakdown-label{font-size:10px;color:var(--text-sub);font-weight:700}
+        .dashboard-breakdown-track{height:6px;background:#eef1f3;border-radius:99px;overflow:hidden}
+        .dashboard-breakdown-fill{height:100%;background:var(--primary);border-radius:99px}
+        .dashboard-breakdown-value{font-size:10px;color:var(--primary);font-weight:800;text-align:right}
+        .dashboard-saving-main{display:flex;align-items:baseline;gap:7px;margin-top:8px}
+        .dashboard-saving-main strong{font-size:24px;color:var(--primary);font-weight:900}
+        .dashboard-saving-main span{font-size:10px;color:var(--text-sub)}
+        .dashboard-saving-detail{margin-top:9px;font-size:10px;color:var(--text-sub)}
         .dashboard-spend-card{background:#fff;border-radius:20px;padding:22px 20px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
         .dashboard-spend-month{font-size:13px;font-weight:800;color:var(--text-sub);margin-bottom:18px}
         .dashboard-spend-label{font-size:12px;font-weight:700;color:var(--text-sub)}
@@ -907,40 +931,67 @@
         <div class="page-content">
             <!-- 1. 대시보드 페이지 -->
             <div id="page-dashboard" class="page-view active">
-                <section class="dashboard-spend-card">
-                    <div class="dashboard-spend-head"><div class="dashboard-spend-month" id="dashboard-month-title">9월</div><button class="dashboard-month-manage" type="button" onclick="window.openMonthManage()">관리</button></div>
-                    <div class="dashboard-spend-label">이번 달 지출</div>
-                    <strong class="dashboard-spend-total" id="kpi-expense">0원</strong>
-                    <div class="dashboard-spend-meta">
-                        <span id="dashboard-expense-count"></span>
+                <section class="dashboard-money-card">
+                    <div class="dashboard-money-head">
+                        <div>
+                            <div class="dashboard-spend-month" id="dashboard-month-title">9월</div>
+                            <div class="dashboard-money-label">이번 달 남은 돈</div>
+                        </div>
+                        <button class="dashboard-month-manage" type="button" onclick="window.openMonthManage()">관리</button>
+                    </div>
+                    <strong class="dashboard-money-total" id="dashboard-remaining-money">0원</strong>
+                    <div class="dashboard-money-sub">수입에서 지출과 고정저축을 뺀 금액</div>
+                    <div class="dashboard-money-row">
+                        <div><span>수입</span><strong id="dashboard-income-value">0원</strong></div>
+                        <div><span>지출</span><strong id="dashboard-expense-value">0원</strong></div>
+                        <div><span>저축</span><strong id="dashboard-saving-value">0원</strong></div>
                     </div>
                 </section>
 
                 <button class="quick-ledger-main dashboard-primary-expense" onclick="window.quickAddExpense()">＋ 지출 기록</button>
 
+                <section class="card dashboard-expense-card">
+                    <div class="dashboard-card-title">
+                        <span>이번 달 지출</span>
+                        <button type="button" class="dashboard-inline-link" onclick="window.navigate('records', this)">전체 내역 →</button>
+                    </div>
+                    <div class="dashboard-expense-total-line">
+                        <strong id="kpi-expense">0원</strong>
+                        <span id="dashboard-expense-change">이번 달</span>
+                    </div>
+                    <div id="dashboard-expense-breakdown" class="dashboard-expense-breakdown"></div>
+                </section>
+
+                <section class="card dashboard-saving-card">
+                    <div class="dashboard-card-title">
+                        <span>이번 달 저축</span>
+                        <button type="button" class="dashboard-inline-link" onclick="window.openMonthManage()">저축 관리 →</button>
+                    </div>
+                    <div class="dashboard-saving-main">
+                        <strong id="dashboard-saving-total">0원</strong>
+                        <span>고정저축</span>
+                    </div>
+                    <div class="dashboard-saving-detail" id="dashboard-saving-detail">청년계좌 0원</div>
+                </section>
+
                 <section class="card recent-expense-card">
                     <div class="dashboard-card-title">
                         <span>최근 지출</span>
-                        <span class="dashboard-card-hint">최근 5건</span>
+                        <button type="button" class="dashboard-inline-link" onclick="window.navigate('records', this)">전체 보기 →</button>
                     </div>
                     <div id="dashboard-recent-expenses" class="dashboard-recent-expenses">
                         <div class="dashboard-empty">아직 지출이 없어요.</div>
                     </div>
                 </section>
 
-
-
                 <div style="display:none;" aria-hidden="true">
-                    <span id="kpi-target-label">우리 곳간 총 추가 저축 가능액</span>
-                    <span id="kpi-total-savings">0원</span>
+                    <span id="dashboard-expense-count"></span>
+                    <span id="kpi-target-label"></span><span id="kpi-total-savings">0원</span>
                     <span id="bar-exp-pct">0%</span><span id="bar-sav-pct">0%</span>
                     <span id="lbl-exp-pct">0%</span><span id="lbl-sav-pct">0%</span>
-                    <div id="expense-accordion-container"></div>
-                    <div id="savings-accordion-container"></div>
-                    <span id="dashboard-income-copy">0원</span>
-                    <span id="dashboard-expense-copy">0원</span>
-                    <span id="dashboard-fixed-saving-copy">0원</span>
-                    <span id="dashboard-extra-saving-copy">0원</span>
+                    <div id="expense-accordion-container"></div><div id="savings-accordion-container"></div>
+                    <span id="dashboard-income-copy">0원</span><span id="dashboard-expense-copy">0원</span>
+                    <span id="dashboard-fixed-saving-copy">0원</span><span id="dashboard-extra-saving-copy">0원</span>
                 </div>
             </div>
 
@@ -2743,7 +2794,7 @@
         const monthTitleEl = document.getElementById('dashboard-month-title');
         if (monthTitleEl) {
             const [year, month] = String(currentMonth || '').split('-');
-            monthTitleEl.innerText = year && month ? `${month}월 돈 흐름` : '이번 달 돈 흐름';
+            monthTitleEl.innerText = year && month ? `${month}월` : '이번 달';
         }
         const dashboardCopies = {
             'dashboard-income-copy': activeIncomeWon,
@@ -2755,6 +2806,7 @@
             const el = document.getElementById(id);
             if (el) el.innerText = formatAmount(value);
         });
+        renderDashboardMoney(d);
         renderDashboardRecentExpenses(d);
         renderDashboardComparison();
         renderMonthlyBudget();
@@ -2790,6 +2842,41 @@
 
         renderSavingsPlan(activeSavingsWon);
         renderChartAndMonthly();
+    }
+
+    function renderDashboardMoney(d) {
+        const summary = calculateMonthlySummary(d);
+        const remaining = Math.max(Number(summary.income) - Number(summary.expense) - Number(summary.plannedSavings), 0);
+        const incomeEl=document.getElementById('dashboard-income-value');
+        const expenseEl=document.getElementById('dashboard-expense-value');
+        const savingEl=document.getElementById('dashboard-saving-value');
+        const remainEl=document.getElementById('dashboard-remaining-money');
+        const totalSavingEl=document.getElementById('dashboard-saving-total');
+        const detailEl=document.getElementById('dashboard-saving-detail');
+        if(remainEl) remainEl.innerText=formatAmount(remaining);
+        if(incomeEl) incomeEl.innerText=formatAmount(summary.income);
+        if(expenseEl) expenseEl.innerText=formatAmount(summary.expense);
+        if(savingEl) savingEl.innerText=formatAmount(summary.plannedSavings);
+        if(totalSavingEl) totalSavingEl.innerText=formatAmount(summary.plannedSavings);
+        if(detailEl){
+            const savings=Array.isArray(d?.categories?.savings)?d.categories.savings:[];
+            const bora=savings.filter(x=>x.owner==='bora').reduce((n,x)=>n+(Number(x.amount)||0),0);
+            const sang=savings.filter(x=>x.owner==='sang').reduce((n,x)=>n+(Number(x.amount)||0),0);
+            detailEl.innerText='보라 '+formatAmount(bora)+' · 상훈 '+formatAmount(sang);
+        }
+
+        const groups=[
+            ['고정지출',sumCat(d.categories?.expense)],
+            ['공동생활',sumCat(d.categories?.living)],
+            ['개인지출',sumCat(d.categories?.bora_personal)+sumCat(d.categories?.sang_personal)],
+            ['변동지출',sumCat(d.categories?.variable_expense)]
+        ].filter(x=>x[1]>0);
+        const box=document.getElementById('dashboard-expense-breakdown');
+        if(box){
+            const max=Math.max(...groups.map(x=>x[1]),1);
+            box.innerHTML=groups.map(([name,value])=>'<div class="dashboard-breakdown-row"><span class="dashboard-breakdown-label">'+name+'</span><div class="dashboard-breakdown-track"><div class="dashboard-breakdown-fill" style="width:'+Math.round(value/max*100)+'%"></div></div><span class="dashboard-breakdown-value">'+formatAmount(value)+'</span></div>').join('');
+            if(!groups.length) box.innerHTML='<div class="dashboard-empty">아직 지출 데이터가 없어요.</div>';
+        }
     }
 
     function renderDashboardRecentExpenses(d) {
