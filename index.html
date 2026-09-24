@@ -338,6 +338,64 @@
             cursor: pointer;
         }
         .quick-ledger-btn:active { transform: translateY(1px); }
+        .quick-expense-card {
+            background: #fff;
+            width: 100%;
+            max-width: 480px;
+            border-top-left-radius: 22px;
+            border-top-right-radius: 22px;
+            padding: 18px 18px 20px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+            animation: slideUp 0.2s ease-out;
+        }
+        .quick-expense-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 16px;
+        }
+        .quick-expense-close {
+            border: 0; background: transparent; color: var(--text-sub);
+            font-size: 20px; padding: 2px 4px; cursor: pointer;
+        }
+        .quick-expense-amount {
+            width: 100%; box-sizing: border-box;
+            border: 0; border-bottom: 2px solid var(--primary);
+            padding: 8px 2px 10px; text-align: right;
+            font-size: 28px; font-weight: 800; outline: none;
+            color: var(--primary);
+        }
+        .quick-expense-amount::placeholder { color: #cbd5e0; }
+        .quick-expense-label {
+            font-size: 11px; color: var(--text-sub); font-weight: 700;
+            margin: 16px 0 7px;
+        }
+        .quick-expense-select, .quick-expense-date {
+            width: 100%; box-sizing: border-box;
+            padding: 11px 12px; border: 1px solid var(--border-color);
+            border-radius: 10px; background: #fff; outline: none; font-size: 13px;
+        }
+        .quick-owner-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+        .quick-owner-btn {
+            padding: 10px 6px; border: 1px solid var(--border-color);
+            border-radius: 9px; background: #fff; color: var(--text-sub);
+            font-size: 12px; font-weight: 700; cursor: pointer;
+        }
+        .quick-owner-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .quick-expense-name {
+            width: 100%; box-sizing: border-box;
+            padding: 11px 12px; border: 1px solid var(--border-color);
+            border-radius: 10px; outline: none; font-size: 13px;
+        }
+        .quick-expense-save {
+            width: 100%; margin-top: 18px; padding: 13px;
+            border: 0; border-radius: 11px; background: var(--primary);
+            color: #fff; font-size: 14px; font-weight: 800; cursor: pointer;
+        }
+        .quick-expense-hint { font-size: 10px; color: var(--text-sub); margin-top: 7px; }
 
         .progress-bar-container {
             height: 8px;
@@ -852,6 +910,31 @@
                 <span>설정</span>
             </button>
         </nav>
+    </div>
+
+    <!-- 가계부 빠른 지출 입력 모달 -->
+    <div class="modal-overlay" id="quick-expense-modal" aria-hidden="true">
+        <div class="quick-expense-card" role="dialog" aria-modal="true" aria-labelledby="quick-expense-title">
+            <div class="quick-expense-title">
+                <span id="quick-expense-title">🧾 지출 기록</span>
+                <button class="quick-expense-close" onclick="window.closeQuickExpense()">✕</button>
+            </div>
+            <input id="quick-expense-amount" class="quick-expense-amount" inputmode="numeric" autocomplete="off" placeholder="0" aria-label="금액">
+            <div class="quick-expense-label">누가 썼나요?</div>
+            <div class="quick-owner-group" id="quick-expense-owner">
+                <button type="button" class="quick-owner-btn active" data-owner="shared">공통</button>
+                <button type="button" class="quick-owner-btn" data-owner="bora">보라</button>
+                <button type="button" class="quick-owner-btn" data-owner="sang">상훈</button>
+            </div>
+            <div class="quick-expense-label">카테고리</div>
+            <select id="quick-expense-category" class="quick-expense-select"></select>
+            <div class="quick-expense-label">날짜</div>
+            <input id="quick-expense-date" class="quick-expense-date" type="date">
+            <div class="quick-expense-label">내용 <span style="font-weight:400;">(선택)</span></div>
+            <input id="quick-expense-name" class="quick-expense-name" placeholder="예: 점심, 커피, 장보기" maxlength="40">
+            <div class="quick-expense-hint">금액만 입력해도 저장할 수 있어요.</div>
+            <button class="quick-expense-save" onclick="window.saveQuickExpense()">저장하기</button>
+        </div>
     </div>
 
     <!-- 수정/추가 모달 -->
@@ -2548,32 +2631,91 @@
     }
     window.toggleAccordion = toggleAccordion;
 
+    function getQuickExpenseDate() {
+        const localMonth = getLocalMonthKey();
+        if (currentMonth === localMonth) return new Date().toISOString().slice(0, 10);
+        return currentMonth + '-01';
+    }
+
+    function openQuickExpense() {
+        const modal = document.getElementById('quick-expense-modal');
+        const amount = document.getElementById('quick-expense-amount');
+        const category = document.getElementById('quick-expense-category');
+        const date = document.getElementById('quick-expense-date');
+        const name = document.getElementById('quick-expense-name');
+        if (!modal || !amount || !category || !date || !name) return;
+
+        category.innerHTML = (categoryList.length ? categoryList : ['식비'])
+            .map(cat => '<option value="' + escapeHtml(cat) + '">' + escapeHtml(cat) + '</option>').join('');
+        amount.value = '';
+        name.value = '';
+        date.value = getQuickExpenseDate();
+        document.querySelectorAll('#quick-expense-owner .quick-owner-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.owner === 'shared');
+            btn.onclick = () => {
+                document.querySelectorAll('#quick-expense-owner .quick-owner-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+        });
+
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+        modal.style.pointerEvents = 'auto';
+        modal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => amount.focus(), 50);
+    }
+    window.openQuickExpense = openQuickExpense;
+
+    function closeQuickExpense() {
+        const modal = document.getElementById('quick-expense-modal');
+        if (!modal) return;
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+        modal.style.pointerEvents = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    window.closeQuickExpense = closeQuickExpense;
+
+    function saveQuickExpense() {
+        if (!isAuthenticatedUser()) return;
+        const amountEl = document.getElementById('quick-expense-amount');
+        const categoryEl = document.getElementById('quick-expense-category');
+        const dateEl = document.getElementById('quick-expense-date');
+        const nameEl = document.getElementById('quick-expense-name');
+        const amount = parseNumberString(amountEl ? amountEl.value : '');
+        if (!amount || amount < 1) {
+            showToast('금액을 입력해 주세요.', true);
+            if (amountEl) amountEl.focus();
+            return;
+        }
+
+        const ownerBtn = document.querySelector('#quick-expense-owner .quick-owner-btn.active');
+        const owner = ownerBtn ? ownerBtn.dataset.owner : 'shared';
+        const category = categoryEl ? categoryEl.value : (categoryList[0] || '식비');
+        const date = dateEl && dateEl.value ? dateEl.value : getQuickExpenseDate();
+        const name = nameEl && nameEl.value.trim() ? nameEl.value.trim() : category;
+
+        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        if (!store[currentMonth].categories) store[currentMonth].categories = DEFAULT_MONTH_DATA().categories;
+        if (!Array.isArray(store[currentMonth].categories.variable_expense)) {
+            store[currentMonth].categories.variable_expense = [];
+        }
+
+        const item = { date, category, owner, name, amount };
+        store[currentMonth].categories.variable_expense.push(item);
+        const patch = {
+            'categories.variable_expense': cloneData(store[currentMonth].categories.variable_expense),
+            updatedAt: Date.now()
+        };
+
+        closeQuickExpense();
+        render();
+        saveMonthPatch(currentMonth, patch, '지출이 저장되었습니다.');
+    }
+    window.saveQuickExpense = saveQuickExpense;
+
     function quickAddExpense() {
-        openModal('expense');
-        // 기존 지출 편집 모달을 재사용해 데이터 구조와 저장 로직을 그대로 유지한다.
-        setTimeout(() => {
-            const variableBtn = Array.from(document.querySelectorAll('#modal-subtabs-container .modal-subtab-btn'))
-                .find(btn => btn.textContent.includes('변동지출'));
-            if (variableBtn) variableBtn.click();
-
-            const group = document.getElementById('modal-group-variable_expense');
-            if (!group) return;
-            const rows = group.querySelector('.modal-rows-container');
-            if (!rows) return;
-
-            if (!rows.querySelector('.sub-row')) {
-                addExpenseSubModal('variable_expense');
-            }
-
-            const row = rows.querySelector('.sub-row:last-child');
-            if (!row) return;
-            const dateInput = row.querySelector('.inp-date');
-            const nameInput = row.querySelector('.inp-name');
-            if (dateInput && !dateInput.value) {
-                dateInput.value = new Date().toISOString().split('T')[0];
-            }
-            if (nameInput) nameInput.focus();
-        }, 0);
+        openQuickExpense();
     }
     window.quickAddExpense = quickAddExpense;
 
