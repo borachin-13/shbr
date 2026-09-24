@@ -895,9 +895,8 @@
                     <div class="goal-progress-track"><div class="goal-progress-bar" id="goal-progress-bar"></div></div>
                     <div class="goal-progress-row">
                         <span id="goal-progress-pct">0%</span>
-                        <span id="goal-remaining-amount">목표까지 1억 5천</span>
+                        <span id="goal-next-milestone">이번 달 저축 0원</span>
                     </div>
-                    <div class="goal-milestone" id="goal-next-milestone">첫 번째 목표까지 1,500만원</div>
                 </section>
 
                 <section class="month-money-card">
@@ -926,7 +925,7 @@
                         <div class="dashboard-budget-bar" id="dashboard-budget-bar"></div>
                     </div>
                     <div class="dashboard-budget-meta">
-                        <span id="dashboard-budget-status" class="dashboard-budget-status">예산을 설정해 주세요.</span>
+                        <span id="dashboard-budget-status" class="dashboard-budget-status">—</span>
                         <span id="dashboard-budget-pct">—</span>
                     </div>
                 </section>
@@ -2485,13 +2484,13 @@
         if (usedEl) usedEl.innerText = formatAmount(used);
 
         if (!budget) {
-            if (limitEl) limitEl.innerText = '예산 미설정';
+            if (limitEl) limitEl.innerText = '';
             if (barEl) {
                 barEl.style.width = '0%';
                 barEl.classList.remove('warn', 'over');
             }
             if (statusEl) {
-                statusEl.innerText = '예산을 설정해 주세요.';
+                statusEl.innerText = '—';
                 statusEl.classList.remove('warn', 'over');
             }
             if (pctEl) pctEl.innerText = '—';
@@ -2782,23 +2781,11 @@
         const goalCurrentEl=document.getElementById('goal-current-amount');
         const goalBarEl=document.getElementById('goal-progress-bar');
         const goalPctEl=document.getElementById('goal-progress-pct');
-        const goalRemainEl=document.getElementById('goal-remaining-amount');
         const goalMilestoneEl=document.getElementById('goal-next-milestone');
         if(goalCurrentEl) goalCurrentEl.innerText=formatAmount(goalTotal);
         if(goalBarEl) goalBarEl.style.width=goalPct.toFixed(1)+'%';
         if(goalPctEl) goalPctEl.innerText=goalPct.toFixed(1)+'%';
-        if(goalRemainEl) goalRemainEl.innerText=goalRemaining>0 ? '남은 금액 '+formatAmount(goalRemaining) : '목표 달성 🎉';
-        if(goalMilestoneEl){
-            const milestones=[0.10,0.25,0.50,0.75,1];
-            const next=milestones.find(rate=>goalTotal < goalTarget*rate);
-            if(next){
-                const milestoneAmount=Math.round(goalTarget*next);
-                const toNext=Math.max(milestoneAmount-goalTotal,0);
-                goalMilestoneEl.innerText='다음 '+Math.round(next*100)+'%까지 '+formatAmount(toNext);
-            }else{
-                goalMilestoneEl.innerText='모든 목표 달성 🎉';
-            }
-        }
+        if(goalMilestoneEl) goalMilestoneEl.innerText='이번 달 저축 '+formatAmount(Math.max(Number(activeSavingsWon)||0,0));
 
 
         const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
