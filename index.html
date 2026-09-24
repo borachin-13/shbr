@@ -1027,15 +1027,7 @@
 
             <!-- 3. 설정 페이지 -->
             <div id="page-settings" class="page-view">
-                <div class="card settings-edit-card">
-                    <div class="card-header"><span class="card-title">✏️ 이번 달 수정</span></div>
-                    <div class="settings-edit-grid">
-                        <button type="button" onclick="window.openModal('income')"><span>수입</span><small>수입 내역 수정</small></button>
-                        <button type="button" onclick="window.openModal('expense')"><span>지출</span><small>고정·변동 지출 수정</small></button>
-                        <button type="button" onclick="window.openModal('savings')"><span>저축</span><small>고정저축 수정</small></button>
-                    </div>
-                </div>
-<div class="card">
+                <div class="card">
                     <div class="card-header">
                         <span class="card-title">🏷️ 변동 지출 카테고리 관리</span>
                     </div>
@@ -2880,6 +2872,8 @@
     }
 
     function renderDashboardRecentExpenses(d) {
+        const hintEl = document.getElementById('dashboard-recent-hint');
+        if (hintEl) hintEl.innerText = items.length ? `최근 ${Math.min(items.length, 5)}건` : '';
         const el = document.getElementById('dashboard-recent-expenses');
         if (!el) return;
         const items = Array.isArray(d?.categories?.variable_expense)
