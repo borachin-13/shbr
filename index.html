@@ -2505,6 +2505,22 @@
         if(elPlannedSav) elPlannedSav.innerText = formatAmount(savForTab);
         if(elTotalSav) elTotalSav.innerText = formatAmount(savForTab + activeSavingsWon);
 
+        const monthTitleEl = document.getElementById('dashboard-month-title');
+        if (monthTitleEl) {
+            const [year, month] = String(currentMonth || '').split('-');
+            monthTitleEl.innerText = year && month ? `${month}월 돈 흐름` : '이번 달 돈 흐름';
+        }
+        const dashboardCopies = {
+            'dashboard-income-copy': activeIncomeWon,
+            'dashboard-expense-copy': activeExpenseWon,
+            'dashboard-fixed-saving-copy': savForTab,
+            'dashboard-extra-saving-copy': activeSavingsWon
+        };
+        Object.entries(dashboardCopies).forEach(([id, value]) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = formatAmount(value);
+        });
+
         const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
         const savPct = activeIncomeWon > 0 ? Math.min(Math.round((activeSavingsWon / activeIncomeWon) * 100), 100 - expPct) : 0;
 
