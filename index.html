@@ -286,6 +286,7 @@
         .month-extra strong{font-size:18px;color:var(--savings-color)}
         .goal-apply-btn{width:100%;border:1px solid #cbd5e0;background:#fff;border-radius:10px;padding:10px;font-size:11px;font-weight:800;color:var(--primary);cursor:pointer}
         .goal-apply-btn.applied{background:#f0fff4;border-color:#c6f6d5;color:#276749}
+        .goal-apply-note{font-size:10px;color:var(--text-sub);line-height:1.4;text-align:center;padding:7px 4px 0}
         /* Simplified dashboard */
         .dashboard-hero{background:#fff;border:1px solid var(--border-color);border-radius:20px;padding:20px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
         .dashboard-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
@@ -908,7 +909,7 @@
                         <span>추가로 모을 수 있어요</span>
                         <strong id="kpi-savings">0원</strong>
                     </div>
-                    <button class="goal-apply-btn" id="goal-apply-btn" onclick="window.applyCurrentMonthSavingsToGoal()">이번 달 저축 반영</button>
+                    <div class="goal-apply-note" id="goal-apply-note">현재까지 기록된 저축·지출을 기준으로 이번 달 추가 저축 가능액을 계산해요.</div>
                 </section>
 
                 <section class="card dashboard-budget-card">
@@ -2790,16 +2791,10 @@
         const goalBarEl=document.getElementById('goal-progress-bar');
         const goalPctEl=document.getElementById('goal-progress-pct');
         const goalRemainEl=document.getElementById('goal-remaining-amount');
-        const goalBtn=document.getElementById('goal-apply-btn');
         if(goalCurrentEl) goalCurrentEl.innerText=formatAmount(goalTotal);
         if(goalBarEl) goalBarEl.style.width=goalPct.toFixed(1)+'%';
         if(goalPctEl) goalPctEl.innerText=goalPct.toFixed(1)+'%';
         if(goalRemainEl) goalRemainEl.innerText=goalRemaining>0 ? '목표까지 '+formatAmount(goalRemaining) : '목표 달성 🎉';
-        if(goalBtn){
-            const hasApplied=Object.prototype.hasOwnProperty.call(householdGoal.contributions||{},currentMonth);
-            goalBtn.innerText=hasApplied ? '이번 달 저축 반영됨' : '이번 달 저축 반영';
-            goalBtn.classList.toggle('applied',hasApplied);
-        }
 
 
         const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
