@@ -924,23 +924,6 @@
                     </div>
                 </section>
 
-                <section class="card dashboard-budget-card" id="dashboard-budget-card">
-                    <div class="dashboard-budget-head">
-                        <span class="dashboard-budget-title">이번 달 지출 예산</span>
-                        <button class="dashboard-budget-action" onclick="window.openModal('budget')">설정</button>
-                    </div>
-                    <div class="dashboard-budget-summary">
-                        <strong class="dashboard-budget-used" id="dashboard-budget-used">0원</strong>
-                        <span class="dashboard-budget-limit" id="dashboard-budget-limit"></span>
-                    </div>
-                    <div class="dashboard-budget-track" aria-label="예산 사용량">
-                        <div class="dashboard-budget-bar" id="dashboard-budget-bar"></div>
-                    </div>
-                    <div class="dashboard-budget-meta">
-                        <span id="dashboard-budget-status" class="dashboard-budget-status"></span>
-                        <span id="dashboard-budget-pct"></span>
-                    </div>
-                </section>
 
 
                 <div style="display:none;" aria-hidden="true">
@@ -2790,12 +2773,10 @@
 
     function renderDashboardRecentExpenses(d) {
         const el = document.getElementById('dashboard-recent-expenses');
-        const countEl = document.getElementById('dashboard-expense-count');
         if (!el) return;
         const items = Array.isArray(d?.categories?.variable_expense)
             ? d.categories.variable_expense.slice().sort((a,b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 5)
             : [];
-        if (countEl) countEl.innerText = '지출 기록 ' + items.length + '건';
         if (!items.length) {
             el.innerHTML = '<div class="dashboard-empty">아직 지출이 없어요.</div>';
             return;
@@ -3107,8 +3088,9 @@
         name.value = '';
         date.value = getQuickExpenseDate();
 
+        const defaultOwner = currentTab === 'bora' ? 'bora' : currentTab === 'sang' ? 'sang' : 'shared';
         document.querySelectorAll('#quick-expense-owner .quick-owner-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.owner === 'shared');
+            btn.classList.toggle('active', btn.dataset.owner === defaultOwner);
             btn.onclick = () => {
                 document.querySelectorAll('#quick-expense-owner .quick-owner-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
