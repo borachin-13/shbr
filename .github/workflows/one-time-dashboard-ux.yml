@@ -1,4 +1,4 @@
-name: one-time-dashboard-ux
+name: one-time-dashboard-ux-v2
 on:
   push:
     branches: [main]
