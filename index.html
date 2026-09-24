@@ -121,6 +121,9 @@
             cursor: pointer;
         }
         .lock-error { color: var(--expense-color); font-size: 12px; margin-top: 10px; min-height: 16px; }
+        #pin-gate .lock-title { margin-bottom: 8px; }
+        #pin-gate .lock-input { font-size: 24px; letter-spacing: 10px; text-align: center; }
+        #pin-gate .lock-input::placeholder { letter-spacing: 6px; }
 
         /* Header */
         header {
@@ -802,23 +805,81 @@
     <!-- 계정 인증 화면 -->
     <div id="lock-screen">
         <div class="lock-card">
-            <div class="lock-title">🌾 우리 곳간</div>
-            <div class="lock-sub" id="auth-help-text">내 계정으로 안전하게 접속해 주세요.</div>
-            <input type="email" id="auth-email" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="email" placeholder="이메일">
-            <input type="password" id="auth-password" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="current-password" placeholder="비밀번호 (8자 이상)">
-            <button class="lock-btn" id="auth-login-btn" onclick="window.authenticateUser('login')">로그인</button>
-            <button class="lock-btn" id="auth-signup-btn" style="margin-top:8px;background:#edf2f7;color:#1a202c;" onclick="window.authenticateUser('signup')">처음이라면 계정 만들기</button>
-            <button type="button" id="auth-reset-btn" style="margin-top:10px;border:none;background:none;color:#718096;font-size:12px;cursor:pointer;" onclick="window.resetPassword()">비밀번호를 잊으셨나요?</button>
-            <div id="lock-error" class="lock-error"></div>
+            <div id="pin-gate">
+                <div class="lock-title">🌾 우리 곳간</div>
+                <div class="lock-sub">간편 비밀번호를 입력해 주세요.</div>
+                <input type="password" id="app-pin" class="lock-input" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="••••" aria-label="간편 비밀번호">
+                <button class="lock-btn" id="app-pin-btn" onclick="window.unlockApp()">접속하기</button>
+                <div id="pin-error" class="lock-error"></div>
+            </div>
+            <div id="auth-gate" style="display:none;">
+                <div class="lock-title">🌾 우리 곳간</div>
+                <div class="lock-sub" id="auth-help-text">내 계정으로 안전하게 접속해 주세요.</div>
+                <input type="email" id="auth-email" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="email" placeholder="이메일">
+                <input type="password" id="auth-password" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="current-password" placeholder="비밀번호 (8자 이상)">
+                <button class="lock-btn" id="auth-login-btn" onclick="window.authenticateUser('login')">로그인</button>
+                <button class="lock-btn" id="auth-signup-btn" style="margin-top:8px;background:#edf2f7;color:#1a202c;" onclick="window.authenticateUser('signup')">처음이라면 계정 만들기</button>
+                <button type="button" id="auth-reset-btn" style="margin-top:10px;border:none;background:none;color:#718096;font-size:12px;cursor:pointer;" onclick="window.resetPassword()">비밀번호를 잊으셨나요?</button>
+                <div id="lock-error" class="lock-error"></div>
+            </div>
         </div>
     </div>
 
     <!-- 인증 UI는 Firebase 모듈의 실제 계정 인증 함수를 호출한다. -->
     <script>
+        // 부부가 함께 사용하는 앱의 편의용 4자리 접속 PIN.
+        // 실제 금융 데이터 보호는 Firebase 계정 인증이 담당한다.
+        const APP_ACCESS_PIN = '0315';
+        let appPinUnlocked = false;
+
+        window.unlockApp = async function() {
+            const input = document.getElementById('app-pin');
+            const error = document.getElementById('pin-error');
+            const pin = input ? input.value.trim() : '';
+            if (pin !== APP_ACCESS_PIN) {
+                if (error) error.innerText = '비밀번호가 맞지 않아요.';
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+                return;
+            }
+
+            appPinUnlocked = true;
+            if (error) error.innerText = '';
+            const pinGate = document.getElementById('pin-gate');
+            const authGate = document.getElementById('auth-gate');
+            if (pinGate) pinGate.style.display = 'none';
+
+            const ready = window.gotganReadyPromise ? await window.gotganReadyPromise : false;
+            if (ready && window.isAuthenticatedUser && window.isAuthenticatedUser()) {
+                if (typeof window.enterAuthenticatedApp === 'function') {
+                    await window.enterAuthenticatedApp();
+                }
+            } else if (authGate) {
+                authGate.style.display = 'block';
+                const email = document.getElementById('auth-email');
+                if (email) email.focus();
+            }
+        };
+
         window.setAuthError = function(message) {
             const el = document.getElementById('lock-error');
             if (el) el.innerText = message || '';
         };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const pin = document.getElementById('app-pin');
+            if (pin) {
+                pin.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        window.unlockApp();
+                    }
+                });
+                setTimeout(() => pin.focus(), 100);
+            }
+        });
     </script>
 
     <!-- 저장 상태 알림 토스트 메시지 -->
@@ -2253,6 +2314,33 @@
         return backgroundMonthLoadPromise;
     }
 
+    async function enterAuthenticatedApp() {
+        if (!isAuthenticatedUser() || !appPinUnlocked) return false;
+        const dashboardBtn = Array.from(document.querySelectorAll('.gnb-btn')).find(btn => btn.textContent.includes('대시보드')) || null;
+        navigate('dashboard', dashboardBtn);
+        const lockScreen = document.getElementById('lock-screen');
+        if (lockScreen) lockScreen.style.display = 'none';
+
+        const loginLoading = document.getElementById('login-data-loading');
+        if (loginLoading) loginLoading.style.display = 'block';
+
+        render();
+        await recoverIncomeDraft();
+        await loadScopedUserData();
+        syncFixedCategoriesToMonth(currentMonth, false);
+        renderCategorySettings();
+        renderFixedExpenseCategorySettings();
+        render();
+
+        if (loginLoading) {
+            loginLoading.innerText = '최신 데이터 확인 중…';
+            loginLoading.style.display = 'block';
+        }
+        loadRemainingMonthsInBackground();
+        return true;
+    }
+    window.enterAuthenticatedApp = enterAuthenticatedApp;
+
     async function init() {
         // 로그인 입력창에서 Enter를 누르면 로그인 버튼을 누른 것과 동일하게 동작한다.
         const authEmailEl = document.getElementById('auth-email');
@@ -2289,35 +2377,14 @@
         }
 
         const ready = await window.gotganReadyPromise;
-        if (!ready || !isAuthenticatedUser()) {
-            // Keep the account gate visible and never render server/default data.
+        if (!ready || !appPinUnlocked) {
+            // PIN을 먼저 통과한 뒤에만 Firebase 계정 화면/앱으로 진입한다.
             return;
         }
 
-        // Firebase Auth가 local persistence에서 기존 로그인 세션을 복원했다면
-        // 로그인 화면을 다시 거치지 않고 바로 대시보드로 진입한다.
-        // (직접 로그아웃한 경우에는 auth.currentUser가 없으므로 기존 로그인 화면 유지)
-        const dashboardBtn = Array.from(document.querySelectorAll('.gnb-btn')).find(btn => btn.textContent.includes('대시보드')) || null;
-        navigate('dashboard', dashboardBtn);
-        const lockScreen = document.getElementById('lock-screen');
-        if (lockScreen) lockScreen.style.display = 'none';
-
-        const loginLoading = document.getElementById('login-data-loading');
-        if (loginLoading) loginLoading.style.display = 'block';
-
-        render();
-        await recoverIncomeDraft();
-        await loadScopedUserData();
-        syncFixedCategoriesToMonth(currentMonth, false);
-        renderCategorySettings();
-        renderFixedExpenseCategorySettings();
-        render();
-
-        if (loginLoading) {
-            loginLoading.innerText = '최신 데이터 확인 중…';
-            loginLoading.style.display = 'block';
+        if (isAuthenticatedUser()) {
+            await enterAuthenticatedApp();
         }
-        loadRemainingMonthsInBackground();
     }
 
     function toggleIncomeCard() {
