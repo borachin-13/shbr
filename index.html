@@ -299,6 +299,39 @@
         .dashboard-detail-card{margin:0;border-radius:0;border-top:0;box-shadow:none}
         .dashboard-detail-card:last-child{border-radius:0 0 12px 12px;margin-bottom:0}
         .dashboard-details .card+.card{border-top:1px solid #edf2f7}
+        /* Simplified dashboard */
+        .dashboard-hero{background:#fff;border:1px solid var(--border-color);border-radius:20px;padding:18px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
+        .dashboard-hero-top{display:flex;justify-content:space-between;align-items:center}
+        .dashboard-month{font-size:20px;font-weight:800;color:var(--primary)}
+        .dashboard-main-number{text-align:center;padding:18px 0 16px}
+        .dashboard-main-label{font-size:11px;color:var(--text-sub);font-weight:600}
+        .dashboard-main-value{font-size:31px;line-height:1.1;font-weight:900;color:var(--savings-color);margin-top:5px;letter-spacing:-.5px}
+        .dashboard-mini-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;background:#f8fafc;border-radius:11px;padding:10px 5px}
+        .dashboard-mini-stats>div{text-align:center;min-width:0}
+        .dashboard-mini-stats span{display:block;font-size:9px;color:var(--text-sub)}
+        .dashboard-mini-stats strong{display:block;font-size:11px;color:var(--primary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .quick-ledger-main{width:100%;border:0;border-radius:12px;padding:14px;background:var(--primary);color:#fff;font-size:14px;font-weight:800;margin-bottom:10px;cursor:pointer}
+        .recent-expense-card{padding:15px 17px}
+        .dashboard-card-title{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:800;color:var(--primary);margin-bottom:9px}
+        .dashboard-recent-expenses{display:flex;flex-direction:column}
+        .dashboard-expense-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #edf2f7;font-size:11px}
+        .dashboard-expense-row:last-child{border-bottom:0}
+        .dashboard-expense-meta{color:var(--text-sub);font-size:10px;margin-top:2px}
+        .dashboard-expense-amount{font-size:12px;font-weight:800;color:var(--primary)}
+        .dashboard-empty{font-size:11px;color:var(--text-sub);padding:4px 0}
+        .savings-plan-simple{padding:15px 17px}
+        .simple-saving-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+        .simple-saving-grid>div{background:#f8fafc;border-radius:9px;padding:9px 5px;text-align:center}
+        .simple-saving-grid span{display:block;font-size:9px;color:var(--text-sub)}
+        .simple-saving-grid strong{display:block;font-size:11px;color:var(--primary);margin-top:3px}
+        .dashboard-details{margin-bottom:14px}
+        .dashboard-details>summary{list-style:none;cursor:pointer;padding:11px 14px;background:#f8fafc;border:1px solid var(--border-color);border-radius:11px;font-size:11px;font-weight:800;color:var(--text-sub);text-align:center}
+        .dashboard-details>summary::-webkit-details-marker{display:none}
+        .dashboard-details[open]>summary{border-radius:11px 11px 0 0;border-bottom-color:#edf2f7}
+        .dashboard-detail-inner{background:#fff;border:1px solid var(--border-color);border-top:0;border-radius:0 0 11px 11px;padding:4px 14px}
+        .dashboard-edit-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid #edf2f7;font-size:12px;font-weight:700}
+        .dashboard-edit-row:last-child{border-bottom:0}
+        .dashboard-detail-inner .income-body{padding:8px 0 4px;border-bottom:1px solid #edf2f7}
         /* Summary KPI Card */
         .kpi-main { text-align: center; padding: 4px 0 14px; }
         .kpi-label { font-size: 12px; color: var(--text-sub); font-weight: 600; margin-bottom: 4px; }
@@ -795,82 +828,58 @@
 
                 <section class="dashboard-hero">
                     <div class="dashboard-hero-top">
-                        <div>
-                            <div class="dashboard-eyebrow">우리 집</div>
-                            <div class="dashboard-title" id="dashboard-month-title">이번 달 돈 흐름</div>
-                        </div>
-                        <div class="dashboard-badge">자동 계산</div>
+                        <div class="dashboard-month" id="dashboard-month-title">9월</div>
                     </div>
                     <div class="dashboard-main-number">
-                        <div class="dashboard-main-label">이번 달 공동통장에 더 모을 수 있는 돈</div>
+                        <div class="dashboard-main-label">추가 저축 가능</div>
                         <div class="dashboard-main-value" id="kpi-savings">0원</div>
                     </div>
-                    <div class="dashboard-flow">
-                        <div class="dashboard-flow-item"><span>들어온 돈</span><strong id="kpi-income">0원</strong></div>
-                        <div class="dashboard-flow-divider">−</div>
-                        <div class="dashboard-flow-item"><span>나간 돈</span><strong id="kpi-expense">0원</strong></div>
-                        <div class="dashboard-flow-divider">−</div>
-                        <div class="dashboard-flow-item"><span>고정 저축</span><strong id="kpi-planned-savings">0원</strong></div>
+                    <div class="dashboard-mini-stats">
+                        <div><span>수입</span><strong id="kpi-income">0원</strong></div>
+                        <div><span>지출</span><strong id="kpi-expense">0원</strong></div>
+                        <div><span>저축</span><strong id="kpi-planned-savings">0원</strong></div>
                     </div>
-                    <div class="dashboard-hero-note" id="ai-advice-text">이번 달 수입과 지출을 기준으로 계산하고 있어요.</div>
                 </section>
 
-                <section class="quick-ledger-card dashboard-primary-action">
-                    <div class="quick-ledger-copy">
-                        <div class="quick-ledger-title">오늘 돈을 썼다면</div>
-                        <div class="quick-ledger-desc">금액만 입력해도 바로 기록할 수 있어요.</div>
+                <button class="quick-ledger-main" onclick="window.quickAddExpense()">＋ 지출 기록</button>
+
+                <section class="card recent-expense-card">
+                    <div class="dashboard-card-title">최근 지출</div>
+                    <div id="dashboard-recent-expenses" class="dashboard-recent-expenses">
+                        <div class="dashboard-empty">아직 지출이 없어요.</div>
                     </div>
-                    <button class="quick-ledger-btn" onclick="window.quickAddExpense()">＋ 지출 기록</button>
                 </section>
 
-                <section class="card dashboard-section-card">
-                    <div class="dashboard-section-heading">
-                        <div>
-                            <div class="dashboard-section-title">이번 달 돈 흐름</div>
-                            <div class="dashboard-section-sub">고정비와 저축을 제외하고 남은 돈을 확인해요.</div>
-                        </div>
+                <section class="card savings-plan-simple" id="savings-plan-card">
+                    <div class="dashboard-card-title">
+                        <span>남은 돈</span>
+                        <strong id="savings-plan-total">0원</strong>
                     </div>
-                    <div class="dashboard-flow-list">
-                        <div class="dashboard-flow-row"><span>총 수입</span><strong id="dashboard-income-copy">0원</strong></div>
-                        <div class="dashboard-flow-row"><span>예상 지출</span><strong id="dashboard-expense-copy">0원</strong></div>
-                        <div class="dashboard-flow-row"><span>청년저축</span><strong id="dashboard-fixed-saving-copy">0원</strong></div>
-                        <div class="dashboard-flow-row dashboard-flow-row-total"><span>공동통장 추가저축</span><strong id="dashboard-extra-saving-copy">0원</strong></div>
+                    <div class="simple-saving-grid">
+                        <div><span>안전자금</span><strong id="savings-plan-emergency">0원</strong></div>
+                        <div><span>여행</span><strong id="savings-plan-travel">0원</strong></div>
+                        <div><span>장기저축</span><strong id="savings-plan-longterm">0원</strong></div>
                     </div>
-                    <div class="dashboard-section-note">청년저축 140만원은 고정 저축으로 먼저 반영되고, 그 이후 남는 금액이 공동통장 추가저축으로 계산됩니다.</div>
-                </section>
-
-                <section class="card dashboard-section-card" id="savings-plan-card">
-                    <div class="dashboard-section-heading">
-                        <div>
-                            <div class="dashboard-section-title">남은 돈은 어디에 둘까요?</div>
-                            <div class="dashboard-section-sub">이번 달 추가저축을 목적별로 나눠볼 수 있어요.</div>
-                        </div>
-                        <strong class="savings-plan-total" id="savings-plan-total">0원</strong>
-                    </div>
-                    <div class="savings-plan-grid">
-                        <div class="savings-plan-item"><div class="savings-plan-pct">30%</div><div class="savings-plan-amount" id="savings-plan-emergency">0원</div><div class="savings-plan-name">생활 안전자금</div></div>
-                        <div class="savings-plan-item"><div class="savings-plan-pct">30%</div><div class="savings-plan-amount" id="savings-plan-travel">0원</div><div class="savings-plan-name">여행·큰지출</div></div>
-                        <div class="savings-plan-item"><div class="savings-plan-pct">40%</div><div class="savings-plan-amount" id="savings-plan-longterm">0원</div><div class="savings-plan-name">장기 목표</div></div>
-                    </div>
-                    <div class="dashboard-section-note">기본 배분안이에요. 실제 목표에 맞게 나중에 바꿀 수 있어요.</div>
                 </section>
 
                 <details class="dashboard-details">
-                    <summary>⚙️ 이번 달 금액 직접 수정</summary>
-                    <div class="card dashboard-detail-card">
-                        <div class="income-header-toggle" onclick="window.toggleIncomeCard()">
-                            <span class="card-title">💵 수입 직접 수정</span>
-                            <span id="income-toggle-icon" style="font-size:12px; color:var(--text-sub);">펼치기 ▾</span>
+                    <summary>금액 수정</summary>
+                    <div class="dashboard-detail-inner">
+                        <div class="dashboard-edit-row">
+                            <span>수입</span>
+                            <button class="btn-action-sm" onclick="window.toggleIncomeCard()">수정</button>
                         </div>
-                        <div class="income-body collapsed" id="income-body-container"><div id="income-field-container"></div></div>
-                    </div>
-                    <div class="card dashboard-detail-card">
-                        <div class="card-header"><span class="card-title">💸 지출 상세</span><button class="btn-action-sm" onclick="window.openModal('expense')">편집</button></div>
-                        <div id="expense-accordion-container"></div>
-                    </div>
-                    <div class="card dashboard-detail-card">
-                        <div class="card-header"><span class="card-title">💰 고정 저축 상세</span><button class="btn-action-sm" onclick="window.openModal('savings')">편집</button></div>
-                        <div id="savings-accordion-container"></div>
+                        <div class="income-body collapsed" id="income-body-container">
+                            <div id="income-field-container"></div>
+                        </div>
+                        <div class="dashboard-edit-row">
+                            <span>지출</span>
+                            <button class="btn-action-sm" onclick="window.openModal('expense')">수정</button>
+                        </div>
+                        <div class="dashboard-edit-row">
+                            <span>고정 저축</span>
+                            <button class="btn-action-sm" onclick="window.openModal('savings')">수정</button>
+                        </div>
                     </div>
                 </details>
 
@@ -879,6 +888,8 @@
                     <span id="kpi-total-savings">0원</span>
                     <span id="bar-exp-pct">0%</span><span id="bar-sav-pct">0%</span>
                     <span id="lbl-exp-pct">0%</span><span id="lbl-sav-pct">0%</span>
+                    <div id="expense-accordion-container"></div>
+                    <div id="savings-accordion-container"></div>
                 </div>
 
             </div>
@@ -2218,11 +2229,10 @@
     function toggleIncomeCard() {
         const body = document.getElementById('income-body-container');
         const icon = document.getElementById('income-toggle-icon');
-        if (!body || !icon) return;
-        if (body.classList.contains('collapsed')) {
-            body.classList.remove('collapsed');
-            icon.innerText = '접기 ▴';
-        } else {
+        if (!body) return;
+        const collapsed = body.classList.toggle('collapsed');
+        if (icon) icon.innerText = collapsed ? '펼치기 ▾' : '접기 ▴';
+    } else {
             body.classList.add('collapsed');
             icon.innerText = '펼치기 ▾';
         }
@@ -2520,6 +2530,8 @@
             const el = document.getElementById(id);
             if (el) el.innerText = formatAmount(value);
         });
+        renderDashboardRecentExpenses(d);
+
 
         const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
         const savPct = activeIncomeWon > 0 ? Math.min(Math.round((activeSavingsWon / activeIncomeWon) * 100), 100 - expPct) : 0;
@@ -2538,6 +2550,22 @@
 
         renderSavingsPlan(activeSavingsWon);
         renderChartAndMonthly();
+    }
+
+    function renderDashboardRecentExpenses(d) {
+        const el = document.getElementById('dashboard-recent-expenses');
+        if (!el) return;
+        const items = Array.isArray(d?.categories?.variable_expense) ? d.categories.variable_expense.slice().reverse().slice(0, 5) : [];
+        if (!items.length) {
+            el.innerHTML = '<div class="dashboard-empty">아직 지출이 없어요.</div>';
+            return;
+        }
+        el.innerHTML = items.map(item => {
+            const owner = item.owner === 'bora' ? '보라' : item.owner === 'sang' ? '상훈' : '공통';
+            const label = item.name || item.category || '지출';
+            const meta = item.category ? `· ${escapeHtml(item.category)} · ${owner}` : owner;
+            return `<div class="dashboard-expense-row"><div><div>${escapeHtml(label)}</div><div class="dashboard-expense-meta">${meta}</div></div><div class="dashboard-expense-amount">${formatAmount(Number(item.amount)||0)}</div></div>`;
+        }).join('');
     }
 
     function renderSavingsPlan(amount) {
