@@ -287,7 +287,15 @@
         .goal-apply-btn{width:100%;border:1px solid #cbd5e0;background:#fff;border-radius:10px;padding:10px;font-size:11px;font-weight:800;color:var(--primary);cursor:pointer}
         .goal-apply-btn.applied{background:#f0fff4;border-color:#c6f6d5;color:#276749}
         .goal-milestone{margin-top:8px;text-align:center;font-size:10px;font-weight:700;color:var(--text-sub)}
-        .dashboard-budget-card{padding:12px 14px}
+        .goal-percent{font-size:30px;line-height:1.05;font-weight:900;color:var(--savings-color);margin-top:7px;letter-spacing:-.6px}
+        .goal-hero .goal-progress-track{margin-top:13px}
+        .settings-edit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+        .settings-edit-grid button{min-height:62px;border:1px solid var(--border-color);background:#f8fafc;border-radius:11px;padding:9px 5px;text-align:center;color:var(--primary);cursor:pointer}
+        .settings-edit-grid button:active{transform:translateY(1px)}
+        .settings-edit-grid span{display:block;font-size:12px;font-weight:800}
+        .settings-edit-grid small{display:block;margin-top:3px;font-size:9px;color:var(--text-sub);line-height:1.2}
+
+        .dashboard-budget-card{padding:11px 13px}
         .dashboard-budget-action{min-height:34px;padding:7px 11px}
         .dashboard-budget-meta{margin-top:5px}
         .dashboard-budget-setting{display:none}
@@ -890,11 +898,11 @@
             <div id="page-dashboard" class="page-view active">
                 <section class="goal-hero">
                     <div class="goal-month" id="dashboard-month-title">9월</div>
-                    <div class="goal-label">1억 5천 모으기</div>
-                    <div class="goal-current" id="goal-current-amount">0원</div>
+                    <div class="goal-label">1억 5천 목표</div>
+                    <div class="goal-percent" id="goal-progress-pct">0.0%</div>
                     <div class="goal-progress-track"><div class="goal-progress-bar" id="goal-progress-bar"></div></div>
                     <div class="goal-progress-row">
-                        <span id="goal-progress-pct">0%</span>
+                        <span id="goal-current-amount">현재 0원</span>
                         <span id="goal-next-milestone">이번 달 저축 0원</span>
                     </div>
                 </section>
@@ -919,14 +927,14 @@
                     </div>
                     <div class="dashboard-budget-summary">
                         <strong class="dashboard-budget-used" id="dashboard-budget-used">0원</strong>
-                        <span class="dashboard-budget-limit" id="dashboard-budget-limit">예산 미설정</span>
+                        <span class="dashboard-budget-limit" id="dashboard-budget-limit"></span>
                     </div>
                     <div class="dashboard-budget-track" aria-label="예산 사용량">
                         <div class="dashboard-budget-bar" id="dashboard-budget-bar"></div>
                     </div>
                     <div class="dashboard-budget-meta">
-                        <span id="dashboard-budget-status" class="dashboard-budget-status">—</span>
-                        <span id="dashboard-budget-pct">—</span>
+                        <span id="dashboard-budget-status" class="dashboard-budget-status"></span>
+                        <span id="dashboard-budget-pct"></span>
                     </div>
                 </section>
 
@@ -949,23 +957,6 @@
                     </div>
                 </section>
 
-                <details class="dashboard-details">
-                    <summary>수정</summary>
-                    <div class="dashboard-detail-inner">
-                        <div class="dashboard-edit-row"><span>수입</span></div>
-                        <div class="income-body" id="income-body-container">
-                            <div id="income-field-container"></div>
-                        </div>
-                        <div class="dashboard-edit-row">
-                            <span>지출</span>
-                            <button class="btn-action-sm" onclick="window.openModal('expense')">수정</button>
-                        </div>
-                        <div class="dashboard-edit-row">
-                            <span>고정 저축</span>
-                            <button class="btn-action-sm" onclick="window.openModal('savings')">수정</button>
-                        </div>
-                    </div>
-                </details>
 
                 <div style="display:none;" aria-hidden="true">
                     <span id="kpi-target-label">우리 곳간 총 추가 저축 가능액</span>
@@ -1000,6 +991,14 @@
 
             <!-- 3. 설정 페이지 -->
             <div id="page-settings" class="page-view">
+                <div class="card settings-edit-card">
+                    <div class="card-header"><span class="card-title">✏️ 이번 달 수정</span></div>
+                    <div class="settings-edit-grid">
+                        <button type="button" onclick="window.openModal('income')"><span>수입</span><small>수입 내역 수정</small></button>
+                        <button type="button" onclick="window.openModal('expense')"><span>지출</span><small>고정·변동 지출 수정</small></button>
+                        <button type="button" onclick="window.openModal('savings')"><span>저축</span><small>고정저축 수정</small></button>
+                    </div>
+                </div>
 <div class="card">
                     <div class="card-header">
                         <span class="card-title">🏷️ 변동 지출 카테고리 관리</span>
@@ -2489,11 +2488,8 @@
                 barEl.style.width = '0%';
                 barEl.classList.remove('warn', 'over');
             }
-            if (statusEl) {
-                statusEl.innerText = '—';
-                statusEl.classList.remove('warn', 'over');
-            }
-            if (pctEl) pctEl.innerText = '—';
+            if (statusEl) statusEl.innerText = '';
+            if (pctEl) pctEl.innerText = '';
             return;
         }
 
@@ -2782,10 +2778,10 @@
         const goalBarEl=document.getElementById('goal-progress-bar');
         const goalPctEl=document.getElementById('goal-progress-pct');
         const goalMilestoneEl=document.getElementById('goal-next-milestone');
-        if(goalCurrentEl) goalCurrentEl.innerText=formatAmount(goalTotal);
+        if(goalCurrentEl) goalCurrentEl.innerText='현재 '+formatAmount(goalTotal);
         if(goalBarEl) goalBarEl.style.width=goalPct.toFixed(1)+'%';
         if(goalPctEl) goalPctEl.innerText=goalPct.toFixed(1)+'%';
-        if(goalMilestoneEl) goalMilestoneEl.innerText='이번 달 저축 '+formatAmount(Math.max(Number(activeSavingsWon)||0,0));
+        if(goalMilestoneEl) goalMilestoneEl.innerText='이번 달 저축 '+formatAmount(Math.max(Number(savForTab)||0,0));
 
 
         const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
