@@ -268,6 +268,24 @@
         .income-unit { font-size: 13px; font-weight: 600; color: var(--text-sub); }
         .exchange-sub-info { font-size: 11px; color: var(--accent); text-align: right; padding-top: 4px; font-weight: 600; }
 
+        /* 1억 5천 목표 */
+        .goal-hero{background:#fff;border:1px solid var(--border-color);border-radius:20px;padding:20px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
+        .goal-month{font-size:12px;font-weight:800;color:var(--text-sub)}
+        .goal-label{text-align:center;font-size:12px;font-weight:700;color:var(--text-sub);margin-top:14px}
+        .goal-current{text-align:center;font-size:30px;font-weight:900;color:var(--primary);margin-top:3px;letter-spacing:-.5px}
+        .goal-progress-track{height:9px;background:#edf2f7;border-radius:999px;overflow:hidden;margin-top:15px}
+        .goal-progress-bar{height:100%;width:0;background:var(--savings-color);border-radius:999px;transition:width .25s ease}
+        .goal-progress-row{display:flex;justify-content:space-between;margin-top:7px;font-size:10px;color:var(--text-sub);font-weight:700}
+        .month-money-card{background:#fff;border:1px solid var(--border-color);border-radius:16px;padding:15px 17px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
+        .month-money-title{font-size:13px;font-weight:800;color:var(--primary);margin-bottom:10px}
+        .month-money-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;background:#f8fafc;border-radius:10px;padding:10px 4px}
+        .month-money-grid>div{text-align:center;min-width:0}
+        .month-money-grid span{display:block;font-size:9px;color:var(--text-sub)}
+        .month-money-grid strong{display:block;font-size:11px;color:var(--primary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .month-extra{display:flex;justify-content:space-between;align-items:center;padding:13px 2px 8px;font-size:11px;color:var(--text-sub)}
+        .month-extra strong{font-size:18px;color:var(--savings-color)}
+        .goal-apply-btn{width:100%;border:1px solid #cbd5e0;background:#fff;border-radius:10px;padding:10px;font-size:11px;font-weight:800;color:var(--primary);cursor:pointer}
+        .goal-apply-btn.applied{background:#f0fff4;border-color:#c6f6d5;color:#276749}
         /* Simplified dashboard */
         .dashboard-hero{background:#fff;border:1px solid var(--border-color);border-radius:20px;padding:20px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
         .dashboard-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
@@ -825,20 +843,29 @@
         <div class="page-content">
             <!-- 1. 대시보드 페이지 -->
             <div id="page-dashboard" class="page-view active">
+                <section class="goal-hero">
+                    <div class="goal-month" id="dashboard-month-title">9월</div>
+                    <div class="goal-label">1억 5천 모으기</div>
+                    <div class="goal-current" id="goal-current-amount">0원</div>
+                    <div class="goal-progress-track"><div class="goal-progress-bar" id="goal-progress-bar"></div></div>
+                    <div class="goal-progress-row">
+                        <span id="goal-progress-pct">0%</span>
+                        <span id="goal-remaining-amount">목표까지 1억 5천</span>
+                    </div>
+                </section>
 
-                <section class="dashboard-hero">
-                    <div class="dashboard-hero-top">
-                        <div class="dashboard-month" id="dashboard-month-title">9월</div>
-                    </div>
-                    <div class="dashboard-main-number">
-                        <div class="dashboard-main-label">추가 저축 가능</div>
-                        <div class="dashboard-main-value" id="kpi-savings">0원</div>
-                    </div>
-                    <div class="dashboard-mini-stats">
+                <section class="month-money-card">
+                    <div class="month-money-title">이번 달</div>
+                    <div class="month-money-grid">
                         <div><span>수입</span><strong id="kpi-income">0원</strong></div>
                         <div><span>지출</span><strong id="kpi-expense">0원</strong></div>
-                        <div><span>저축</span><strong id="kpi-planned-savings">0원</strong></div>
+                        <div><span>고정저축</span><strong id="kpi-planned-savings">0원</strong></div>
                     </div>
+                    <div class="month-extra">
+                        <span>추가로 모을 수 있어요</span>
+                        <strong id="kpi-savings">0원</strong>
+                    </div>
+                    <button class="goal-apply-btn" id="goal-apply-btn" onclick="window.applyCurrentMonthSavingsToGoal()">이번 달 저축 반영</button>
                 </section>
 
                 <button class="quick-ledger-main" onclick="window.quickAddExpense()">＋ 지출 기록</button>
@@ -850,20 +877,8 @@
                     </div>
                 </section>
 
-                <section class="card savings-plan-simple" id="savings-plan-card">
-                    <div class="dashboard-card-title">
-                        <span>남은 돈</span>
-                        <strong id="savings-plan-total">0원</strong>
-                    </div>
-                    <div class="simple-saving-grid">
-                        <div><span>안전자금</span><strong id="savings-plan-emergency">0원</strong></div>
-                        <div><span>여행</span><strong id="savings-plan-travel">0원</strong></div>
-                        <div><span>장기저축</span><strong id="savings-plan-longterm">0원</strong></div>
-                    </div>
-                </section>
-
                 <details class="dashboard-details">
-                    <summary>금액 수정</summary>
+                    <summary>수정</summary>
                     <div class="dashboard-detail-inner">
                         <div class="dashboard-edit-row">
                             <span>수입</span>
@@ -890,8 +905,11 @@
                     <span id="lbl-exp-pct">0%</span><span id="lbl-sav-pct">0%</span>
                     <div id="expense-accordion-container"></div>
                     <div id="savings-accordion-container"></div>
+                    <span id="dashboard-income-copy">0원</span>
+                    <span id="dashboard-expense-copy">0원</span>
+                    <span id="dashboard-fixed-saving-copy">0원</span>
+                    <span id="dashboard-extra-saving-copy">0원</span>
                 </div>
-
             </div>
 
             <!-- 2. 월별 비교 페이지 -->
@@ -922,6 +940,17 @@
                         <button class="btn-action-sm" onclick="window.addCategorySetting()">추가</button>
                     </div>
                     <div class="category-tags" id="setting-category-tags"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-title">🏦 1억 5천 목표</span></div>
+                    <div class="household-rule-card">
+                        <div class="household-rule-grid">
+                            <div class="household-rule-field household-goal-field"><label>목표 금액</label><input id="goal-target-amount" inputmode="numeric" value="150,000,000"></div>
+                            <div class="household-rule-field household-goal-field"><label>지금 모아둔 돈</label><input id="goal-current-amount-input" inputmode="numeric" placeholder="현재 금액"></div>
+                        </div>
+                        <button class="household-rule-save" onclick="window.saveHouseholdGoal()">목표 저장</button>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -1214,6 +1243,7 @@
     let categoryList = DEFAULT_CATEGORIES.slice();
     let fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
     let householdRules = { boraFixedIncome: 0, sangBaseIncome: 0, sangSpecialAllowance: 700000, boraYouthSavings: 700000, sangYouthSavings: 700000 };
+    let householdGoal = { targetAmount: 150000000, currentAmount: 0, contributions: {} };
 
     function getEffectiveFixedExpenseCategories() {
         const list = Array.isArray(fixedExpenseCategoryList) ? fixedExpenseCategoryList.filter(Boolean) : [];
@@ -1478,6 +1508,54 @@
         Object.entries(map).forEach(([id,value])=>{const el=document.getElementById(id);if(el&&document.activeElement!==el)el.value=formatNumberString(value);});
     }
     function readRuleNumber(id){const el=document.getElementById(id);return parseNumberString(el?el.value:'');}
+    function renderHouseholdGoal(){
+        const targetEl=document.getElementById('goal-target-amount');
+        const currentEl=document.getElementById('goal-current-amount-input');
+        if(targetEl&&document.activeElement!==targetEl) targetEl.value=formatNumberString(householdGoal.targetAmount||150000000);
+        if(currentEl&&document.activeElement!==currentEl) currentEl.value=formatNumberString(householdGoal.currentAmount||0);
+    }
+
+    async function saveHouseholdGoal(){
+        if(!isAuthenticatedUser()){showToast('로그인 후 목표를 저장할 수 있어요.',true);return false;}
+        const target=parseNumberString(document.getElementById('goal-target-amount')?.value||'');
+        const current=parseNumberString(document.getElementById('goal-current-amount-input')?.value||'');
+        householdGoal={...householdGoal,targetAmount:target||150000000,currentAmount:current||0,contributions:householdGoal.contributions||{}};
+        try{
+            await setDoc(settingsDocRef(),{householdGoal:cloneData(householdGoal),updatedAt:Date.now()},{merge:true});
+            renderHouseholdGoal();
+            updateKPIAndChartsOnly();
+            showToast('목표가 저장되었어요.');
+            return true;
+        }catch(e){console.error('목표 저장 실패:',e);showToast('목표를 저장하지 못했어요.',true);return false;}
+    }
+    window.saveHouseholdGoal=saveHouseholdGoal;
+
+    function getGoalTotal(){
+        const base=Number(householdGoal.currentAmount)||0;
+        const contributions=householdGoal.contributions&&typeof householdGoal.contributions==='object'?householdGoal.contributions:{};
+        return base+Object.values(contributions).reduce((sum,v)=>sum+(Number(v)||0),0);
+    }
+
+    async function applyCurrentMonthSavingsToGoal(){
+        if(!isAuthenticatedUser()) return false;
+        if(currentTab!=='all'){showToast('통합 화면에서 이번 달 저축을 반영해주세요.',true);return false;}
+        const d=store[currentMonth]||DEFAULT_MONTH_DATA();
+        const tripWonTotal=Math.round((d.trip_usd||0)*getMonthExchangeRate(d));
+        const totalIncome=(d.bora||0)+(d.bora_extra||0)+(d.sang||0)+(d.sang_other_income||0)+tripWonTotal;
+        const totalExpense=sumCat(d.categories.expense)+sumCat(d.categories.bora_personal)+sumCat(d.categories.sang_personal)+sumCat(d.categories.living)+sumCat(d.categories.variable_expense);
+        const fixedSaving=sumCatForTab(d.categories.savings,'all');
+        const additional=calculateAdditionalSavings(totalIncome,totalExpense,fixedSaving);
+        const contribution=Math.max(0,Math.round(fixedSaving+additional));
+        householdGoal={...householdGoal,contributions:{...(householdGoal.contributions||{}),[currentMonth]:contribution}};
+        try{
+            await setDoc(settingsDocRef(),{householdGoal:cloneData(householdGoal),updatedAt:Date.now()},{merge:true});
+            updateKPIAndChartsOnly();
+            showToast('이번 달 저축이 목표에 반영됐어요.');
+            return true;
+        }catch(e){console.error('목표 반영 실패:',e);showToast('목표에 반영하지 못했어요.',true);return false;}
+    }
+    window.applyCurrentMonthSavingsToGoal=applyCurrentMonthSavingsToGoal;
+
     async function saveHouseholdRules(){
         if(!isAuthenticatedUser()){showToast('로그인 후 우리 집 규칙을 저장할 수 있어요.',true);return false;}
         householdRules={boraFixedIncome:readRuleNumber('rule-bora-income'),sangBaseIncome:readRuleNumber('rule-sang-income'),sangSpecialAllowance:readRuleNumber('rule-sang-special'),boraYouthSavings:readRuleNumber('rule-bora-saving'),sangYouthSavings:readRuleNumber('rule-sang-saving')};
@@ -1903,7 +1981,9 @@
                 fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
             }
             if (meta.householdRules && typeof meta.householdRules === 'object') householdRules = { ...householdRules, ...meta.householdRules };
+            if (meta.householdGoal && typeof meta.householdGoal === 'object') householdGoal = { ...householdGoal, ...meta.householdGoal, contributions: { ...(householdGoal.contributions||{}), ...(meta.householdGoal.contributions||{}) } };
             renderHouseholdRules();
+            renderHouseholdGoal();
             applyHouseholdRulesToMonth(currentMonth, true);
             renderCategorySettings();
             renderFixedExpenseCategorySettings();
@@ -2531,6 +2611,25 @@
             if (el) el.innerText = formatAmount(value);
         });
         renderDashboardRecentExpenses(d);
+
+        const goalTotal=getGoalTotal();
+        const goalTarget=Math.max(Number(householdGoal.targetAmount)||150000000,1);
+        const goalPct=Math.min(100,(goalTotal/goalTarget)*100);
+        const goalRemaining=Math.max(goalTarget-goalTotal,0);
+        const goalCurrentEl=document.getElementById('goal-current-amount');
+        const goalBarEl=document.getElementById('goal-progress-bar');
+        const goalPctEl=document.getElementById('goal-progress-pct');
+        const goalRemainEl=document.getElementById('goal-remaining-amount');
+        const goalBtn=document.getElementById('goal-apply-btn');
+        if(goalCurrentEl) goalCurrentEl.innerText=formatAmount(goalTotal);
+        if(goalBarEl) goalBarEl.style.width=goalPct.toFixed(1)+'%';
+        if(goalPctEl) goalPctEl.innerText=goalPct.toFixed(1)+'%';
+        if(goalRemainEl) goalRemainEl.innerText=goalRemaining>0 ? '목표까지 '+formatAmount(goalRemaining) : '목표 달성 🎉';
+        if(goalBtn){
+            const hasApplied=Object.prototype.hasOwnProperty.call(householdGoal.contributions||{},currentMonth);
+            goalBtn.innerText=hasApplied ? '이번 달 저축 반영됨' : '이번 달 저축 반영';
+            goalBtn.classList.toggle('applied',hasApplied);
+        }
 
 
         const expPct = activeIncomeWon > 0 ? Math.min(Math.round((activeExpenseWon / activeIncomeWon) * 100), 100) : 0;
