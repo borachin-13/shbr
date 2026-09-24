@@ -481,12 +481,24 @@
             padding: 11px 12px; border: 1px solid var(--border-color);
             border-radius: 10px; outline: none; font-size: 13px;
         }
+        .quick-expense-more { margin-top: 14px; }
+        .quick-expense-more > summary {
+            list-style: none; cursor: pointer; padding: 9px 0;
+            color: var(--text-sub); font-size: 11px; font-weight: 700;
+            border-top: 1px solid #edf2f7;
+        }
+        .quick-expense-more > summary::-webkit-details-marker { display:none; }
+        .quick-expense-more > summary::before { content: "＋ "; }
+        .quick-expense-more[open] > summary::before { content: "－ "; }
+        .quick-expense-more > summary span { font-weight: 500; margin-left: 3px; }
+        .quick-expense-more-body { padding-top: 2px; }
         .quick-expense-save {
-            width: 100%; margin-top: 18px; padding: 13px;
+            width: 100%; margin-top: 14px; padding: 13px;
             border: 0; border-radius: 11px; background: var(--primary);
             color: #fff; font-size: 14px; font-weight: 800; cursor: pointer;
         }
-        .quick-expense-hint { font-size: 10px; color: var(--text-sub); margin-top: 7px; }
+        .quick-expense-save:active { transform: translateY(1px); }
+        .quick-expense-hint { font-size: 10px; color: var(--text-sub); margin-top: 8px; }
         .household-rule-card{background:#fff;border:1px solid var(--border-color);border-radius:12px;padding:12px;margin-top:8px}
         .household-rule-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
         .household-rule-field label{display:block;font-size:10px;color:var(--text-sub);margin-bottom:4px;font-weight:700}
@@ -1033,11 +1045,16 @@
             </div>
             <div class="quick-expense-label">카테고리</div>
             <select id="quick-expense-category" class="quick-expense-select"></select>
-            <div class="quick-expense-label">날짜</div>
-            <input id="quick-expense-date" class="quick-expense-date" type="date">
-            <div class="quick-expense-label">내용 <span style="font-weight:400;">(선택)</span></div>
-            <input id="quick-expense-name" class="quick-expense-name" placeholder="예: 점심, 커피, 장보기" maxlength="40">
-            <div class="quick-expense-hint">금액만 입력해도 저장할 수 있어요.</div>
+            <details class="quick-expense-more">
+                <summary>날짜·내용 추가 <span>선택</span></summary>
+                <div class="quick-expense-more-body">
+                    <div class="quick-expense-label">날짜</div>
+                    <input id="quick-expense-date" class="quick-expense-date" type="date">
+                    <div class="quick-expense-label">내용 <span style="font-weight:400;">(선택)</span></div>
+                    <input id="quick-expense-name" class="quick-expense-name" placeholder="예: 점심, 커피, 장보기" maxlength="40">
+                </div>
+            </details>
+            <div class="quick-expense-hint">금액 → 누구 → 카테고리만 선택해도 바로 저장돼요.</div>
             <button class="quick-expense-save" onclick="window.saveQuickExpense()">저장하기</button>
         </div>
     </div>
@@ -2910,6 +2927,7 @@
         amount.value = '';
         name.value = '';
         date.value = getQuickExpenseDate();
+
         document.querySelectorAll('#quick-expense-owner .quick-owner-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.owner === 'shared');
             btn.onclick = () => {
@@ -2917,6 +2935,16 @@
                 btn.classList.add('active');
             };
         });
+
+        const more = document.querySelector('#quick-expense-modal .quick-expense-more');
+        if (more) more.open = false;
+
+        amount.onkeydown = (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                saveQuickExpense();
+            }
+        };
 
         modal.classList.add('open');
         modal.style.display = 'flex';
