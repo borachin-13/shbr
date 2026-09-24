@@ -1367,6 +1367,7 @@
     function isAuthenticatedUser() {
         return !!auth.currentUser && !auth.currentUser.isAnonymous;
     }
+    window.isAuthenticatedUser = isAuthenticatedUser;
 
     function monthDocRef(month) {
         if (!isAuthenticatedUser()) {
@@ -2205,7 +2206,19 @@
         store = {};
         loadedMonths.clear();
         clearLocalPersistence();
+        appPinUnlocked = false;
         document.getElementById('lock-screen').style.display = 'flex';
+        const pinGate = document.getElementById('pin-gate');
+        const authGate = document.getElementById('auth-gate');
+        const pinEl = document.getElementById('app-pin');
+        const pinError = document.getElementById('pin-error');
+        if (pinGate) pinGate.style.display = 'block';
+        if (authGate) authGate.style.display = 'none';
+        if (pinEl) {
+            pinEl.value = '';
+            setTimeout(() => pinEl.focus(), 50);
+        }
+        if (pinError) pinError.innerText = '';
         window.setAuthError('');
         const emailEl = document.getElementById('auth-email');
         const passwordEl = document.getElementById('auth-password');
