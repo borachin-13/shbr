@@ -329,6 +329,19 @@
         .dashboard-mini-stats span{display:block;font-size:9px;color:var(--text-sub)}
         .dashboard-mini-stats strong{display:block;font-size:11px;color:var(--primary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .quick-ledger-main{width:100%;border:0;border-radius:12px;padding:14px;background:var(--primary);color:#fff;font-size:14px;font-weight:800;margin-bottom:10px;cursor:pointer}
+        .dashboard-quick-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:0 0 10px}
+        .dashboard-quick-action{border:1px solid var(--border-color);background:#fff;border-radius:10px;padding:10px 5px;color:var(--primary);font-size:11px;font-weight:800;cursor:pointer}
+        .dashboard-quick-action:active{transform:translateY(1px)}
+        .dashboard-compare-card{padding:13px 15px;margin-bottom:10px}
+        .dashboard-compare-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+        .dashboard-compare-title{font-size:12px;font-weight:800;color:var(--primary)}
+        .dashboard-compare-month{font-size:10px;color:var(--text-sub)}
+        .dashboard-compare-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+        .dashboard-compare-item{background:#f8fafc;border-radius:9px;padding:8px 4px;text-align:center}
+        .dashboard-compare-item span{display:block;font-size:9px;color:var(--text-sub)}
+        .dashboard-compare-item strong{display:block;font-size:11px;margin-top:3px;color:var(--primary)}
+        .dashboard-compare-item small{display:block;font-size:9px;margin-top:2px;color:var(--text-sub)}
+
         .recent-expense-card{padding:15px 17px}
         .dashboard-card-title{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:800;color:var(--primary);margin-bottom:9px}
         .dashboard-recent-expenses{display:flex;flex-direction:column}
@@ -880,7 +893,23 @@
                     <button class="goal-apply-btn" id="goal-apply-btn" onclick="window.applyCurrentMonthSavingsToGoal()">이번 달 저축 반영</button>
                 </section>
 
+                <div class="dashboard-quick-actions">
+                    <button class="dashboard-quick-action" onclick="window.openModal('income')">✏️ 수입 수정</button>
+                    <button class="dashboard-quick-action" onclick="window.openModal('expense')">✏️ 지출 수정</button>
+                    <button class="dashboard-quick-action" onclick="window.openModal('savings')">✏️ 저축 수정</button>
+                </div>
+
                 <button class="quick-ledger-main" onclick="window.quickAddExpense()">＋ 지출 기록</button>
+
+                <section class="card dashboard-compare-card">
+                    <div class="dashboard-compare-head">
+                        <span class="dashboard-compare-title">📈 전월 대비</span>
+                        <span class="dashboard-compare-month" id="dashboard-compare-month">지난달과 비교</span>
+                    </div>
+                    <div class="dashboard-compare-grid" id="dashboard-compare-grid">
+                        <div class="dashboard-empty">지난달 데이터를 불러오는 중…</div>
+                    </div>
+                </section>
 
                 <section class="card recent-expense-card">
                     <div class="dashboard-card-title">최근 지출</div>
@@ -2621,6 +2650,7 @@
             if (el) el.innerText = formatAmount(value);
         });
         renderDashboardRecentExpenses(d);
+        renderDashboardComparison();
 
         const goalTotal=getGoalTotal();
         const goalTarget=Math.max(Number(householdGoal.targetAmount)||150000000,1);
@@ -2664,7 +2694,9 @@
     function renderDashboardRecentExpenses(d) {
         const el = document.getElementById('dashboard-recent-expenses');
         if (!el) return;
-        const items = Array.isArray(d?.categories?.variable_expense) ? d.categories.variable_expense.slice().reverse().slice(0, 5) : [];
+        const items = Array.isArray(d?.categories?.variable_expense)
+            ? d.categories.variable_expense.slice().sort((a,b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 5)
+            : [];
         if (!items.length) {
             el.innerHTML = '<div class="dashboard-empty">아직 지출이 없어요.</div>';
             return;
@@ -2697,6 +2729,58 @@
             const el = document.getElementById(id);
             if (el) el.innerText = formatAmount(value);
         });
+    }
+
+    function getPreviousMonthKey(month) {
+        const [year, mon] = String(month || '').split('-').map(Number);
+        if (!year || !mon) return null;
+        const d = new Date(year, mon - 2, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function getDashboardTotals(month) {
+        const d = store[month];
+        if (!d) return null;
+        const income = (Number(d.bora)||0) + (Number(d.bora_extra)||0) + (Number(d.sang)||0) + (Number(d.sang_other_income)||0) + Math.round((Number(d.trip_usd)||0) * getMonthExchangeRate(d));
+        const expense = sumCat(d.categories?.expense) + sumCat(d.categories?.bora_personal) + sumCat(d.categories?.sang_personal) + sumCat(d.categories?.living) + sumCat(d.categories?.variable_expense);
+        const saving = sumCat(d.categories?.savings);
+        const extra = calculateAdditionalSavings(income, expense, saving);
+        return {income, expense, saving, extra};
+    }
+
+    function formatComparison(current, previous, suffix='') {
+        const diff = current - previous;
+        if (!previous && !current) return '—';
+        if (!previous) return (diff >= 0 ? '+' : '') + formatAmount(diff) + suffix;
+        const pct = Math.round((diff / previous) * 100);
+        return (pct >= 0 ? '+' : '') + pct + '%';
+    }
+
+    function renderDashboardComparison() {
+        const grid = document.getElementById('dashboard-compare-grid');
+        const monthEl = document.getElementById('dashboard-compare-month');
+        if (!grid) return;
+        const prevMonth = getPreviousMonthKey(currentMonth);
+        const cur = getDashboardTotals(currentMonth);
+        const prev = prevMonth ? getDashboardTotals(prevMonth) : null;
+        if (!cur || !prev) {
+            grid.innerHTML = '<div class="dashboard-empty" style="grid-column:1/-1;">지난달 데이터가 아직 없어요.</div>';
+            if (monthEl) monthEl.innerText = prevMonth ? `${prevMonth.replace('-', '.')} 데이터 필요` : '비교 불가';
+            return;
+        }
+        if (monthEl) monthEl.innerText = `${prevMonth.replace('-', '.')} → ${currentMonth.replace('-', '.')}`;
+        const items = [
+            ['수입', cur.income, prev.income, false],
+            ['지출', cur.expense, prev.expense, true],
+            ['추가저축 가능액', cur.extra, prev.extra, false]
+        ];
+        grid.innerHTML = items.map(([label, now, old, isExpense]) => {
+            const diff = now - old;
+            const pct = old ? Math.round((diff / old) * 100) : 0;
+            const sign = diff > 0 ? '+' : '';
+            const text = old ? `${sign}${pct}%` : '—';
+            return `<div class="dashboard-compare-item"><span>${label}</span><strong>${formatAmount(now)}</strong><small>${text} · 전월 ${formatAmount(old)}</small></div>`;
+        }).join('');
     }
 
     function render() {
@@ -3012,7 +3096,12 @@
 
         if (!modal || !titleEl || !subtabsEl || !bodyEl || !saveBtn) return;
 
-        if (type === 'expense') {
+        if (type === 'income') {
+            titleEl.innerText = '💵 수입 편집';
+            subtabsEl.innerHTML = '';
+            bodyEl.innerHTML = renderIncomeModalHTML();
+            saveBtn.onclick = saveIncomeModal;
+        } else if (type === 'expense') {
             titleEl.innerText = '💸 지출 항목 편집';
             subtabsEl.innerHTML = `
                 <button class="modal-subtab-btn active" onclick="window.switchModalTab('expense', this)">공통고정</button>
@@ -3081,7 +3170,49 @@
         return options;
     }
 
-function renderExpenseModalHTML() {
+function renderIncomeModalHTML() {
+        const d = store[currentMonth] || DEFAULT_MONTH_DATA();
+        return `
+            <div class="cat-group active">
+                <div class="cat-title-box">
+                    <div class="cat-title-label-top">보라 월급</div>
+                    <input type="text" id="income-modal-bora" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.bora || 0).toLocaleString())}" oninput="window.handleModalNumInput(this)">
+                </div>
+                <div class="cat-title-box">
+                    <div class="cat-title-label-top">보라 추가수입</div>
+                    <input type="text" id="income-modal-bora-extra" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.bora_extra || 0).toLocaleString())}" oninput="window.handleModalNumInput(this)">
+                </div>
+                <div class="cat-title-box">
+                    <div class="cat-title-label-top">상훈 월급</div>
+                    <input type="text" id="income-modal-sang" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.sang || 0).toLocaleString())}" oninput="window.handleModalNumInput(this)">
+                </div>
+                <div class="cat-title-box">
+                    <div class="cat-title-label-top">상훈 기타수입</div>
+                    <input type="text" id="income-modal-sang-other" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.sang_other_income || 0).toLocaleString())}" oninput="window.handleModalNumInput(this)">
+                </div>
+                <div class="cat-title-box">
+                    <div class="cat-title-label-top">출장비 USD</div>
+                    <input type="text" id="income-modal-trip-usd" class="cat-input" inputmode="decimal" value="${escapeHtml(Number(d.trip_usd || 0).toLocaleString())}" oninput="window.handleModalNumInput(this)">
+                </div>
+            </div>`;
+    }
+
+    function saveIncomeModal() {
+        if (!isAuthenticatedUser()) return;
+        const values = {
+            bora: parseNumberString(document.getElementById('income-modal-bora')?.value || ''),
+            bora_extra: parseNumberString(document.getElementById('income-modal-bora-extra')?.value || ''),
+            sang: parseNumberString(document.getElementById('income-modal-sang')?.value || ''),
+            sang_other_income: parseNumberString(document.getElementById('income-modal-sang-other')?.value || ''),
+            trip_usd: parseNumberString(document.getElementById('income-modal-trip-usd')?.value || '')
+        };
+        Object.assign(store[currentMonth], values);
+        closeModal();
+        render();
+        saveMonthPatch(currentMonth, values, '수입이 저장되었습니다.');
+    }
+
+    function renderExpenseModalHTML() {
         const targetData = store[currentMonth] || DEFAULT_MONTH_DATA();
         const cats = targetData.categories;
         const titles = targetData.sectionTitles || DEFAULT_MONTH_DATA().sectionTitles;
