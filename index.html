@@ -2326,10 +2326,6 @@
         if (!body) return;
         const collapsed = body.classList.toggle('collapsed');
         if (icon) icon.innerText = collapsed ? '펼치기 ▾' : '접기 ▴';
-    } else {
-            body.classList.add('collapsed');
-            icon.innerText = '펼치기 ▾';
-        }
     }
     window.toggleIncomeCard = toggleIncomeCard;
 
