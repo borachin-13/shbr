@@ -3181,13 +3181,13 @@
             if (nextExpense > budget) {
                 const overAmount = nextExpense - budget;
                 const confirmed = window.confirm(
-                    `⚠️ 예산 초과 경고\\n\\n` +
-                    `${currentMonth.replace('-', '.')} 지출 예산을 초과합니다.\\n\\n` +
-                    `현재 총 지출: ${formatAmount(currentExpense)}\\n` +
-                    `이번 지출: ${formatAmount(amount)}\\n` +
-                    `저장 후 총 지출: ${formatAmount(nextExpense)}\\n` +
-                    `설정 예산: ${formatAmount(budget)}\\n` +
-                    `예상 초과액: ${formatAmount(overAmount)}\\n\\n` +
+                    `⚠️ 예산 초과 경고\n\n` +
+                    `${currentMonth.replace('-', '.')} 지출 예산을 초과합니다.\n\n` +
+                    `현재 총 지출: ${formatAmount(currentExpense)}\n` +
+                    `이번 지출: ${formatAmount(amount)}\n` +
+                    `저장 후 총 지출: ${formatAmount(nextExpense)}\n` +
+                    `설정 예산: ${formatAmount(budget)}\n` +
+                    `예상 초과액: ${formatAmount(overAmount)}\n\n` +
                     `그래도 저장할까요?`
                 );
                 if (!confirmed) return;
