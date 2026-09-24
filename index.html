@@ -341,6 +341,9 @@
         .dashboard-mini-stats>div{text-align:center;min-width:0}
         .dashboard-mini-stats span{display:block;font-size:9px;color:var(--text-sub)}
         .dashboard-mini-stats strong{display:block;font-size:11px;color:var(--primary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .dashboard-spend-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+        .dashboard-month-manage{border:0;background:#f2f4f6;color:var(--primary);border-radius:999px;padding:7px 11px;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer}
+        .records-toolbar{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px}.records-title{font-size:20px;font-weight:900;color:var(--primary)}.records-add-btn{border:0;background:var(--primary);color:#fff;border-radius:999px;padding:8px 13px;font-size:11px;font-weight:800}.records-filter-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:12px}.records-filter{border:0;background:#e9edf1;color:var(--text-sub);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:800;white-space:nowrap}.records-filter.active{background:var(--primary);color:#fff}.records-list-card{padding:8px 18px}.record-row{display:flex;justify-content:space-between;gap:12px;padding:15px 2px;border-bottom:1px solid #f0f2f4}.record-row:last-child{border-bottom:0}.record-name{font-size:14px;font-weight:800;color:var(--primary)}.record-meta{margin-top:4px;font-size:10px;color:var(--text-sub)}.record-amount{font-size:14px;font-weight:900;color:var(--primary);white-space:nowrap}.month-manage-card{width:100%;max-width:480px;background:#fff;border-radius:28px 28px 0 0;padding:22px 20px calc(24px + env(safe-area-inset-bottom));box-shadow:var(--shadow-float);animation:slideUp .25s cubic-bezier(.16,1,.3,1)}.month-manage-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.month-manage-kicker{font-size:11px;color:var(--text-sub);font-weight:700}.month-manage-head strong{display:block;margin-top:2px;font-size:21px;color:var(--primary)}.month-manage-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.month-manage-grid button{min-height:74px;text-align:left;border:1px solid var(--border-color);background:#f8fafb;border-radius:15px;padding:12px;cursor:pointer}.month-manage-grid strong{display:block;font-size:13px;color:var(--primary)}.month-manage-grid span{display:block;margin-top:4px;font-size:10px;color:var(--text-sub)}
         .dashboard-spend-card{background:#fff;border-radius:20px;padding:22px 20px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
         .dashboard-spend-month{font-size:13px;font-weight:800;color:var(--text-sub);margin-bottom:18px}
         .dashboard-spend-label{font-size:12px;font-weight:700;color:var(--text-sub)}
@@ -904,7 +907,7 @@
             <!-- 1. 대시보드 페이지 -->
             <div id="page-dashboard" class="page-view active">
                 <section class="dashboard-spend-card">
-                    <div class="dashboard-spend-month" id="dashboard-month-title">9월</div>
+                    <div class="dashboard-spend-head"><div class="dashboard-spend-month" id="dashboard-month-title">9월</div><button class="dashboard-month-manage" type="button" onclick="window.openMonthManage()">이번 달 관리</button></div>
                     <div class="dashboard-spend-label">이번 달 지출</div>
                     <strong class="dashboard-spend-total" id="kpi-expense">0원</strong>
                     <div class="dashboard-spend-meta">
@@ -938,6 +941,18 @@
                     <span id="dashboard-fixed-saving-copy">0원</span>
                     <span id="dashboard-extra-saving-copy">0원</span>
                 </div>
+            </div>
+
+            <!-- 2. 내역 페이지 -->
+            <div id="page-records" class="page-view">
+                <div class="records-toolbar"><div class="records-title">이번 달 내역</div><button class="records-add-btn" type="button" onclick="window.quickAddExpense()">＋ 기록</button></div>
+                <div class="records-filter-bar">
+                    <button class="records-filter active" onclick="window.filterRecords('all', this)">전체</button>
+                    <button class="records-filter" onclick="window.filterRecords('shared', this)">공통</button>
+                    <button class="records-filter" onclick="window.filterRecords('bora', this)">보라</button>
+                    <button class="records-filter" onclick="window.filterRecords('sang', this)">상훈</button>
+                </div>
+                <section class="card records-list-card"><div id="records-list"><div class="dashboard-empty">내역을 불러오는 중…</div></div></section>
             </div>
 
             <!-- 2. 월별 비교 페이지 -->
@@ -1041,18 +1056,10 @@
 
         <!-- 하단 내비게이션 -->
         <nav class="gnb">
-            <button class="gnb-btn active" onclick="window.navigate('dashboard', this)">
-                <span class="gnb-btn-icon">🏠</span>
-                <span>대시보드</span>
-            </button>
-            <button class="gnb-btn" onclick="window.navigate('monthly', this)">
-                <span class="gnb-btn-icon">📊</span>
-                <span>월별 데이터</span>
-            </button>
-            <button class="gnb-btn" onclick="window.navigate('settings', this)">
-                <span class="gnb-btn-icon">⚙️</span>
-                <span>설정</span>
-            </button>
+            <button class="gnb-btn active" onclick="window.navigate('dashboard', this)"><span class="gnb-btn-icon">⌂</span><span>홈</span></button>
+            <button class="gnb-btn" onclick="window.navigate('records', this)"><span class="gnb-btn-icon">☷</span><span>내역</span></button>
+            <button class="gnb-btn" onclick="window.navigate('monthly', this)"><span class="gnb-btn-icon">◔</span><span>분석</span></button>
+            <button class="gnb-btn" onclick="window.navigate('settings', this)"><span class="gnb-btn-icon">⚙</span><span>설정</span></button>
         </nav>
     </div>
 
@@ -1083,6 +1090,18 @@
             </details>
             <div class="quick-expense-hint">금액 → 누구 → 카테고리만 선택해도 바로 저장돼요.</div>
             <button class="quick-expense-save" onclick="window.saveQuickExpense()">저장하기</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="month-manage-modal" aria-hidden="true">
+        <div class="month-manage-card">
+            <div class="month-manage-head"><div><div class="month-manage-kicker">이번 달</div><strong id="month-manage-title">9월 관리</strong></div><button type="button" class="quick-close" onclick="window.closeMonthManage()">✕</button></div>
+            <div class="month-manage-grid">
+                <button type="button" onclick="window.closeMonthManage();window.openModal('income')"><strong>수입</strong><span>이번 달 수입</span></button>
+                <button type="button" onclick="window.closeMonthManage();window.openModal('expense')"><strong>지출</strong><span>고정·변동 지출</span></button>
+                <button type="button" onclick="window.closeMonthManage();window.openModal('savings')"><strong>저축</strong><span>이번 달 저축</span></button>
+                <button type="button" onclick="window.closeMonthManage();window.openModal('budget')"><strong>예산</strong><span>이번 달 예산</span></button>
+            </div>
         </div>
     </div>
 
@@ -3883,6 +3902,12 @@ function addCategorySetting() {
     }
     window.changeMonth = changeMonth;
 
+    let recordsFilter = 'all';
+    function renderRecords(){const el=document.getElementById('records-list');if(!el)return;const d=store[currentMonth]||DEFAULT_MONTH_DATA();const items=Array.isArray(d?.categories?.variable_expense)?d.categories.variable_expense.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))):[];const filtered=recordsFilter==='all'?items:items.filter(x=>(x.owner||'shared')===recordsFilter);if(!filtered.length){el.innerHTML='<div class="dashboard-empty">아직 기록된 지출이 없어요.</div>';return;}el.innerHTML=filtered.map(item=>{const owner=item.owner==='bora'?'보라':item.owner==='sang'?'상훈':'공통';const label=item.name||item.category||'지출';const meta=[item.date,item.category,owner].filter(Boolean).map(escapeHtml).join(' · ');return '<div class="record-row"><div><div class="record-name">'+escapeHtml(label)+'</div><div class="record-meta">'+meta+'</div></div><div class="record-amount">'+formatAmount(Number(item.amount)||0)+'</div></div>';}).join('');}
+    function filterRecords(filter,btn){recordsFilter=filter||'all';document.querySelectorAll('.records-filter').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderRecords();} window.filterRecords=filterRecords;
+    function openMonthManage(){const m=document.getElementById('month-manage-modal'),t=document.getElementById('month-manage-title');if(!m)return;if(t){const p=currentMonth.split('-');t.innerText=Number(p[1])+'월 관리';}m.classList.add('open');m.style.display='flex';m.style.pointerEvents='auto';m.setAttribute('aria-hidden','false');} window.openMonthManage=openMonthManage;
+    function closeMonthManage(){const m=document.getElementById('month-manage-modal');if(!m)return;m.classList.remove('open');m.style.display='none';m.style.pointerEvents='none';m.setAttribute('aria-hidden','true');} window.closeMonthManage=closeMonthManage;
+
     function navigate(page, btn) {
         document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.gnb-btn').forEach(b => b.classList.remove('active'));
@@ -3893,15 +3918,14 @@ function addCategorySetting() {
         const memberTabBar = document.getElementById('member-tab-bar');
         const headerMonthWrapper = document.getElementById('header-month-wrapper');
 
-        if (page === 'monthly') {
-            renderChartAndMonthly();
-        }
+        if (page === 'records') renderRecords();
+        if (page === 'monthly') renderChartAndMonthly();
 
         if (memberTabBar && headerMonthWrapper) {
             if (page === 'dashboard') {
                 memberTabBar.style.display = 'flex';
                 headerMonthWrapper.style.display = 'block';
-            } else if (page === 'monthly') {
+            } else if (page === 'records' || page === 'monthly') {
                 memberTabBar.style.display = 'none';
                 headerMonthWrapper.style.display = 'block';
             } else {
