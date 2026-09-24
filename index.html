@@ -396,6 +396,12 @@
             color: #fff; font-size: 14px; font-weight: 800; cursor: pointer;
         }
         .quick-expense-hint { font-size: 10px; color: var(--text-sub); margin-top: 7px; }
+        .household-rule-card{background:#fff;border:1px solid var(--border-color);border-radius:12px;padding:12px;margin-top:8px}
+        .household-rule-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .household-rule-field label{display:block;font-size:10px;color:var(--text-sub);margin-bottom:4px;font-weight:700}
+        .household-rule-field input{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border-color);border-radius:8px;font-size:12px;outline:none}
+        .household-rule-save{width:100%;margin-top:10px;padding:10px;border:0;border-radius:9px;background:var(--primary);color:#fff;font-size:12px;font-weight:800;cursor:pointer}
+        .household-rule-note{font-size:10px;color:var(--text-sub);line-height:1.5;margin-top:7px}
 
         .progress-bar-container {
             height: 8px;
@@ -808,7 +814,7 @@
                     <div style="font-size:12px; color:#2b6cb0; line-height:1.5;" id="ai-advice-text">
                         이번 달 수입과 지출을 기준으로 저축 가능 금액을 계산하고 있습니다...
                     </div>
-                    <div class="dashboard-section-note">고정 저축을 먼저 반영한 뒤, 남은 금액을 추가 저축 가능액으로 보여줍니다.</div>
+                    <div class="dashboard-section-note">청년저축 140만원을 먼저 반영하고, 남은 금액은 매달 달라지는 공동통장 저축으로 계산합니다. 해외출장 수당은 발생한 달에만 추가됩니다.</div>
                 </div>
 
                 <!-- 지출 아코디언 -->
@@ -859,6 +865,22 @@
                         <button class="btn-action-sm" onclick="window.addCategorySetting()">추가</button>
                     </div>
                     <div class="category-tags" id="setting-category-tags"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-title">🏠 우리 집 월간 규칙</span></div>
+                    <div style="font-size:11px;color:var(--text-sub);line-height:1.5;">매달 반복되는 수입과 청년저축만 한 번 설정하면 새 달에 자동으로 반영합니다.</div>
+                    <div class="household-rule-card">
+                        <div class="household-rule-grid">
+                            <div class="household-rule-field"><label>보라 고정 월급</label><input id="rule-bora-income" inputmode="numeric" placeholder="예: 4,200,000"></div>
+                            <div class="household-rule-field"><label>상훈 기본급</label><input id="rule-sang-income" inputmode="numeric" placeholder="기본급 입력"></div>
+                            <div class="household-rule-field"><label>상훈 특수직 추가수당</label><input id="rule-sang-special" inputmode="numeric" value="700,000"></div>
+                            <div class="household-rule-field"><label>보라 청년저축</label><input id="rule-bora-saving" inputmode="numeric" value="700,000"></div>
+                            <div class="household-rule-field"><label>상훈 청년저축</label><input id="rule-sang-saving" inputmode="numeric" value="700,000"></div>
+                        </div>
+                        <button class="household-rule-save" onclick="window.saveHouseholdRules()">저장하고 다음 달부터 자동 적용</button>
+                        <div class="household-rule-note">해외출장 달러 수입은 발생한 달에만 별도로 입력합니다. 기존 월별 데이터는 자동으로 덮어쓰지 않습니다.</div>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -1134,6 +1156,7 @@
     const DEFAULT_FIXED_EXPENSE_CATEGORIES = ['월세', '관리비', '전기/가스/수도', '인터넷', '공동 구독료'];
     let categoryList = DEFAULT_CATEGORIES.slice();
     let fixedExpenseCategoryList = DEFAULT_FIXED_EXPENSE_CATEGORIES.slice();
+    let householdRules = { boraFixedIncome: 0, sangBaseIncome: 0, sangSpecialAllowance: 700000, boraYouthSavings: 700000, sangYouthSavings: 700000 };
 
     function getEffectiveFixedExpenseCategories() {
         const list = Array.isArray(fixedExpenseCategoryList) ? fixedExpenseCategoryList.filter(Boolean) : [];
@@ -1391,6 +1414,30 @@
             if (categorySaveQueue === next) categorySaveQueue = Promise.resolve();
         });
         return next;
+    }
+
+    function renderHouseholdRules() {
+        const map={ 'rule-bora-income':householdRules.boraFixedIncome,'rule-sang-income':householdRules.sangBaseIncome,'rule-sang-special':householdRules.sangSpecialAllowance,'rule-bora-saving':householdRules.boraYouthSavings,'rule-sang-saving':householdRules.sangYouthSavings };
+        Object.entries(map).forEach(([id,value])=>{const el=document.getElementById(id);if(el&&document.activeElement!==el)el.value=formatNumberString(value);});
+    }
+    function readRuleNumber(id){const el=document.getElementById(id);return parseNumberString(el?el.value:'');}
+    async function saveHouseholdRules(){
+        if(!isAuthenticatedUser()){showToast('로그인 후 우리 집 규칙을 저장할 수 있어요.',true);return false;}
+        householdRules={boraFixedIncome:readRuleNumber('rule-bora-income'),sangBaseIncome:readRuleNumber('rule-sang-income'),sangSpecialAllowance:readRuleNumber('rule-sang-special'),boraYouthSavings:readRuleNumber('rule-bora-saving'),sangYouthSavings:readRuleNumber('rule-sang-saving')};
+        try{await setDoc(settingsDocRef(),{householdRules:cloneData(householdRules),updatedAt:Date.now()},{merge:true});showToast('우리 집 규칙이 저장되었어요. 다음 달부터 자동 적용됩니다.');return true;}catch(e){console.error('우리 집 규칙 저장 실패:',e);showToast('우리 집 규칙을 저장하지 못했어요.',true);return false;}
+    }
+    window.saveHouseholdRules=saveHouseholdRules;
+    function applyHouseholdRulesToMonth(month,onlyIfNew=true){
+        if(!month||!store[month])return false;const d=store[month];if(onlyIfNew&&d.updatedAt)return false;let changed=false;
+        if(!Number(d.bora)&&householdRules.boraFixedIncome>0){d.bora=householdRules.boraFixedIncome;changed=true;}
+        if(!Number(d.sang)&&householdRules.sangBaseIncome>0){d.sang=householdRules.sangBaseIncome;changed=true;}
+        if(!Number(d.sang_other_income)&&householdRules.sangSpecialAllowance>0){d.sang_other_income=householdRules.sangSpecialAllowance;changed=true;}
+        if(!d.categories)d.categories=DEFAULT_MONTH_DATA().categories;if(!Array.isArray(d.categories.savings))d.categories.savings=[];
+        const bora=d.categories.savings.find(x=>x.name==='보라 청년계좌');const sang=d.categories.savings.find(x=>x.name==='상훈 청년계좌');
+        if(bora&&!Number(bora.amount)&&householdRules.boraYouthSavings>0){bora.amount=householdRules.boraYouthSavings;changed=true;}
+        if(sang&&!Number(sang.amount)&&householdRules.sangYouthSavings>0){sang.amount=householdRules.sangYouthSavings;changed=true;}
+        if(changed)saveMonthPatch(month,{bora:Number(d.bora)||0,sang:Number(d.sang)||0,sang_other_income:Number(d.sang_other_income)||0,'categories.savings':cloneData(d.categories.savings),updatedAt:Date.now()},'');
+        return changed;
     }
 
     async function saveCategoryList() {
@@ -1798,6 +1845,9 @@
             if (Array.isArray(meta.fixedExpenseCategoryList) && meta.fixedExpenseCategoryList.length) {
                 fixedExpenseCategoryList = meta.fixedExpenseCategoryList.filter(Boolean);
             }
+            if (meta.householdRules && typeof meta.householdRules === 'object') householdRules = { ...householdRules, ...meta.householdRules };
+            renderHouseholdRules();
+            applyHouseholdRulesToMonth(currentMonth, true);
             renderCategorySettings();
             renderFixedExpenseCategorySettings();
             render();
@@ -2009,6 +2059,7 @@
             store[month] = snap.exists()
                 ? { ...DEFAULT_MONTH_DATA(), ...snap.data() }
                 : DEFAULT_MONTH_DATA();
+            applyHouseholdRulesToMonth(month, true);
             monthLoadFailures.delete(month);
             loadedMonths.add(month);
 
@@ -2214,7 +2265,7 @@
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">상훈 기타 수입</span>
+                    <span class="income-input-label">상훈 특수직 추가수당</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.sang_other_income)}" placeholder="0" oninput="window.handleIncomeInput('sang_other_income', this)">
                         <span class="income-unit">원</span>
@@ -2254,7 +2305,7 @@
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">상훈 기타 수입</span>
+                    <span class="income-input-label">상훈 특수직 추가수당</span>
                     <div class="income-input-flex">
                         <input type="text" value="${formatNumberString(d.sang_other_income)}" placeholder="0" oninput="window.handleIncomeInput('sang_other_income', this)">
                         <span class="income-unit">원</span>
