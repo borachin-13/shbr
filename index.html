@@ -341,6 +341,21 @@
         .dashboard-compare-item span{display:block;font-size:9px;color:var(--text-sub)}
         .dashboard-compare-item strong{display:block;font-size:11px;margin-top:3px;color:var(--primary)}
         .dashboard-compare-item small{display:block;font-size:9px;margin-top:2px;color:var(--text-sub)}
+        .dashboard-budget-card{padding:13px 15px;margin-bottom:10px}
+        .dashboard-budget-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+        .dashboard-budget-title{font-size:12px;font-weight:800;color:var(--primary)}
+        .dashboard-budget-action{border:1px solid var(--border-color);background:#fff;border-radius:8px;padding:6px 9px;font-size:10px;font-weight:800;color:var(--primary);cursor:pointer}
+        .dashboard-budget-summary{display:flex;justify-content:space-between;align-items:end;margin-top:10px}
+        .dashboard-budget-used{font-size:18px;font-weight:900;color:var(--primary)}
+        .dashboard-budget-limit{font-size:10px;color:var(--text-sub)}
+        .dashboard-budget-track{height:10px;background:#edf2f7;border-radius:999px;overflow:hidden;margin-top:9px}
+        .dashboard-budget-bar{height:100%;width:0;background:var(--primary);border-radius:999px;transition:width .25s ease}
+        .dashboard-budget-bar.over{background:var(--expense-color)}
+        .dashboard-budget-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:10px;color:var(--text-sub)}
+        .dashboard-budget-status{font-weight:800}
+        .dashboard-budget-status.over{color:var(--expense-color)}
+        .budget-modal-note{font-size:11px;color:var(--text-sub);line-height:1.5;margin-bottom:10px}
+
 
         .recent-expense-card{padding:15px 17px}
         .dashboard-card-title{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:800;color:var(--primary);margin-bottom:9px}
@@ -891,6 +906,24 @@
                         <strong id="kpi-savings">0원</strong>
                     </div>
                     <button class="goal-apply-btn" id="goal-apply-btn" onclick="window.applyCurrentMonthSavingsToGoal()">이번 달 저축 반영</button>
+                </section>
+
+                <section class="card dashboard-budget-card">
+                    <div class="dashboard-budget-head">
+                        <span class="dashboard-budget-title">📌 이번 달 지출 예산</span>
+                        <button class="dashboard-budget-action" onclick="window.openModal('budget')">예산 설정</button>
+                    </div>
+                    <div class="dashboard-budget-summary">
+                        <strong class="dashboard-budget-used" id="dashboard-budget-used">0원</strong>
+                        <span class="dashboard-budget-limit" id="dashboard-budget-limit">예산 미설정</span>
+                    </div>
+                    <div class="dashboard-budget-track" aria-label="예산 사용량">
+                        <div class="dashboard-budget-bar" id="dashboard-budget-bar"></div>
+                    </div>
+                    <div class="dashboard-budget-meta">
+                        <span id="dashboard-budget-status" class="dashboard-budget-status">예산을 설정해 주세요.</span>
+                        <span id="dashboard-budget-pct">—</span>
+                    </div>
                 </section>
 
                 <div class="dashboard-quick-actions">
@@ -2407,6 +2440,81 @@
         };
     }
 
+    const MONTHLY_BUDGET_STORAGE_PREFIX = 'gotgan_monthly_budget_v1';
+
+    function getMonthlyBudgetStorageKey(month = currentMonth) {
+        const uid = auth.currentUser && !auth.currentUser.isAnonymous ? auth.currentUser.uid : 'guest';
+        return `${MONTHLY_BUDGET_STORAGE_PREFIX}:${uid}:${month}`;
+    }
+
+    function getMonthlyBudget(month = currentMonth) {
+        if (!month) return 0;
+        try {
+            const raw = localStorage.getItem(getMonthlyBudgetStorageKey(month));
+            const value = Number(raw);
+            return Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
+        } catch (e) {
+            console.warn('월별 예산 조회 실패:', e);
+            return 0;
+        }
+    }
+
+    function saveMonthlyBudget(month, amount) {
+        const value = Math.max(Math.round(Number(amount) || 0), 0);
+        try {
+            const key = getMonthlyBudgetStorageKey(month);
+            if (value > 0) localStorage.setItem(key, String(value));
+            else localStorage.removeItem(key);
+            return true;
+        } catch (e) {
+            console.warn('월별 예산 저장 실패:', e);
+            showToast('예산 저장에 실패했어요. 브라우저 저장공간을 확인해 주세요.', true);
+            return false;
+        }
+    }
+
+    function renderMonthlyBudget() {
+        const budget = getMonthlyBudget(currentMonth);
+        const summary = calculateMonthlySummary(store[currentMonth] || DEFAULT_MONTH_DATA());
+        const used = Math.max(Number(summary.expense) || 0, 0);
+        const usedEl = document.getElementById('dashboard-budget-used');
+        const limitEl = document.getElementById('dashboard-budget-limit');
+        const barEl = document.getElementById('dashboard-budget-bar');
+        const statusEl = document.getElementById('dashboard-budget-status');
+        const pctEl = document.getElementById('dashboard-budget-pct');
+
+        if (usedEl) usedEl.innerText = formatAmount(used);
+        if (!budget) {
+            if (limitEl) limitEl.innerText = '예산 미설정';
+            if (barEl) {
+                barEl.style.width = '0%';
+                barEl.classList.remove('over');
+            }
+            if (statusEl) {
+                statusEl.innerText = '예산을 설정해 주세요.';
+                statusEl.classList.remove('over');
+            }
+            if (pctEl) pctEl.innerText = '—';
+            return;
+        }
+
+        const pct = (used / budget) * 100;
+        const cappedPct = Math.min(pct, 100);
+        const remaining = budget - used;
+        if (limitEl) limitEl.innerText = `예산 ${formatAmount(budget)}`;
+        if (barEl) {
+            barEl.style.width = `${cappedPct.toFixed(1)}%`;
+            barEl.classList.toggle('over', used > budget);
+        }
+        if (statusEl) {
+            statusEl.innerText = remaining >= 0
+                ? `남은 예산 ${formatAmount(remaining)}`
+                : `예산 초과 ${formatAmount(Math.abs(remaining))}`;
+            statusEl.classList.toggle('over', used > budget);
+        }
+        if (pctEl) pctEl.innerText = `${Math.round(pct)}%`;
+    }
+
     function formatAmount(won) { return `${Math.round(won).toLocaleString()}원`; }
 
     function renderInputsOnly() {
@@ -2651,6 +2759,7 @@
         });
         renderDashboardRecentExpenses(d);
         renderDashboardComparison();
+        renderMonthlyBudget();
 
         const goalTotal=getGoalTotal();
         const goalTarget=Math.max(Number(householdGoal.targetAmount)||150000000,1);
@@ -3063,6 +3172,28 @@
         const date = dateEl && dateEl.value ? dateEl.value : getQuickExpenseDate();
         const name = nameEl && nameEl.value.trim() ? nameEl.value.trim() : category;
 
+        // 예산은 '전체 지출' 기준이다. 현재 탭이 보라/상훈이어도 가계 전체 예산으로 검사한다.
+        const budget = getMonthlyBudget(currentMonth);
+        if (budget > 0) {
+            const currentSummary = calculateMonthlySummary(store[currentMonth] || DEFAULT_MONTH_DATA());
+            const currentExpense = Math.max(Number(currentSummary.expense) || 0, 0);
+            const nextExpense = currentExpense + amount;
+            if (nextExpense > budget) {
+                const overAmount = nextExpense - budget;
+                const confirmed = window.confirm(
+                    `⚠️ 예산 초과 경고\\n\\n` +
+                    `${currentMonth.replace('-', '.')} 지출 예산을 초과합니다.\\n\\n` +
+                    `현재 총 지출: ${formatAmount(currentExpense)}\\n` +
+                    `이번 지출: ${formatAmount(amount)}\\n` +
+                    `저장 후 총 지출: ${formatAmount(nextExpense)}\\n` +
+                    `설정 예산: ${formatAmount(budget)}\\n` +
+                    `예상 초과액: ${formatAmount(overAmount)}\\n\\n` +
+                    `그래도 저장할까요?`
+                );
+                if (!confirmed) return;
+            }
+        }
+
         if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
         if (!store[currentMonth].categories) store[currentMonth].categories = DEFAULT_MONTH_DATA().categories;
         if (!Array.isArray(store[currentMonth].categories.variable_expense)) {
@@ -3086,6 +3217,8 @@
         openQuickExpense();
     }
     window.quickAddExpense = quickAddExpense;
+    window.getMonthlyBudget = getMonthlyBudget;
+    window.saveMonthlyBudget = saveMonthlyBudget;
 
     function openModal(type) {
         const modal = document.getElementById('custom-modal');
@@ -3096,7 +3229,12 @@
 
         if (!modal || !titleEl || !subtabsEl || !bodyEl || !saveBtn) return;
 
-        if (type === 'income') {
+        if (type === 'budget') {
+            titleEl.innerText = '📌 월별 예산 설정';
+            subtabsEl.innerHTML = '';
+            bodyEl.innerHTML = renderBudgetModalHTML();
+            saveBtn.onclick = saveBudgetModal;
+        } else if (type === 'income') {
             titleEl.innerText = '💵 수입 편집';
             subtabsEl.innerHTML = '';
             bodyEl.innerHTML = renderIncomeModalHTML();
@@ -3170,7 +3308,40 @@
         return options;
     }
 
-function renderIncomeModalHTML() {
+function renderBudgetModalHTML() {
+        const budget = getMonthlyBudget(currentMonth);
+        return `
+            <div class="cat-group active">
+                <div class="budget-modal-note">
+                    ${currentMonth.replace('-', '.')}의 <strong>전체 지출 예산</strong>을 설정합니다.<br>
+                    현재 고정지출·생활비·개인 지출·변동지출을 합산해 예산 사용량을 계산해요.
+                </div>
+                <div class="cat-title-box">
+                    <div class="cat-title-label-top">월 지출 예산</div>
+                    <input type="text" id="budget-modal-amount" class="cat-input" inputmode="numeric"
+                        value="${budget ? escapeHtml(budget.toLocaleString()) : ''}"
+                        placeholder="예: 3000000"
+                        oninput="window.handleModalNumInput(this)">
+                </div>
+                <div class="budget-modal-note" style="margin-top:8px;">0 또는 빈칸으로 저장하면 이번 달 예산이 해제됩니다.</div>
+            </div>`;
+    }
+
+    function saveBudgetModal() {
+        if (!isAuthenticatedUser()) return;
+        const input = document.getElementById('budget-modal-amount');
+        const amount = parseNumberString(input ? input.value : '');
+        if (amount < 0) {
+            showToast('예산은 0원 이상으로 입력해 주세요.', true);
+            return;
+        }
+        if (!saveMonthlyBudget(currentMonth, amount)) return;
+        closeModal();
+        render();
+        showToast(amount > 0 ? `${currentMonth.replace('-', '.')} 예산이 저장되었습니다.` : '이번 달 예산을 해제했습니다.');
+    }
+
+    function renderIncomeModalHTML() {
         const d = store[currentMonth] || DEFAULT_MONTH_DATA();
         return `
             <div class="cat-group active">
