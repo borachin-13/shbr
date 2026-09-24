@@ -349,11 +349,14 @@
         .dashboard-budget-used{font-size:18px;font-weight:900;color:var(--primary)}
         .dashboard-budget-limit{font-size:10px;color:var(--text-sub)}
         .dashboard-budget-track{height:10px;background:#edf2f7;border-radius:999px;overflow:hidden;margin-top:9px}
-        .dashboard-budget-bar{height:100%;width:0;background:var(--primary);border-radius:999px;transition:width .25s ease}
+        .dashboard-budget-bar{height:100%;width:0;background:var(--primary);border-radius:999px;transition:width .25s ease,background .2s ease}
+        .dashboard-budget-bar.warn{background:#d69e2e}
         .dashboard-budget-bar.over{background:var(--expense-color)}
         .dashboard-budget-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:10px;color:var(--text-sub)}
         .dashboard-budget-status{font-weight:800}
+        .dashboard-budget-status.warn{color:#b7791f}
         .dashboard-budget-status.over{color:var(--expense-color)}
+        .dashboard-budget-setting{margin-top:7px;font-size:10px;color:var(--text-sub);line-height:1.4}
         .budget-modal-note{font-size:11px;color:var(--text-sub);line-height:1.5;margin-bottom:10px}
 
 
@@ -924,6 +927,7 @@
                         <span id="dashboard-budget-status" class="dashboard-budget-status">예산을 설정해 주세요.</span>
                         <span id="dashboard-budget-pct">—</span>
                     </div>
+                    <div class="dashboard-budget-setting" id="dashboard-budget-setting">지출 기록을 저장할 때 예산 초과 여부를 알려드려요.</div>
                 </section>
 
                 <div class="dashboard-quick-actions">
@@ -2482,37 +2486,54 @@
         const barEl = document.getElementById('dashboard-budget-bar');
         const statusEl = document.getElementById('dashboard-budget-status');
         const pctEl = document.getElementById('dashboard-budget-pct');
+        const settingEl = document.getElementById('dashboard-budget-setting');
 
         if (usedEl) usedEl.innerText = formatAmount(used);
+
         if (!budget) {
             if (limitEl) limitEl.innerText = '예산 미설정';
             if (barEl) {
                 barEl.style.width = '0%';
-                barEl.classList.remove('over');
+                barEl.classList.remove('warn', 'over');
             }
             if (statusEl) {
                 statusEl.innerText = '예산을 설정해 주세요.';
-                statusEl.classList.remove('over');
+                statusEl.classList.remove('warn', 'over');
             }
             if (pctEl) pctEl.innerText = '—';
+            if (settingEl) settingEl.innerText = '예산을 설정하면 지출 저장 시 초과 여부를 알려드려요.';
             return;
         }
 
         const pct = (used / budget) * 100;
         const cappedPct = Math.min(pct, 100);
         const remaining = budget - used;
+        const isOver = used > budget;
+        const isWarn = !isOver && pct >= 80;
+
         if (limitEl) limitEl.innerText = `예산 ${formatAmount(budget)}`;
         if (barEl) {
             barEl.style.width = `${cappedPct.toFixed(1)}%`;
-            barEl.classList.toggle('over', used > budget);
+            barEl.classList.toggle('warn', isWarn);
+            barEl.classList.toggle('over', isOver);
         }
         if (statusEl) {
-            statusEl.innerText = remaining >= 0
-                ? `남은 예산 ${formatAmount(remaining)}`
-                : `예산 초과 ${formatAmount(Math.abs(remaining))}`;
-            statusEl.classList.toggle('over', used > budget);
+            statusEl.innerText = isOver
+                ? `예산 초과 ${formatAmount(Math.abs(remaining))}`
+                : isWarn
+                    ? `예산의 ${Math.round(pct)}% 사용 · 남은 예산 ${formatAmount(remaining)}`
+                    : `남은 예산 ${formatAmount(remaining)}`;
+            statusEl.classList.toggle('warn', isWarn);
+            statusEl.classList.toggle('over', isOver);
         }
         if (pctEl) pctEl.innerText = `${Math.round(pct)}%`;
+        if (settingEl) {
+            settingEl.innerText = isOver
+                ? '예산을 초과한 지출은 저장 전에 확인을 요청해요.'
+                : isWarn
+                    ? '예산을 80% 이상 사용했어요. 남은 지출을 확인해 보세요.'
+                    : '지출을 기록할 때 예산 초과 여부를 확인해 드려요.';
+        }
     }
 
     function formatAmount(won) { return `${Math.round(won).toLocaleString()}원`; }
@@ -3181,7 +3202,7 @@
             if (nextExpense > budget) {
                 const overAmount = nextExpense - budget;
                 const confirmed = window.confirm(
-                    `⚠️ 예산 초과 경고\n\n` +
+                    `⚠️ [예산 초과 경고]\n\n` +
                     `${currentMonth.replace('-', '.')} 지출 예산을 초과합니다.\n\n` +
                     `현재 총 지출: ${formatAmount(currentExpense)}\n` +
                     `이번 지출: ${formatAmount(amount)}\n` +
@@ -3234,6 +3255,19 @@
             subtabsEl.innerHTML = '';
             bodyEl.innerHTML = renderBudgetModalHTML();
             saveBtn.onclick = saveBudgetModal;
+            setTimeout(() => {
+                const budgetInput = document.getElementById('budget-modal-amount');
+                if (budgetInput) {
+                    budgetInput.focus();
+                    budgetInput.select();
+                    budgetInput.onkeydown = (event) => {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            saveBudgetModal();
+                        }
+                    };
+                }
+            }, 30);
         } else if (type === 'income') {
             titleEl.innerText = '💵 수입 편집';
             subtabsEl.innerHTML = '';
@@ -3331,8 +3365,9 @@ function renderBudgetModalHTML() {
         if (!isAuthenticatedUser()) return;
         const input = document.getElementById('budget-modal-amount');
         const amount = parseNumberString(input ? input.value : '');
-        if (amount < 0) {
+        if (!Number.isFinite(amount) || amount < 0) {
             showToast('예산은 0원 이상으로 입력해 주세요.', true);
+            if (input) input.focus();
             return;
         }
         if (!saveMonthlyBudget(currentMonth, amount)) return;
