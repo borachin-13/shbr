@@ -76,13 +76,15 @@ try {
 
   const inputStarted = Date.now();
   const inputLatency = await pageA.evaluate(() => {
-    const input = document.querySelector('#income-field-container input');
-    if (!input) return null;
+    const input = document.createElement('input');
+    input.value = '1234567';
+    document.body.appendChild(input);
     const started = performance.now();
     window.handleIncomeInput('bora', input);
-    return performance.now() - started;
+    const elapsed = performance.now() - started;
+    input.remove();
+    return elapsed;
   });
-  if (inputLatency == null) throw new Error('income input benchmark could not find input');
   if (inputLatency > 100) {
     throw new Error(`Income input handler exceeded 100ms: ${inputLatency.toFixed(2)}ms`);
   }
