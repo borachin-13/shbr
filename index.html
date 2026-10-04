@@ -427,7 +427,7 @@
         .dashboard-expense-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #edf2f7;font-size:11px}
         .dashboard-expense-row:last-child{border-bottom:0}
         .dashboard-expense-meta{color:var(--text-sub);font-size:10px;margin-top:2px}
-        .dashboard-expense-amount{font-size:12px;font-weight:800;color:var(--primary)}
+        .dashboard-expense-actions{display:flex;align-items:center;gap:8px}.dashboard-edit-btn{border:1px solid var(--border-color);background:#f8fafc;color:var(--primary);border-radius:8px;padding:5px 8px;font-size:10px;font-weight:800;cursor:pointer}.dashboard-edit-btn:active{transform:translateY(1px)}.dashboard-expense-unified{margin-top:12px}.dashboard-expense-amount{font-size:12px;font-weight:800;color:var(--primary)}
         .dashboard-empty{font-size:11px;color:var(--text-sub);padding:4px 0}
         .savings-plan-simple{padding:15px 17px}
         .simple-saving-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
@@ -991,7 +991,7 @@
                         <button type="button" class="dashboard-inline-link" onclick="window.navigate('records', this)">전체 내역 →</button>
                     </div>
                     <div class="dashboard-section-total"><strong id="kpi-expense">0원</strong><span>이번 달</span></div>
-                    <div id="dashboard-expense-breakdown" class="dashboard-expense-breakdown"></div>
+                    <div id="dashboard-expense-breakdown" class="dashboard-recent-expenses dashboard-expense-unified"><div class="dashboard-empty">아직 지출 기록이 없어요.</div></div>
                 </section>
                 <section class="card dashboard-section-card dashboard-saving-section">
                     <div class="dashboard-card-title">
@@ -1000,10 +1000,6 @@
                     </div>
                     <div class="dashboard-section-total"><strong id="dashboard-saving-total">0원</strong><span>고정저축</span></div>
                     <div class="dashboard-saving-detail" id="dashboard-saving-detail">우리 집 고정저축</div>
-                </section>
-                <section class="card dashboard-section-card recent-expense-card">
-                    <div class="dashboard-card-title"><span>🧾 최근 지출</span><span class="dashboard-card-hint" id="dashboard-recent-hint"></span></div>
-                    <div id="dashboard-recent-expenses" class="dashboard-recent-expenses"><div class="dashboard-empty">아직 지출 기록이 없어요.</div></div>
                 </section>
                 <div style="display:none;" aria-hidden="true">
                     <span id="dashboard-expense-count"></span><span id="kpi-target-label"></span><span id="kpi-total-savings">0원</span>
@@ -2876,19 +2872,22 @@
         const bora=savings.filter(x=>x.owner==='bora').reduce((n,x)=>n+(Number(x.amount)||0),0);
         const sang=savings.filter(x=>x.owner==='sang').reduce((n,x)=>n+(Number(x.amount)||0),0);
         set('dashboard-saving-detail', '우리 집 고정저축 '+formatAmount(summary.plannedSavings));
-        const groups=[['고정지출',sumCat(d.categories?.expense)],['공동생활',sumCat(d.categories?.living)],['개인지출',sumCat(d.categories?.bora_personal)+sumCat(d.categories?.sang_personal)],['변동지출',sumCat(d.categories?.variable_expense)]].filter(x=>x[1]>0);
         const box=document.getElementById('dashboard-expense-breakdown');
-        if(box){const max=Math.max(...groups.map(x=>x[1]),1);box.innerHTML=groups.length?groups.map(([name,value])=>'<div class="dashboard-breakdown-row"><span class="dashboard-breakdown-label">'+name+'</span><div class="dashboard-breakdown-track"><div class="dashboard-breakdown-fill" style="width:'+Math.round(value/max*100)+'%"></div></div><span class="dashboard-breakdown-value">'+formatAmount(value)+'</span></div>').join(''):'<div class="dashboard-empty">아직 지출 데이터가 없어요.</div>';}
+        if(box) renderDashboardRecentExpenses(d, box);
     }
 
-    function renderDashboardRecentExpenses(d) {
-        const el = document.getElementById('dashboard-recent-expenses');
+    function renderDashboardRecentExpenses(d, targetEl) {
+        const el = targetEl || document.getElementById('dashboard-recent-expenses') || document.getElementById('dashboard-expense-breakdown');
         if (!el) return;
-        const items = Array.isArray(d?.categories?.variable_expense)
-            ? d.categories.variable_expense.slice().sort((a,b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 5)
-            : [];
-        const hintEl = document.getElementById('dashboard-recent-hint');
-        if (hintEl) hintEl.innerText = items.length ? `최근 ${Math.min(items.length, 5)}건` : '';
+        const items = [
+            ...(Array.isArray(d?.categories?.expense) ? d.categories.expense.map(x => ({...x, meta:'고정지출'})) : []),
+            ...(Array.isArray(d?.categories?.living) ? d.categories.living.map(x => ({...x, meta:'공동생활'})) : []),
+            ...(Array.isArray(d?.categories?.bora_personal) ? d.categories.bora_personal.map(x => ({...x, meta:'보라 · 개인'})) : []),
+            ...(Array.isArray(d?.categories?.sang_personal) ? d.categories.sang_personal.map(x => ({...x, meta:'상훈 · 개인'})) : []),
+            ...(Array.isArray(d?.categories?.variable_expense) ? d.categories.variable_expense.map(x => ({...x, meta:'변동지출'})) : [])
+        ].filter(x => (Number(x.amount)||0) > 0)
+         .sort((a,b) => String(b.date || '').localeCompare(String(a.date || '')))
+         .slice(0, 4);
         if (!items.length) {
             el.innerHTML = '<div class="dashboard-empty">아직 지출 기록이 없어요.</div>';
             return;
@@ -2896,10 +2895,14 @@
         el.innerHTML = items.map(item => {
             const owner = item.owner === 'bora' ? '보라' : item.owner === 'sang' ? '상훈' : '공통';
             const label = item.name || item.category || '지출';
-            const meta = item.category
-                ? (currentTab === 'all' ? `· ${escapeHtml(item.category)}` : `· ${escapeHtml(item.category)} · ${owner}`)
-                : (currentTab === 'all' ? '' : owner);
-            return `<div class="dashboard-expense-row"><div><div>${escapeHtml(label)}</div><div class="dashboard-expense-meta">${meta}</div></div><div class="dashboard-expense-amount">${formatAmount(Number(item.amount)||0)}</div></div>`;
+            const meta = item.category ? `· ${escapeHtml(item.category)} · ${escapeHtml(item.meta || owner)}` : `· ${escapeHtml(item.meta || owner)}`;
+            return `<div class="dashboard-expense-row">
+                <div><div>${escapeHtml(label)}</div><div class="dashboard-expense-meta">${meta}</div></div>
+                <div class="dashboard-expense-actions">
+                    <div class="dashboard-expense-amount">${formatAmount(Number(item.amount)||0)}</div>
+                    <button type="button" class="dashboard-edit-btn" onclick="window.openModal('expense')">수정</button>
+                </div>
+            </div>`;
         }).join('');
     }
 
