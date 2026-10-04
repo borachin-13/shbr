@@ -3877,11 +3877,20 @@
         editingRecord=record;
         titleEl.innerText=type==='income'?'💵 수입 수정':type==='saving'?'💰 저축 수정':'💸 지출 수정';
         subtabsEl.innerHTML='';
-        const dateHtml=type==='expense'?`<label>날짜</label><input id="record-edit-date" type="date" value="${escapeHtml(record.date||'')}">`:'';
-        const categoryHtml=type==='expense'&&sourceKey==='variable_expense'?`<label>카테고리</label><select id="record-edit-category">${categoryList.map(cat=>`<option value="${escapeHtml(cat)}" ${record.category===cat?'selected':''}>${escapeHtml(cat)}</option>`).join('')}</select>`:'';
+        const dateRange=getCurrentMonthDateRange();
+        const recordDate=record.date||getCurrentMonthDateValue();
+        const dateHtml=type==='expense'?`<label>날짜</label><input id="record-edit-date" type="date" value="${escapeHtml(recordDate)}" min="${dateRange.min}" max="${dateRange.max}">`:'';
+        let categoryHtml='';
+        if(type==='expense'){
+            const fixedCategories=getEffectiveFixedExpenseCategories();
+            const availableCategories=sourceKey==='variable_expense' ? categoryList.slice() : fixedCategories.slice();
+            const currentCategory=record.category || (availableCategories.includes(record.name)?record.name:'');
+            if(currentCategory && !availableCategories.includes(currentCategory)) availableCategories.unshift(currentCategory);
+            const categoryOptions=availableCategories.map(cat=>`<option value="${escapeHtml(cat)}" ${currentCategory===cat?'selected':''}>${escapeHtml(cat)}</option>`).join('');
+            categoryHtml=`<label>카테고리</label><select id="record-edit-category">${categoryOptions}</select>`;
+        }
         const ownerHtml=type==='saving'?`<label>저축 주체</label><select id="record-edit-owner"><option value="shared" ${record.owner==='shared'?'selected':''}>공통</option><option value="bora" ${record.owner==='bora'?'selected':''}>보라</option><option value="sang" ${record.owner==='sang'?'selected':''}>상훈</option></select>`:'';
-        bodyEl.innerHTML=`<div class="record-editor">${dateHtml}<label>항목명</label><input id="record-edit-name" value="${escapeHtml(record.name||'')}">${categoryHtml}${ownerHtml}<label>${record.isUsd?'금액 (USD)':'금액'}</label><input id="record-edit-amount" inputmode="numeric" value="${formatNumberString(record.amount||0)}"><button type="button" class="record-delete-btn" onclick="window.deleteEditingRecord()">삭제</button></div>`;
-        saveBtn.innerText='저장';saveBtn.onclick=saveEditingRecord;
+        bodyEl.innerHTML=`<div class="record-editor">${dateHtml}${categoryHtml}<label>항목명</label><input id="record-edit-name" value="${escapeHtml(record.name||'')}">${ownerHtml}<label>${record.isUsd?'금액 (USD)':'금액'}</label><input id="record-edit-amount" inputmode="numeric" value="${formatNumberString(record.amount||0)}"><button type="button" class="record-delete-btn" onclick="window.deleteEditingRecord()">삭제</button></div>`;\n        saveBtn.innerText='저장';saveBtn.onclick=saveEditingRecord;
         modal.classList.add('open');modal.style.display='flex';modal.style.pointerEvents='auto';modal.setAttribute('aria-hidden','false');
         setTimeout(()=>{const inp=document.getElementById('record-edit-amount');if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}},30);
     }
@@ -3901,8 +3910,10 @@
                 const owner=document.getElementById('record-edit-owner')?.value||arr[idx].owner||'shared';
                 arr[idx].owner=owner;
             }
-            if(editingRecord.type==='expense'&&key==='expense')arr[idx].date=date;
-            if(editingRecord.type==='expense'&&key==='variable_expense'){arr[idx].date=date;arr[idx].category=category;}
+            if(editingRecord.type==='expense'){
+                arr[idx].date=date;
+                arr[idx].category=category;
+            }
             d.categories[key]=arr;patch[`categories.${key}`]=cloneData(arr);
         }
         closeModal();editingRecord=null;render();saveMonthPatch(currentMonth,patch,'수정되었습니다.');
