@@ -2603,35 +2603,35 @@
                 <div class="income-input-card">
                     <span class="income-input-label">보라 월급</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
+                        <input type="text" inputmode="numeric" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
                     <span class="income-input-label">보라 기타 수당</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
+                        <input type="text" inputmode="numeric" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
                     <span class="income-input-label">상훈 월급</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
+                        <input type="text" inputmode="numeric" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
                     <span class="income-input-label">상훈 특수직 추가수당</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.sang_other_income)}" placeholder="0" oninput="window.handleIncomeInput('sang_other_income', this)">
+                        <input type="text" inputmode="numeric" value="${formatNumberString(d.sang_other_income)}" placeholder="0" oninput="window.handleIncomeInput('sang_other_income', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
                     <span class="income-input-label">해외출장 수당 ($)</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
+                        <input type="text" inputmode="numeric" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
                         <span class="income-unit">$</span>
                     </div>
                 </div>
@@ -2641,14 +2641,14 @@
                 <div class="income-input-card">
                     <span class="income-input-label">보라 월급</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
+                        <input type="text" inputmode="numeric" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
                     <span class="income-input-label">보라 기타 수당</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
+                        <input type="text" inputmode="numeric" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>`;
@@ -2657,21 +2657,21 @@
                 <div class="income-input-card">
                     <span class="income-input-label">상훈 월급</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
+                        <input type="text" inputmode="numeric" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
                     <span class="income-input-label">상훈 특수직 추가수당</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.sang_other_income)}" placeholder="0" oninput="window.handleIncomeInput('sang_other_income', this)">
+                        <input type="text" inputmode="numeric" value="${formatNumberString(d.sang_other_income)}" placeholder="0" oninput="window.handleIncomeInput('sang_other_income', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
                     <span class="income-input-label">해외출장 수당 ($)</span>
                     <div class="income-input-flex">
-                        <input type="text" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
+                        <input type="text" inputmode="numeric" value="${formatNumberString(d.trip_usd)}" placeholder="0" oninput="window.handleIncomeInput('trip_usd', this)">
                         <span class="income-unit">$</span>
                     </div>
                 </div>
@@ -3488,7 +3488,16 @@
     document.addEventListener('input', (event) => {
         const inputEl = event.target;
         if (!(inputEl instanceof HTMLInputElement)) return;
-        if (inputEl.inputMode !== 'numeric') return;
+        const isMoneyInput = inputEl.inputMode === 'numeric' || inputEl.classList.contains('inp-amount') || inputEl.id === 'record-edit-amount';
+        if (!isMoneyInput) return;
+        formatNumberInputWithCaret(inputEl);
+    });
+
+    document.addEventListener('focusin', (event) => {
+        const inputEl = event.target;
+        if (!(inputEl instanceof HTMLInputElement)) return;
+        const isMoneyInput = inputEl.inputMode === 'numeric' || inputEl.classList.contains('inp-amount') || inputEl.id === 'record-edit-amount';
+        if (!isMoneyInput) return;
         formatNumberInputWithCaret(inputEl);
     });
 
@@ -3618,7 +3627,7 @@ function renderBudgetModalHTML() {
                             <select class="inp-cat">${optionsHtml}</select>
                             <select class="inp-owner">${getOwnerOptionsHtml(owner)}</select>
                             <input type="text" value="${escapeHtml(item.name || '')}" class="inp-name" placeholder="내용">
-                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" >
+                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" inputmode="numeric" placeholder="0" >
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
                 });
@@ -3646,7 +3655,7 @@ function renderBudgetModalHTML() {
                         <div class="sub-row">
                             <input type="date" value="${item.date || ''}" class="inp-date">
                             <select class="inp-cat">${buildFixedExpenseOptionsHtml(item.name)}</select>
-                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" >
+                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" inputmode="numeric" placeholder="0" >
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
                     });
@@ -3655,7 +3664,7 @@ function renderBudgetModalHTML() {
                         html += `
                         <div class="sub-row">
                             <input type="text" value="${escapeHtml(item.name || '')}" class="inp-name" placeholder="항목명">
-                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" >
+                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" inputmode="numeric" placeholder="0" >
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
                     });
@@ -3681,19 +3690,19 @@ function renderBudgetModalHTML() {
                 <select class="inp-cat">${optionsHtml}</select>
                 <select class="inp-owner">${getOwnerOptionsHtml('shared')}</select>
                 <input type="text" value="" class="inp-name" placeholder="내용">
-                <input type="text" value="" class="inp-amount" placeholder="0" >
+                <input type="text" value="" class="inp-amount" inputmode="numeric" placeholder="0" >
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         } else if (k === 'expense') {
             const today = new Date().toISOString().split('T')[0];
             newRow.innerHTML = `
                 <input type="date" value="${today}" class="inp-date">
                 <select class="inp-cat">${buildFixedExpenseOptionsHtml(getEffectiveFixedExpenseCategories()[0])}</select>
-                <input type="text" value="" class="inp-amount" placeholder="0" >
+                <input type="text" value="" class="inp-amount" inputmode="numeric" placeholder="0" >
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         } else {
             newRow.innerHTML = `
                 <input type="text" value="" class="inp-name" placeholder="항목명">
-                <input type="text" value="" class="inp-amount" placeholder="0" >
+                <input type="text" value="" class="inp-amount" inputmode="numeric" placeholder="0" >
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         }
         rowsContainer.appendChild(newRow);
@@ -3737,7 +3746,7 @@ function renderBudgetModalHTML() {
                     <div class="sub-row">
                         ${ownerSelectHtml}
                         <input type="text" value="${escapeHtml(item.name || '')}" class="inp-name" placeholder="항목명">
-                        <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" >
+                        <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" inputmode="numeric" placeholder="0" >
                         <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                     </div>`;
             });
@@ -3763,7 +3772,7 @@ function renderBudgetModalHTML() {
         newRow.innerHTML = `
             ${ownerSelectHtml}
             <input type="text" value="" class="inp-name" placeholder="항목명">
-            <input type="text" value="" class="inp-amount" placeholder="0" >
+            <input type="text" value="" class="inp-amount" inputmode="numeric" placeholder="0" >
             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         rowsContainer.appendChild(newRow);
     }
