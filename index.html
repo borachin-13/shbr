@@ -2399,6 +2399,37 @@
         return String(date.getUTCFullYear()) + '-' + String(date.getUTCMonth() + 1).padStart(2, '0');
     }
 
+    async function normalizeKnownLegacyExpenseCategories(month) {
+        const d = store[month];
+        const items = d?.categories?.variable_expense;
+        if (!Array.isArray(items)) return false;
+
+        let changed = false;
+        items.forEach(item => {
+            const name = String(item?.name || '').trim();
+            if (!name) return;
+
+            // 기존에 잘못 저장된 현재 춘천 지출만 정확히 보정한다.
+            // 다른 사용자의 임의 카테고리는 자동으로 추정해 바꾸지 않는다.
+            if (name === '춘천 숙박비' && item.category !== '여행') {
+                item.category = '여행';
+                changed = true;
+            }
+            if (name === '춘천(로드스테이) 숯불 & 자쿠지' && item.category !== '여행') {
+                item.category = '여행';
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            await saveMonthPatch(month, {
+                'categories.variable_expense': cloneData(items),
+                updatedAt: Date.now()
+            });
+        }
+        return changed;
+    }
+
     async function loadMonthFromServer(month, options = {}) {
         if (!isAuthenticatedUser() || !month) return false;
         const timeoutMs = Number(options.timeoutMs) || 3500;
@@ -2418,6 +2449,7 @@
                 ? { ...DEFAULT_MONTH_DATA(), ...snap.data() }
                 : DEFAULT_MONTH_DATA();
             applyHouseholdRulesToMonth(month, true);
+            await normalizeKnownLegacyExpenseCategories(month);
             monthLoadFailures.delete(month);
             loadedMonths.add(month);
 
