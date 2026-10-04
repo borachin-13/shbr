@@ -2591,7 +2591,7 @@
     window.submitPasswordReset = submitPasswordReset;
 
     async function resetPassword() {
-        const emailEl = document.getElementById('auth-username');
+        const emailEl = document.getElementById('auth-email');
         const email = emailEl ? emailEl.value.trim() : '';
         window.setAuthError('');
         if (!email || !email.includes('@')) {
@@ -2703,7 +2703,7 @@
                 createdAt: Date.now()
             });
 
-            // 가입한 이메일은 로그인 ID가 아니라 계정 인증/복구용으로 사용한다.
+            // 이메일은 로그인 ID가 아니라 계정 인증/복구용으로 사용한다.
             try {
                 await sendEmailVerification(credential.user);
             } catch (mailError) {
