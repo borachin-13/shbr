@@ -5333,7 +5333,7 @@ function filterRecords(filter,btn){recordsFilter=filter||'all';document.querySel
         assert('사용자 계정이 없으면 저장하지 않음', typeof isAuthenticatedUser === 'function');
         assert('사용자별 월 문서 경로 함수 존재', typeof monthDocRef === 'function');
         assert('사용자별 설정 문서 경로 함수 존재', typeof settingsDocRef === 'function');
-        assert('비밀번호 재설정 함수 존재', typeof resetPassword === 'function');
+        assert('비밀번호 재설정 함수 존재', typeof submitPasswordReset === 'function');
         assert('Auth 초기화 이벤트 함수 존재', typeof onAuthStateChanged === 'function');
         assert('현재 월 서버 새로고침 함수 존재', typeof refreshCurrentMonthFromServer === 'function');
         assert('사용자별 월 컬렉션 조회를 사용하는 초기화 경로', typeof getDocs === 'function' && typeof collection === 'function');
