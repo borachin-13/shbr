@@ -715,6 +715,33 @@
         }
         /* 페이지 스크롤은 항상 유지하고, 모달 내부만 스크롤 */
         .modal-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .cat-input{
+            width:100%;
+            box-sizing:border-box;
+            border:1px solid var(--border-color);
+            background:#fff;
+            border-radius:10px;
+            padding:10px 12px;
+            font-size:14px;
+            font-weight:800;
+            color:var(--primary);
+            outline:none;
+            text-align:right;
+        }
+        .cat-input:focus{
+            border-color:#aeb9c8;
+            box-shadow:0 0 0 3px rgba(26,32,44,.06);
+        }
+        .income-modal-rate{
+            margin:8px 0 4px;
+            padding:10px 12px;
+            background:#f6f8fa;
+            border-radius:10px;
+            font-size:11px;
+            line-height:1.5;
+            color:var(--text-sub);
+        }
+        .income-modal-rate strong{color:var(--primary);font-weight:900}
         .modal-card {
             background: white;
             width: 100%;
@@ -3966,6 +3993,10 @@
             subtabsEl.innerHTML = '';
             bodyEl.innerHTML = renderIncomeModalHTML();
             saveBtn.onclick = saveIncomeModal;
+            updateIncomeModalExchangeRateInfo();
+            ensureMonthExchangeRate(currentMonth, true).then(() => {
+                updateIncomeModalExchangeRateInfo();
+            }).catch(e => console.warn('수입 편집 환율 조회 실패:', e));
         } else if (type === 'expense') {
             titleEl.innerText = '💸 지출 항목 편집';
             subtabsEl.innerHTML = `
@@ -4147,10 +4178,23 @@ function renderBudgetModalHTML() {
                 <div class="cat-title-box">
                     <div class="cat-title-label-top">출장비 USD</div>
                     <input type="text" id="income-modal-trip-usd" class="cat-input" inputmode="decimal" value="${escapeHtml(Number(d.trip_usd || 0).toLocaleString())}" >
+                    <div class="income-modal-rate" id="income-modal-rate-info">환율을 불러오는 중…</div>
                 </div>
             </div>`;
     }
 
+    function updateIncomeModalExchangeRateInfo() {
+        const el = document.getElementById('income-modal-rate-info');
+        if (!el) return;
+        const d = store[currentMonth] || DEFAULT_MONTH_DATA();
+        const rate = Number(d.usdRate);
+        if (!Number.isFinite(rate) || rate <= 0) {
+            el.innerHTML = '환율을 아직 불러오지 못했어요. 잠시 후 다시 확인해주세요.';
+            return;
+        }
+        const dateText = d.usdRateDate ? formatKoreanDate(d.usdRateDate) : '해당 월 1일 기준';
+        el.innerHTML = '💱 <strong>적용 환율</strong> · $1 = ' + Math.round(rate).toLocaleString() + '원 · 기준일 ' + escapeHtml(dateText);
+    }
     function saveIncomeModal() {
         if (!isAuthenticatedUser()) return;
         const values = {
