@@ -921,7 +921,26 @@
         .dashboard-expense-row:last-child{border-bottom:0}
         .dashboard-expense-meta{margin-top:3px;font-size:10px;color:var(--text-sub)}
         .dashboard-expense-amount{font-size:13px;font-weight:900;color:var(--primary);white-space:nowrap}
-    </style>
+    <style id="records-ui-final">
+/* 내역 화면 최종 정리 */
+.records-list-card{padding:0 0 24px !important;background:transparent !important;box-shadow:none !important}
+.records-section{display:block !important;background:#fff !important;border:1px solid var(--border-color) !important;border-radius:16px !important;padding:14px 16px !important;margin:0 0 12px !important;box-shadow:var(--shadow-sm) !important}
+.records-section-head{display:flex !important;align-items:center !important;justify-content:space-between !important;padding:2px 0 12px !important;border-bottom:1px solid #edf0f2 !important}
+.records-section-head div{display:flex !important;align-items:baseline !important;gap:6px !important}
+.records-section-head strong{font-size:15px !important;font-weight:900 !important;color:var(--primary) !important}
+.records-section-head span{font-size:10px !important;color:var(--text-sub) !important}
+.records-section-head>b{font-size:16px !important;font-weight:900 !important;color:var(--primary) !important}
+.records-flat-list{display:block !important}
+.records-date-group{padding:0 !important}
+.records-date-title{padding:12px 0 5px !important;font-size:10px !important;font-weight:900 !important;color:var(--text-sub) !important}
+.records-section .record-row{display:flex !important;width:100% !important;align-items:center !important;justify-content:space-between !important;gap:12px !important;padding:13px 0 !important;border-bottom:1px solid #f0f2f4 !important;background:transparent !important}
+.records-section .record-row:last-child{border-bottom:0 !important}
+.records-section .record-name{font-size:13px !important;font-weight:800 !important;color:var(--primary) !important}
+.records-section .record-meta{margin-top:4px !important;font-size:10px !important;color:var(--text-sub) !important}
+.records-section .record-amount{font-size:14px !important;font-weight:900 !important;color:var(--primary) !important}
+.records-empty{padding:18px 0 4px !important;font-size:11px !important;color:var(--text-sub) !important}
+.records-more-btn{width:100% !important;margin-top:8px !important;padding:10px !important;border:0 !important;background:#f6f8fa !important;color:var(--primary) !important;border-radius:10px !important;font-size:11px !important;font-weight:800 !important}
+</style></style>
 </head>
 <body>
 
@@ -4168,14 +4187,14 @@ function addCategorySetting() {
         const renderSection=(key,limit=6)=>{
             const sec=sectionData[key];
             const items=sec.items.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0,limit);
-            if(!items.length)return `<section class="records-section"><div class="records-section-head"><div><strong>${sec.title}</strong><span>이번 달</span></div><b>0원</b></div>${empty}</section>`;
+            if(!items.length)return `<section class="records-section"><div class="records-section-head"><div><strong>${sec.title}</strong></div><b>0원</b></div>${empty}</section>`;
             if(key==='expense'){
                 const groups={};
                 items.forEach(item=>{const date=item.date||'이번 달';(groups[date]||(groups[date]=[])).push(item);});
                 const grouped=Object.keys(groups).sort((a,b)=>String(b).localeCompare(String(a))).map(date=>`<div class="records-date-group"><div class="records-date-title">${escapeHtml(date==='이번 달'?'이번 달':formatKoreanDate(date))}</div>${groups[date].map(rowHtml).join('')}</div>`).join('');
-                return `<section class="records-section"><div class="records-section-head"><div><strong>지출</strong><span>이번 달</span></div><b>${formatAmount(sec.total)}</b></div>${grouped}${sec.items.length>limit?`<button type="button" class="records-more-btn" onclick="window.filterRecords('expense',document.querySelector('.records-filter[onclick*=\\"expense\\"]'))">전체 지출 보기 →</button>`:''}</section>`;
+                return `<section class="records-section"><div class="records-section-head"><div><strong>지출</strong></div><b>${formatAmount(sec.total)}</b></div>${grouped}${sec.items.length>limit?`<button type="button" class="records-more-btn" onclick="window.filterRecords('expense',document.querySelector('.records-filter[onclick*=\\"expense\\"]'))">전체 지출 보기 →</button>`:''}</section>`;
             }
-            return `<section class="records-section"><div class="records-section-head"><div><strong>${sec.title}</strong><span>이번 달</span></div><b>${formatAmount(sec.total)}</b></div><div class="records-flat-list">${items.map(rowHtml).join('')}</div></section>`;
+            return `<section class="records-section"><div class="records-section-head"><div><strong>${sec.title}</strong></div><b>${formatAmount(sec.total)}</b></div><div class="records-flat-list">${items.map(rowHtml).join('')}</div></section>`;
         };
 
         if(recordsFilter==='all'){
@@ -4190,9 +4209,9 @@ function addCategorySetting() {
             const groups={};
             sec.items.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).forEach(item=>{const date=item.date||'이번 달';(groups[date]||(groups[date]=[])).push(item);});
             const grouped=Object.keys(groups).sort((a,b)=>String(b).localeCompare(String(a))).map(date=>`<div class="records-date-group"><div class="records-date-title">${escapeHtml(date==='이번 달'?'이번 달':formatKoreanDate(date))}</div>${groups[date].map(rowHtml).join('')}</div>`).join('');
-            el.innerHTML=`<section class="records-section records-single-section"><div class="records-section-head"><div><strong>지출</strong><span>이번 달</span></div><b>${formatAmount(sec.total)}</b></div>${grouped}</section>`;
+            el.innerHTML=`<section class="records-section records-single-section"><div class="records-section-head"><div><strong>지출</strong></div><b>${formatAmount(sec.total)}</b></div>${grouped}</section>`;
         }else{
-            el.innerHTML=`<section class="records-section records-single-section"><div class="records-section-head"><div><strong>${sec.title}</strong><span>이번 달</span></div><b>${formatAmount(sec.total)}</b></div><div class="records-flat-list">${sec.items.map(rowHtml).join('')}</div></section>`;
+            el.innerHTML=`<section class="records-section records-single-section"><div class="records-section-head"><div><strong>${sec.title}</strong></div><b>${formatAmount(sec.total)}</b></div><div class="records-flat-list">${sec.items.map(rowHtml).join('')}</div></section>`;
         }
     }
 
