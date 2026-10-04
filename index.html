@@ -1814,6 +1814,10 @@
                 return item;
             });
         }
+        if (d.sectionTitles) {
+            if (!d.sectionTitles.bora_personal || d.sectionTitles.bora_personal === '보라 개인 지출') d.sectionTitles.bora_personal = memberNames.bora + ' 개인 지출';
+            if (!d.sectionTitles.sang_personal || d.sectionTitles.sang_personal === '상훈 개인 지출') d.sectionTitles.sang_personal = memberNames.sang + ' 개인 지출';
+        }
         return d;
     }
 
