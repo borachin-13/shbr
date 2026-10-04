@@ -3381,11 +3381,39 @@
     }
     window.switchModalTab = switchModalTab;
 
+    function formatNumberInputWithCaret(inputEl) {
+        if (!inputEl) return;
+        const value = String(inputEl.value ?? '');
+        const caret = typeof inputEl.selectionStart === 'number' ? inputEl.selectionStart : value.length;
+        const digitsBeforeCaret = value.slice(0, caret).replace(/[^0-9]/g, '').length;
+        const digits = value.replace(/[^0-9]/g, '');
+        const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        inputEl.value = formatted;
+
+        if (document.activeElement === inputEl && typeof inputEl.setSelectionRange === 'function') {
+            let nextCaret = 0;
+            let seenDigits = 0;
+            while (nextCaret < formatted.length && seenDigits < digitsBeforeCaret) {
+                if (/[0-9]/.test(formatted[nextCaret])) seenDigits++;
+                nextCaret++;
+            }
+            inputEl.setSelectionRange(nextCaret, nextCaret);
+        }
+    }
+
     function handleModalNumInput(inputEl) {
-        const rawNum = parseNumberString(inputEl.value);
-        inputEl.value = rawNum ? rawNum.toLocaleString() : '';
+        formatNumberInputWithCaret(inputEl);
     }
     window.handleModalNumInput = handleModalNumInput;
+
+    // 금액 입력 필드는 입력하는 순간 천 단위 콤마를 표시한다.
+    // 저장할 때는 기존 parseNumberString()이 콤마를 제거한 숫자값으로 처리한다.
+    document.addEventListener('input', (event) => {
+        const inputEl = event.target;
+        if (!(inputEl instanceof HTMLInputElement)) return;
+        if (inputEl.inputMode !== 'numeric') return;
+        formatNumberInputWithCaret(inputEl);
+    });
 
         function buildFixedExpenseOptionsHtml(currentCat) {
         const effectiveFixed = getEffectiveFixedExpenseCategories();
@@ -3412,7 +3440,7 @@ function renderBudgetModalHTML() {
                     <input type="text" id="budget-modal-amount" class="cat-input" inputmode="numeric"
                         value="${budget ? escapeHtml(budget.toLocaleString()) : ''}"
                         placeholder="예: 3000000"
-                        oninput="window.handleModalNumInput(this)">
+                        >
                 </div>
                 <div class="budget-modal-note" style="margin-top:8px;">0 또는 빈칸으로 저장하면 이번 달 예산이 해제됩니다.</div>
             </div>`;
@@ -3439,23 +3467,23 @@ function renderBudgetModalHTML() {
             <div class="cat-group active">
                 <div class="cat-title-box">
                     <div class="cat-title-label-top">보라 월급</div>
-                    <input type="text" id="income-modal-bora" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.bora || 0).toLocaleString())}" oninput="window.handleModalNumInput(this)">
+                    <input type="text" id="income-modal-bora" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.bora || 0).toLocaleString())}" >
                 </div>
                 <div class="cat-title-box">
                     <div class="cat-title-label-top">보라 추가수입</div>
-                    <input type="text" id="income-modal-bora-extra" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.bora_extra || 0).toLocaleString())}" oninput="window.handleModalNumInput(this)">
+                    <input type="text" id="income-modal-bora-extra" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.bora_extra || 0).toLocaleString())}" >
                 </div>
                 <div class="cat-title-box">
                     <div class="cat-title-label-top">상훈 월급</div>
-                    <input type="text" id="income-modal-sang" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.sang || 0).toLocaleString())}" oninput="window.handleModalNumInput(this)">
+                    <input type="text" id="income-modal-sang" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.sang || 0).toLocaleString())}" >
                 </div>
                 <div class="cat-title-box">
                     <div class="cat-title-label-top">상훈 기타수입</div>
-                    <input type="text" id="income-modal-sang-other" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.sang_other_income || 0).toLocaleString())}" oninput="window.handleModalNumInput(this)">
+                    <input type="text" id="income-modal-sang-other" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.sang_other_income || 0).toLocaleString())}" >
                 </div>
                 <div class="cat-title-box">
                     <div class="cat-title-label-top">출장비 USD</div>
-                    <input type="text" id="income-modal-trip-usd" class="cat-input" inputmode="decimal" value="${escapeHtml(Number(d.trip_usd || 0).toLocaleString())}" oninput="window.handleModalNumInput(this)">
+                    <input type="text" id="income-modal-trip-usd" class="cat-input" inputmode="decimal" value="${escapeHtml(Number(d.trip_usd || 0).toLocaleString())}" >
                 </div>
             </div>`;
     }
@@ -3513,7 +3541,7 @@ function renderBudgetModalHTML() {
                             <select class="inp-cat">${optionsHtml}</select>
                             <select class="inp-owner">${getOwnerOptionsHtml(owner)}</select>
                             <input type="text" value="${escapeHtml(item.name || '')}" class="inp-name" placeholder="내용">
-                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" >
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
                 });
@@ -3541,7 +3569,7 @@ function renderBudgetModalHTML() {
                         <div class="sub-row">
                             <input type="date" value="${item.date || ''}" class="inp-date">
                             <select class="inp-cat">${buildFixedExpenseOptionsHtml(item.name)}</select>
-                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" >
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
                     });
@@ -3550,7 +3578,7 @@ function renderBudgetModalHTML() {
                         html += `
                         <div class="sub-row">
                             <input type="text" value="${escapeHtml(item.name || '')}" class="inp-name" placeholder="항목명">
-                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                            <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" >
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                         </div>`;
                     });
@@ -3576,19 +3604,19 @@ function renderBudgetModalHTML() {
                 <select class="inp-cat">${optionsHtml}</select>
                 <select class="inp-owner">${getOwnerOptionsHtml('shared')}</select>
                 <input type="text" value="" class="inp-name" placeholder="내용">
-                <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                <input type="text" value="" class="inp-amount" placeholder="0" >
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         } else if (k === 'expense') {
             const today = new Date().toISOString().split('T')[0];
             newRow.innerHTML = `
                 <input type="date" value="${today}" class="inp-date">
                 <select class="inp-cat">${buildFixedExpenseOptionsHtml(getEffectiveFixedExpenseCategories()[0])}</select>
-                <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                <input type="text" value="" class="inp-amount" placeholder="0" >
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         } else {
             newRow.innerHTML = `
                 <input type="text" value="" class="inp-name" placeholder="항목명">
-                <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                <input type="text" value="" class="inp-amount" placeholder="0" >
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         }
         rowsContainer.appendChild(newRow);
@@ -3632,7 +3660,7 @@ function renderBudgetModalHTML() {
                     <div class="sub-row">
                         ${ownerSelectHtml}
                         <input type="text" value="${escapeHtml(item.name || '')}" class="inp-name" placeholder="항목명">
-                        <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+                        <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" placeholder="0" >
                         <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
                     </div>`;
             });
@@ -3658,7 +3686,7 @@ function renderBudgetModalHTML() {
         newRow.innerHTML = `
             ${ownerSelectHtml}
             <input type="text" value="" class="inp-name" placeholder="항목명">
-            <input type="text" value="" class="inp-amount" placeholder="0" oninput="window.handleModalNumInput(this)">
+            <input type="text" value="" class="inp-amount" placeholder="0" >
             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         rowsContainer.appendChild(newRow);
     }
