@@ -28,7 +28,9 @@ async function signup(page, username, email, password) {
   const authStarted = Date.now();
   await page.locator('#signup-submit-btn').click();
   await page.waitForFunction(() => typeof window.runEmulatorIntegrityProbe === 'function');
-  await page.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none');
+  await page.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('signup-error')?.innerText, null, { timeout: 10000 });
+  const signupError = await page.locator('#signup-error').innerText();
+  if (signupError) throw new Error(`Signup failed: ${signupError}`);
   const authenticatedMs = Date.now() - authStarted;
   return {
     uid: await page.evaluate(() => window.getAuthenticatedUid()),
