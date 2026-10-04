@@ -959,7 +959,7 @@
 #page-records .records-date-group{display:block !important;margin:0 !important;padding:0 !important}
 #page-records .records-date-title{padding:11px 0 3px !important;font-size:10px !important;font-weight:900 !important;color:var(--text-sub) !important}
 #page-records .records-empty{padding:16px 0 3px !important;font-size:11px !important;color:var(--text-sub) !important}
-</style></style></style>
+<style id="record-category-select-final">.record-editor select{width:100%;border:1px solid var(--border-color);border-radius:9px;padding:10px;font-size:14px;outline:none;background:#fff;color:var(--primary)}</style></style></style></style>
 </head>
 <body>
 
@@ -2934,22 +2934,29 @@
     }
 
     function renderDashboardMoney(d) {
-        const summary=calculateMonthlySummary(d);
-        const remaining=Number(summary.income)-Number(summary.expense)-Number(summary.plannedSavings);
+        const base=calculateMonthlySummary(d);
+        let income=Number(base.income)||0, expense=Number(base.expense)||0, savings=Number(base.plannedSavings)||0;
+        if(currentTab==='bora'){
+            income=(Number(d.bora)||0)+(Number(d.bora_extra)||0);
+            expense=sumCat(d.categories?.bora_personal)+(sumCat(d.categories?.living)/2);
+            savings=(Array.isArray(d.categories?.savings)?d.categories.savings:[]).filter(x=>x.owner==='bora'||x.owner==='shared').reduce((n,x)=>n+(Number(x.amount)||0),0);
+        }else if(currentTab==='sang'){
+            income=(Number(d.sang)||0)+(Number(d.sang_other_income)||0)+Math.round((Number(d.trip_usd)||0)*getMonthExchangeRate(d));
+            expense=sumCat(d.categories?.sang_personal)+(sumCat(d.categories?.living)/2);
+            savings=(Array.isArray(d.categories?.savings)?d.categories.savings:[]).filter(x=>x.owner==='sang'||x.owner==='shared').reduce((n,x)=>n+(Number(x.amount)||0),0);
+        }
+        const remaining=income-expense-savings;
         const set=(id,val)=>{const el=document.getElementById(id);if(el)el.innerText=val;};
         set('dashboard-remaining-money',formatAmount(remaining));
         const remainingEl=document.getElementById('dashboard-remaining-money');
         if(remainingEl) remainingEl.style.color=remaining<0?'var(--expense-color)':'var(--primary)';
-        set('dashboard-income-value',formatAmount(summary.income));
-        set('dashboard-expense-value',formatAmount(summary.expense));
-        set('dashboard-saving-value',formatAmount(summary.plannedSavings));
-        set('dashboard-saving-total',formatAmount(summary.plannedSavings));
-        const savings=Array.isArray(d?.categories?.savings)?d.categories.savings:[];
-        const bora=savings.filter(x=>x.owner==='bora').reduce((n,x)=>n+(Number(x.amount)||0),0);
-        const sang=savings.filter(x=>x.owner==='sang').reduce((n,x)=>n+(Number(x.amount)||0),0);
-        set('dashboard-saving-detail', '우리 집 고정저축 '+formatAmount(summary.plannedSavings));
+        set('dashboard-income-value',formatAmount(income));
+        set('dashboard-expense-value',formatAmount(expense));
+        set('dashboard-saving-value',formatAmount(savings));
+        set('dashboard-saving-total',formatAmount(savings));
+        set('dashboard-saving-detail','우리 집 고정저축 '+formatAmount(savings));
         const box=document.getElementById('dashboard-expense-breakdown');
-        if(box) renderDashboardRecentExpenses(d, box);
+        if(box) renderDashboardRecentExpenses(d,box);
     }
 
     function renderDashboardRecentExpenses(d, targetEl) {
@@ -2964,7 +2971,9 @@
         ];
         const items=[];
         sources.forEach(src=>src.items.forEach((item,index)=>{
-            if((Number(item.amount)||0)>0)items.push({...item,_sourceKey:src.key,_sourceIndex:index,_meta:src.meta});
+            const owner=item.owner||'shared';
+            const visible=currentTab==='all'||(src.key==='bora_personal'?currentTab==='bora':src.key==='sang_personal'?currentTab==='sang':owner==='shared'||owner===currentTab);
+            if(visible&&(Number(item.amount)||0)>0)items.push({...item,_sourceKey:src.key,_sourceIndex:index,_meta:src.meta});
         }));
         items.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
         const visible=items.slice(0,4);
@@ -3395,7 +3404,7 @@
         titleEl.innerText=type==='income'?'💵 수입 수정':type==='saving'?'💰 저축 수정':'💸 지출 수정';
         subtabsEl.innerHTML='';
         const dateHtml=type==='expense'?`<label>날짜</label><input id="record-edit-date" type="date" value="${escapeHtml(record.date||'')}">`:'';
-        const categoryHtml=type==='expense'&&sourceKey==='variable_expense'?`<label>카테고리</label><input id="record-edit-category" value="${escapeHtml(record.category||'')}">`:'';
+        const categoryHtml=type==='expense'&&sourceKey==='variable_expense'?`<label>카테고리</label><select id="record-edit-category">${categoryList.map(cat=>`<option value="${escapeHtml(cat)}" ${record.category===cat?'selected':''}>${escapeHtml(cat)}</option>`).join('')}</select>`:'';
         const ownerHtml=type==='saving'?`<label>저축 주체</label><select id="record-edit-owner"><option value="shared" ${record.owner==='shared'?'selected':''}>공통</option><option value="bora" ${record.owner==='bora'?'selected':''}>보라</option><option value="sang" ${record.owner==='sang'?'selected':''}>상훈</option></select>`:'';
         bodyEl.innerHTML=`<div class="record-editor">${dateHtml}<label>항목명</label><input id="record-edit-name" value="${escapeHtml(record.name||'')}">${categoryHtml}${ownerHtml}<label>${record.isUsd?'금액 (USD)':'금액'}</label><input id="record-edit-amount" inputmode="numeric" value="${formatNumberString(record.amount||0)}"><button type="button" class="record-delete-btn" onclick="window.deleteEditingRecord()">삭제</button></div>`;
         saveBtn.innerText='저장';saveBtn.onclick=saveEditingRecord;
