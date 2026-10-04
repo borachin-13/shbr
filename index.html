@@ -4218,10 +4218,20 @@ function renderBudgetModalHTML() {
                 if (k === 'expense') {
                     // 설정에서 등록한 고정 지출 카테고리가 해당 월에 아직 저장되지 않았더라도
                     // 월별 입력 화면에 자동으로 나타나도록 한다. 기존 월 데이터는 절대 덮어쓰지 않는다.
+                    const effectiveFixedCategories = getEffectiveFixedExpenseCategories();
                     const existingFixedNames = new Set(cats.expense.map(item => item.name));
-                    const fixedItemsForMonth = cats.expense.slice();
-                    getEffectiveFixedExpenseCategories().forEach(category => {
-                        if (!existingFixedNames.has(category)) {
+                    // 설정에서 이미 삭제된 카테고리의 0원짜리 빈 placeholder는
+                    // 과거 월 데이터에 남아 있어도 편집 화면에 다시 살려내지 않는다.
+                    // 실제 금액이나 날짜가 있는 과거 기록은 보존한다.
+                    const fixedItemsForMonth = cats.expense.filter(item => {
+                        const name = String(item?.name || '').trim();
+                        const amount = Number(item?.amount) || 0;
+                        const date = String(item?.date || '').trim();
+                        return effectiveFixedCategories.includes(name) || amount > 0 || !!date;
+                    });
+                    const visibleFixedNames = new Set(fixedItemsForMonth.map(item => item.name));
+                    effectiveFixedCategories.forEach(category => {
+                        if (!visibleFixedNames.has(category)) {
                             fixedItemsForMonth.push({ name: category, amount: 0, date: '' });
                         }
                     });
