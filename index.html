@@ -4164,12 +4164,14 @@
         const category=categoryEl?categoryEl.value:(getEffectiveFixedExpenseCategories()[0]||'고정 지출');
         const date=dateEl&&dateEl.value?dateEl.value:getQuickExpenseDate();
         const name=nameEl&&nameEl.value.trim()?nameEl.value.trim():category;
-        store[currentMonth].categories.expense.push({date,name:category,amount,owner});
+        store[currentMonth].categories.expense.push({date,name,category,amount,owner});
         const patch={'categories.expense':cloneData(store[currentMonth].categories.expense),updatedAt:Date.now()};
         closeQuickFixedExpense();
         render();
         saveMonthPatch(currentMonth,patch,'고정 지출이 저장되었습니다.');
     }
+
+    window.saveQuickFixedExpense = saveQuickFixedExpense;
 
     function openRecordTypeChooser() {
         const modal=document.getElementById('record-type-chooser');
