@@ -622,6 +622,8 @@
         .quick-expense-save:active { transform: translateY(1px); }
         .quick-expense-hint { font-size: 10px; color: var(--text-sub); margin-top: 8px; }
         .household-rule-card{background:#fff;border:1px solid var(--border-color);border-radius:12px;padding:12px;margin-top:8px}
+        .household-rule-grid .household-rule-bora{grid-column:1}
+        .household-rule-grid .household-rule-sang{grid-column:2}
         .household-rule-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
         .household-rule-field label{display:block;font-size:10px;color:var(--text-sub);margin-bottom:4px;font-weight:700}
         .household-rule-field input{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border-color);border-radius:8px;font-size:12px;outline:none}
@@ -1258,11 +1260,11 @@
                     <div style="font-size:11px;color:var(--text-sub);line-height:1.5;">매달 반복되는 수입과 청년저축만 한 번 설정하면 새 달에 자동으로 반영합니다.</div>
                     <div class="household-rule-card">
                         <div class="household-rule-grid">
-                            <div class="household-rule-field"><label>보라 고정 월급</label><input id="rule-bora-income" inputmode="numeric" placeholder="예: 4,200,000"></div>
-                            <div class="household-rule-field"><label>상훈 기본급</label><input id="rule-sang-income" inputmode="numeric" placeholder="기본급 입력"></div>
-                            <div class="household-rule-field"><label>상훈 특수직 추가수당</label><input id="rule-sang-special" inputmode="numeric" value="700,000"></div>
-                            <div class="household-rule-field"><label>보라 청년저축</label><input id="rule-bora-saving" inputmode="numeric" value="700,000"></div>
-                            <div class="household-rule-field"><label>상훈 청년저축</label><input id="rule-sang-saving" inputmode="numeric" value="700,000"></div>
+                            <div class="household-rule-field household-rule-bora"><label>보라 고정 월급</label><input id="rule-bora-income" inputmode="numeric" placeholder="예: 4,200,000"></div>
+                            <div class="household-rule-field household-rule-sang"><label>상훈 기본급</label><input id="rule-sang-income" inputmode="numeric" placeholder="기본급 입력"></div>
+                            <div class="household-rule-field household-rule-bora"><label>보라 청년저축</label><input id="rule-bora-saving" inputmode="numeric" value="700,000"></div>
+                            <div class="household-rule-field household-rule-sang"><label>상훈 특수직 추가수당</label><input id="rule-sang-special" inputmode="numeric" value="700,000"></div>
+                            <div class="household-rule-field household-rule-sang"><label>상훈 청년저축</label><input id="rule-sang-saving" inputmode="numeric" value="700,000"></div>
                         </div>
                         <button class="household-rule-save" onclick="window.saveHouseholdRules()">저장하고 다음 달부터 자동 적용</button>
                         <div class="household-rule-note">해외출장 달러 수입은 발생한 달에만 별도로 입력합니다. 기존 월별 데이터는 자동으로 덮어쓰지 않습니다.</div>
