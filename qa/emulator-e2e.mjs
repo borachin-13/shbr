@@ -20,6 +20,7 @@ const pageB = await contextB.newPage();
 
 async function signup(page, username, email, password) {
   const started = Date.now();
+  const partnerName = `${username} Partner`;
   await page.goto(baseUrl);
   const pageReadyMs = Date.now() - started;
   await page.locator('#auth-signup-btn').click();
@@ -27,6 +28,7 @@ async function signup(page, username, email, password) {
   await page.locator('#signup-name').waitFor({ state: 'visible' });
   await page.locator('#signup-name').fill(username);
   await page.locator('#signup-username').fill(username);
+  await page.locator('#signup-partner-name').fill(partnerName);
   await page.locator('#signup-email').fill(email);
   await page.locator('#signup-password').fill(password);
   await page.locator('#signup-password-confirm').fill(password);
@@ -39,9 +41,14 @@ async function signup(page, username, email, password) {
   await page.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('signup-error')?.innerText, null, { timeout: 10000 });
   const signupError = await page.locator('#signup-error').innerText();
   if (signupError) throw new Error(`Signup failed: ${signupError}`);
+  const memberLabels = await page.locator('#member-tab-bar .tab-pill-btn').allTextContents();
+  if (!memberLabels.includes(username) || !memberLabels.includes(partnerName)) {
+    throw new Error(`Dynamic member names were not rendered: ${JSON.stringify(memberLabels)}`);
+  }
   const authenticatedMs = Date.now() - authStarted;
   return {
     uid: await page.evaluate(() => window.getAuthenticatedUid()),
+    partnerName,
     timing: { pageReadyMs, signupToAppMs: authenticatedMs }
   };
 }
