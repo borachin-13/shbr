@@ -23,11 +23,14 @@ async function signup(page, username, email, password) {
   await page.goto(baseUrl);
   const pageReadyMs = Date.now() - started;
   await page.locator('#auth-signup-btn').click();
+  await page.locator('#signup-modal').waitFor({ state: 'visible' });
+  await page.locator('#signup-name').waitFor({ state: 'visible' });
   await page.locator('#signup-name').fill(username);
   await page.locator('#signup-username').fill(username);
   await page.locator('#signup-email').fill(email);
   await page.locator('#signup-password').fill(password);
   await page.locator('#signup-password-confirm').fill(password);
+  await page.locator('#signup-password-confirm').press('Tab');
   const formValues = await page.evaluate(() => ({ username: document.getElementById('signup-username')?.value, passwordLength: document.getElementById('signup-password')?.value?.length, confirmLength: document.getElementById('signup-password-confirm')?.value?.length }));
   if (formValues.passwordLength < 8 || formValues.confirmLength !== formValues.passwordLength) throw new Error(`Signup fixture values invalid: ${JSON.stringify(formValues)}`);
   const authStarted = Date.now();
