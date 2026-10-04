@@ -119,6 +119,14 @@ try {
   if (!oldPasswordError) throw new Error('Old password unexpectedly authenticated after password change.');
   await pageB.evaluate(async () => window.setAuthError(''));
 
+  // Restore B's authenticated session for the cross-user Firestore isolation probes.
+  await pageB.locator('#auth-username').fill(emailB);
+  await pageB.locator('#auth-password').fill('QaChanged5678!');
+  await pageB.locator('#auth-login-btn').click();
+  await pageB.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
+  const isolationLoginError = await pageB.locator('#lock-error').innerText();
+  if (isolationLoginError) throw new Error(`Isolation setup login failed: ${isolationLoginError}`);
+
   // Real-user-flow timing baseline. Emulator timing is a regression signal, not a production SLA.
   const monthSwitchStarted = Date.now();
   const monthSwitchResult = await pageA.evaluate(async () => window.changeMonth('2026-08'));
