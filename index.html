@@ -2110,7 +2110,7 @@
         if(!Number(d.sang)&&householdRules.sangBaseIncome>0){d.sang=householdRules.sangBaseIncome;changed=true;}
         if(!Number(d.sang_other_income)&&householdRules.sangSpecialAllowance>0){d.sang_other_income=householdRules.sangSpecialAllowance;changed=true;}
         if(!d.categories)d.categories=DEFAULT_MONTH_DATA().categories;if(!Array.isArray(d.categories.savings))d.categories.savings=[];
-        const bora=d.categories.savings.find(x=>x.name==='보라 청년계좌');const sang=d.categories.savings.find(x=>x.name==='상훈 청년계좌');
+        const bora=d.categories.savings.find(x=>x.owner==='bora');const sang=d.categories.savings.find(x=>x.owner==='sang');
         if(bora&&!Number(bora.amount)&&householdRules.boraYouthSavings>0){bora.amount=householdRules.boraYouthSavings;changed=true;}
         if(sang&&!Number(sang.amount)&&householdRules.sangYouthSavings>0){sang.amount=householdRules.sangYouthSavings;changed=true;}
         if(changed)saveMonthPatch(month,{bora:Number(d.bora)||0,sang:Number(d.sang)||0,sang_other_income:Number(d.sang_other_income)||0,'categories.savings':cloneData(d.categories.savings),updatedAt:Date.now()},'');
@@ -4792,8 +4792,8 @@ function renderBudgetModalHTML() {
                 const ownerSelectHtml = k === 'savings' ? `
                     <select class="inp-owner">
                         <option value="shared" ${owner==='shared'?'selected':''}>공통</option>
-                        <option value="bora" ${owner==='bora'?'selected':''}>보라</option>
-                        <option value="sang" ${owner==='sang'?'selected':''}>상훈</option>
+                        <option value="bora" ${owner==='bora'?'selected':''}>${escapeHtml(memberLabel('bora'))}</option>
+                        <option value="sang" ${owner==='sang'?'selected':''}>${escapeHtml(memberLabel('sang'))}</option>
                     </select>` : '';
                 html += `
                     <div class="sub-row">
@@ -4819,8 +4819,8 @@ function renderBudgetModalHTML() {
         const ownerSelectHtml = k === 'savings' ? `
             <select class="inp-owner">
                 <option value="shared" selected>공통</option>
-                <option value="bora">보라</option>
-                <option value="sang">상훈</option>
+                <option value="bora">${escapeHtml(memberLabel('bora'))}</option>
+                <option value="sang">${escapeHtml(memberLabel('sang'))}</option>
             </select>` : '';
 
         newRow.innerHTML = `
