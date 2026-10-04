@@ -77,6 +77,9 @@ try {
   const qaCredential = await signInWithEmailAndPassword(qaAuth, emailB, passwordB);
   await updatePassword(qaCredential.user, 'QaChanged5678!');
   await signOut(qaAuth);
+  const changedCredential = await signInWithEmailAndPassword(qaAuth, emailB, 'QaChanged5678!');
+  if (changedCredential.user.uid !== uidB) throw new Error('Firebase Auth itself rejected the changed password.');
+  await signOut(qaAuth);
 
   await pageB.evaluate(async () => window.logoutUser());
   await pageB.locator('#auth-username').fill(emailB);
