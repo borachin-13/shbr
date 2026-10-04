@@ -1056,7 +1056,6 @@
                         <span>💸 이번 달 지출</span>
                         <div class="dashboard-card-actions">
                             <button type="button" class="dashboard-inline-action" onclick="window.quickAddExpense()">＋ 기록</button>
-                            <button type="button" class="dashboard-inline-link" onclick="window.navigate('records', this)">전체 내역 →</button>
                         </div>
                     </div>
                     <div class="dashboard-section-total"><strong id="kpi-expense">0원</strong></div>
@@ -1065,7 +1064,7 @@
                 <section class="card dashboard-section-card dashboard-saving-section">
                     <div class="dashboard-card-title">
                         <span>🏦 이번 달 저축</span>
-                        <button type="button" class="dashboard-inline-link" onclick="window.navigate('records', this)">전체 내역 →</button>
+                        <button type="button" class="dashboard-inline-action" onclick="window.openQuickSaving()">＋ 기록</button>
                     </div>
                     <div class="dashboard-saving-total-line"><strong id="dashboard-saving-total">0원</strong></div>
                     <div class="dashboard-saving-detail" id="dashboard-saving-detail"><div class="dashboard-empty">저축 내역이 없어요.</div></div>
@@ -1225,6 +1224,40 @@
             </details>
             <div class="quick-expense-hint">금액 → 누구 → 카테고리만 선택해도 바로 저장돼요.</div>
             <button class="quick-expense-save" onclick="window.saveQuickExpense()">저장하기</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="record-type-chooser" aria-hidden="true">
+        <div class="record-type-card" role="dialog" aria-modal="true">
+            <div class="record-type-head">
+                <strong>기록 추가</strong>
+                <button class="quick-expense-close" onclick="window.closeRecordTypeChooser()">✕</button>
+            </div>
+            <div class="record-type-grid">
+                <button type="button" onclick="window.closeRecordTypeChooser();window.openQuickExpense()"><b>💸 지출</b><span>실제로 쓴 돈을 기록해요</span></button>
+                <button type="button" onclick="window.closeRecordTypeChooser();window.openQuickSaving()"><b>🏦 저축</b><span>실제로 저축한 돈을 기록해요</span></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="quick-saving-modal" aria-hidden="true">
+        <div class="quick-expense-card" role="dialog" aria-modal="true" aria-labelledby="quick-saving-title">
+            <div class="quick-expense-title">
+                <span id="quick-saving-title">🏦 저축 기록</span>
+                <button class="quick-expense-close" onclick="window.closeQuickSaving()">✕</button>
+            </div>
+            <div class="quick-expense-label">무엇을 저축했나요?</div>
+            <input id="quick-saving-name" class="quick-expense-name" placeholder="예: 청년계좌, 적금" maxlength="40">
+            <div class="quick-expense-label">금액</div>
+            <input id="quick-saving-amount" class="quick-expense-amount" inputmode="numeric" autocomplete="off" placeholder="0" aria-label="저축 금액">
+            <div class="quick-expense-label">누구의 저축인가요?</div>
+            <div class="quick-owner-group" id="quick-saving-owner">
+                <button type="button" class="quick-owner-btn active" data-owner="shared">공통</button>
+                <button type="button" class="quick-owner-btn" data-owner="bora">보라</button>
+                <button type="button" class="quick-owner-btn" data-owner="sang">상훈</button>
+            </div>
+            <div class="quick-expense-hint">실제로 저축한 금액만 기록해 주세요.</div>
+            <button class="quick-expense-save" onclick="window.saveQuickSaving()">저장하기</button>
         </div>
     </div>
 
@@ -3484,6 +3517,77 @@
         saveMonthPatch(currentMonth, patch, '지출이 저장되었습니다.');
     }
     window.saveQuickExpense = saveQuickExpense;
+
+    function openQuickSaving() {
+        const modal = document.getElementById('quick-saving-modal');
+        const name = document.getElementById('quick-saving-name');
+        const amount = document.getElementById('quick-saving-amount');
+        if (!modal || !name || !amount) return;
+        name.value = '';
+        amount.value = '';
+        const defaultOwner = currentTab === 'bora' ? 'bora' : currentTab === 'sang' ? 'sang' : 'shared';
+        document.querySelectorAll('#quick-saving-owner .quick-owner-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.owner === defaultOwner);
+            btn.onclick = () => {
+                document.querySelectorAll('#quick-saving-owner .quick-owner-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+        });
+        amount.onkeydown = (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                saveQuickSaving();
+            }
+        };
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+        modal.style.pointerEvents = 'auto';
+        modal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => name.focus(), 50);
+    }
+    window.openQuickSaving = openQuickSaving;
+
+    function closeQuickSaving() {
+        const modal = document.getElementById('quick-saving-modal');
+        if (!modal) return;
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+        modal.style.pointerEvents = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    window.closeQuickSaving = closeQuickSaving;
+
+    function saveQuickSaving() {
+        if (!isAuthenticatedUser()) return;
+        const nameEl = document.getElementById('quick-saving-name');
+        const amountEl = document.getElementById('quick-saving-amount');
+        const name = nameEl ? nameEl.value.trim() : '';
+        const amount = parseNumberString(amountEl ? amountEl.value : '');
+        if (!name) {
+            showToast('저축 항목을 입력해 주세요.', true);
+            if (nameEl) nameEl.focus();
+            return;
+        }
+        if (!amount || amount < 1) {
+            showToast('금액을 입력해 주세요.', true);
+            if (amountEl) amountEl.focus();
+            return;
+        }
+        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        if (!store[currentMonth].categories) store[currentMonth].categories = DEFAULT_MONTH_DATA().categories;
+        if (!Array.isArray(store[currentMonth].categories.savings)) store[currentMonth].categories.savings = [];
+        const ownerBtn = document.querySelector('#quick-saving-owner .quick-owner-btn.active');
+        const owner = ownerBtn ? ownerBtn.dataset.owner : 'shared';
+        store[currentMonth].categories.savings.push({ name, amount, owner });
+        const patch = {
+            'categories.savings': cloneData(store[currentMonth].categories.savings),
+            updatedAt: Date.now()
+        };
+        closeQuickSaving();
+        render();
+        saveMonthPatch(currentMonth, patch, '저축이 저장되었습니다.');
+    }
+    window.saveQuickSaving = saveQuickSaving;
 
     function openRecordTypeChooser() {
         const modal=document.getElementById('record-type-chooser');
