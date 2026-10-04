@@ -6,6 +6,8 @@ const passwordB = 'QbTest1234!';
 const stamp = Date.now();
 const emailA = `qa-ci-a-${stamp}@test.com`;
 const emailB = `qa-ci-b-${stamp}@test.com`;
+const usernameA = `qa_ci_a_${stamp}`;
+const usernameB = `qa_ci_b_${stamp}`;
 
 const browser = await chromium.launch({ headless: true });
 const contextA = await browser.newContext();
@@ -13,12 +15,15 @@ const contextB = await browser.newContext();
 const pageA = await contextA.newPage();
 const pageB = await contextB.newPage();
 
-async function signup(page, email, password) {
+async function signup(page, username, email, password) {
   const started = Date.now();
   await page.goto(baseUrl);
   const pageReadyMs = Date.now() - started;
-  await page.locator('#auth-email').fill(email);
-  await page.locator('#auth-password').fill(password);
+  await page.locator('#signup-submit-btn').click();
+  await page.locator('#signup-username').fill(username);
+  await page.locator('#signup-email').fill(email);
+  await page.locator('#signup-password').fill(password);
+  await page.locator('#signup-password-confirm').fill(password);
   const authStarted = Date.now();
   await page.locator('#auth-signup-btn').click();
   await page.waitForFunction(() => typeof window.runEmulatorIntegrityProbe === 'function');
@@ -42,8 +47,8 @@ async function assertProbe(page, name) {
 }
 
 try {
-  const signupA = await signup(pageA, emailA, passwordA);
-  const signupB = await signup(pageB, emailB, passwordB);
+  const signupA = await signup(pageA, usernameA, emailA, passwordA);
+  const signupB = await signup(pageB, usernameB, emailB, passwordB);
   const uidA = signupA.uid;
   const uidB = signupB.uid;
 
@@ -89,7 +94,7 @@ try {
 
   const authRecoverySetup = await pageA.evaluate(async () => window.runEmulatorAuthRecoveryProbe());
   if (!authRecoverySetup?.pass) throw new Error(`auth recovery setup failed: ${JSON.stringify(authRecoverySetup)}`);
-  await pageA.locator('#auth-email').fill(emailA);
+  await pageA.locator('#auth-username').fill(usernameA);
   await pageA.locator('#auth-password').fill(passwordA);
   await pageA.locator('#auth-login-btn').click();
   await pageA.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none');
