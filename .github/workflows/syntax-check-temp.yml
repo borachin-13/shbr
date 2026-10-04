@@ -1,0 +1,29 @@
+name: syntax-check-temp
+on:
+  push:
+    branches:
+      - qa/syntax-check-20261004
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Parse module script
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const html=fs.readFileSync('index.html','utf8');
+          const m=html.match(/<script\\b[^>]*type=["']module["'][^>]*>([\\s\\S]*?)<\\/script>/i);
+          if(!m) throw new Error('module script not found');
+          let s=m[1];
+          const marker='const firebaseConfig';
+          s=s.slice(s.indexOf(marker));
+          try {
+            new Function(s);
+            console.log('SYNTAX PASS');
+          } catch(e) {
+            console.error(e.stack);
+            process.exit(1);
+          }
+          NODE
