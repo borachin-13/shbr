@@ -1191,10 +1191,10 @@
 
         <!-- 하단 내비게이션 -->
         <nav class="gnb">
-            <button class="gnb-btn active" onclick="window.navigate('dashboard', this)"><span class="gnb-btn-icon">⌂</span><span>홈</span></button>
-            <button class="gnb-btn" onclick="window.navigate('records', this)"><span class="gnb-btn-icon">☷</span><span>내역</span></button>
-            <button class="gnb-btn" onclick="window.navigate('monthly', this)"><span class="gnb-btn-icon">◔</span><span>분석</span></button>
-            <button class="gnb-btn" onclick="window.navigate('settings', this)"><span class="gnb-btn-icon">⚙</span><span>설정</span></button>
+            <button class="gnb-btn active" data-page="dashboard" onclick="window.navigate('dashboard', this)"><span class="gnb-btn-icon">⌂</span><span>홈</span></button>
+            <button class="gnb-btn" data-page="records" onclick="window.navigate('records', this)"><span class="gnb-btn-icon">☷</span><span>내역</span></button>
+            <button class="gnb-btn" data-page="monthly" onclick="window.navigate('monthly', this)"><span class="gnb-btn-icon">◔</span><span>분석</span></button>
+            <button class="gnb-btn" data-page="settings" onclick="window.navigate('settings', this)"><span class="gnb-btn-icon">⚙</span><span>설정</span></button>
         </nav>
     </div>
 
@@ -4642,7 +4642,12 @@ function filterRecords(filter,btn){recordsFilter=filter||'all';document.querySel
         document.querySelectorAll('.gnb-btn').forEach(b => b.classList.remove('active'));
         const targetPage = document.getElementById(`page-${page}`);
         if(targetPage) targetPage.classList.add('active');
-        if(btn) btn.classList.add('active');
+
+        // 하단 GNB는 현재 실제로 보여지는 페이지와 항상 같은 버튼을 활성화한다.
+        // 뒤로가기/프로그램 내 navigate처럼 btn 없이 이동하는 경우에도 동작한다.
+        const activeGnb = document.querySelector(`.gnb-btn[data-page="${page}"]`);
+        if (activeGnb) activeGnb.classList.add('active');
+        else if (btn) btn.classList.add('active');
 
         const memberTabBar = document.getElementById('member-tab-bar');
         const headerMonthWrapper = document.getElementById('header-month-wrapper');
