@@ -3320,7 +3320,7 @@
         let record=null;
         if(type==='income'){
             const names={bora:'보라 월급',bora_extra:'보라 기타수입',sang:'상훈 월급',sang_other_income:'상훈 기타수입',trip_usd:'상훈 출장 외화수입'};
-            record={type,sourceKey,amount:Number(d[sourceKey])||0,name:names[sourceKey]||'수입'};
+            record={type,sourceKey,amount:Number(d[sourceKey])||0,name:names[sourceKey]||'수입',isUsd:sourceKey==='trip_usd'};
         }else{
             const arr=Array.isArray(d?.categories?.[sourceKey])?d.categories[sourceKey]:[];
             record=arr[Number(sourceIndex)];
@@ -3332,7 +3332,7 @@
         subtabsEl.innerHTML='';
         const dateHtml=type==='expense'?`<label>날짜</label><input id="record-edit-date" type="date" value="${escapeHtml(record.date||'')}">`:'';
         const categoryHtml=type==='expense'&&sourceKey==='variable_expense'?`<label>카테고리</label><input id="record-edit-category" value="${escapeHtml(record.category||'')}">`:'';
-        bodyEl.innerHTML=`<div class="record-editor">${dateHtml}<label>항목명</label><input id="record-edit-name" value="${escapeHtml(record.name||'')}">${categoryHtml}<label>금액</label><input id="record-edit-amount" inputmode="numeric" value="${formatNumberString(record.amount||0)}"><button type="button" class="record-delete-btn" onclick="window.deleteEditingRecord()">삭제</button></div>`;
+        bodyEl.innerHTML=`<div class="record-editor">${dateHtml}<label>항목명</label><input id="record-edit-name" value="${escapeHtml(record.name||'')}">${categoryHtml}<label>${record.isUsd?'금액 (USD)':'금액'}</label><input id="record-edit-amount" inputmode="numeric" value="${formatNumberString(record.amount||0)}"><button type="button" class="record-delete-btn" onclick="window.deleteEditingRecord()">삭제</button></div>`;
         saveBtn.innerText='저장';saveBtn.onclick=saveEditingRecord;
         modal.classList.add('open');modal.style.display='flex';modal.style.pointerEvents='auto';modal.setAttribute('aria-hidden','false');
         setTimeout(()=>{const inp=document.getElementById('record-edit-amount');if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}},30);
