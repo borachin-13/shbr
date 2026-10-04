@@ -1367,7 +1367,10 @@
                     <div class="card-header">
                         <span class="card-title">👤 계정</span>
                         <button class="btn-action-sm" onclick="window.logoutUser()">로그아웃</button>
-                    </div>
+                    </div><div id="household-invite-display" style="margin-top:10px;padding:10px 12px;background:#f8fafc;border-radius:10px;font-size:11px;color:var(--text-sub);display:none;">
+    우리 집 초대 코드 <strong id="household-invite-code" style="color:var(--primary);letter-spacing:.08em;"></strong>
+    <button type="button" onclick="window.copyHouseholdInviteCode()" style="margin-left:8px;border:0;background:none;color:var(--primary);font-size:11px;font-weight:800;cursor:pointer;">복사</button>
+</div>
                 </div>
 
             </div>
@@ -2702,6 +2705,14 @@
         if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '가입하는 중…'; }
 
         try {
+            if (householdMode === 'join') {
+                const inviteSnap = await getDoc(doc(db, 'householdInvites', inviteCode));
+                if (!inviteSnap.exists()) throw { code: 'invalid-invite' };
+                const inviteHousehold = inviteSnap.data();
+                const householdSnap = await getDoc(doc(db, HOUSEHOLDS_COLLECTION, inviteHousehold.householdId));
+                if (!householdSnap.exists()) throw { code: 'invalid-invite' };
+            }
+
             const usernameRef = doc(db, 'usernames', username);
             const usernameSnap = await getDoc(usernameRef);
             if (usernameSnap.exists()) throw { code: 'username-already-in-use' };
@@ -2718,13 +2729,9 @@
             let householdId;
             let householdData;
             if (householdMode === 'join') {
-                const inviteSnap = await getDoc(doc(db, 'householdInvites', inviteCode));
-                if (!inviteSnap.exists()) throw { code: 'invalid-invite' };
-                const invite = inviteSnap.data();
+                const invite = (await getDoc(doc(db, 'householdInvites', inviteCode))).data();
                 householdId = invite.householdId;
-                const householdSnap = await getDoc(doc(db, HOUSEHOLDS_COLLECTION, householdId));
-                if (!householdSnap.exists()) throw { code: 'invalid-invite' };
-                householdData = householdSnap.data();
+                householdData = (await getDoc(doc(db, HOUSEHOLDS_COLLECTION, householdId))).data();
                 await setDoc(doc(db, HOUSEHOLDS_COLLECTION, householdId), {
                     members: Array.from(new Set([...(householdData.members || []), uid]))
                 }, { merge: true });
@@ -2766,6 +2773,7 @@
             renderFixedExpenseCategorySettings();
             render();
             loadRemainingMonthsInBackground();
+            loadHouseholdInviteDisplay();
             showToast(householdMode === 'join' ? '공유 가계부에 참여했어요.' : '가계부가 만들어졌어요.');
         } catch (e) {
             console.error('회원가입 실패:', e);
@@ -2836,6 +2844,7 @@
             renderFixedExpenseCategorySettings();
             render();
             loadRemainingMonthsInBackground();
+            loadHouseholdInviteDisplay();
 
             const badge = document.getElementById('auth-status-badge');
             const profileSnap = await getDoc(doc(db, USERS_COLLECTION, auth.currentUser.uid));
@@ -2860,6 +2869,37 @@
         }
     }
     window.authenticateUser = authenticateUser;
+
+    async function loadHouseholdInviteDisplay() {
+        const wrap = document.getElementById('household-invite-display');
+        const codeEl = document.getElementById('household-invite-code');
+        if (!wrap || !codeEl || !isAuthenticatedUser() || !currentHouseholdId) return;
+        try {
+            const snap = await getDoc(doc(db, HOUSEHOLDS_COLLECTION, currentHouseholdId));
+            const data = snap.exists() ? snap.data() : {};
+            if (data.ownerUid === auth.currentUser.uid && data.inviteCode) {
+                codeEl.innerText = data.inviteCode;
+                wrap.style.display = 'block';
+            } else {
+                wrap.style.display = 'none';
+            }
+        } catch (e) {
+            console.warn('가계부 초대 코드 조회 실패:', e);
+        }
+    }
+    window.loadHouseholdInviteDisplay = loadHouseholdInviteDisplay;
+
+    async function copyHouseholdInviteCode() {
+        const code = document.getElementById('household-invite-code')?.innerText.trim();
+        if (!code) return;
+        try {
+            await navigator.clipboard.writeText(code);
+            showToast('초대 코드를 복사했어요.');
+        } catch (e) {
+            showToast('초대 코드를 복사하지 못했어요.', true);
+        }
+    }
+    window.copyHouseholdInviteCode = copyHouseholdInviteCode;
 
     async function logoutUser() {
         const flushed = await flushPendingSaves();
