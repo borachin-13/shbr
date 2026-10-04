@@ -2704,6 +2704,7 @@
             // 아이디 조회용 문서. 동일 아이디는 가입 단계에서 차단한다.
             await setDoc(doc(db, 'usernames', username), {
                 uid,
+                email,
                 createdAt: Date.now()
             });
 
