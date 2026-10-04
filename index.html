@@ -703,7 +703,7 @@
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
+            z-index: 10000;
             display: none;
             align-items: flex-end;
             justify-content: center;
@@ -2683,8 +2683,12 @@
         if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '가입하는 중…'; }
 
         try {
-            // Firebase Auth는 이메일을 인증 수단으로 사용하고,
-            // 별도 아이디는 Firestore에서 로그인 식별자로 관리한다.
+            // 아이디는 Firebase Auth 이메일과 별도로 Firestore에서 로그인 식별자로 관리한다.
+            // Auth 계정을 만들기 전에 중복 아이디를 차단해 orphan 계정 생성을 줄인다.
+            const usernameRef = doc(db, 'usernames', username);
+            const usernameSnap = await getDoc(usernameRef);
+            if (usernameSnap.exists()) throw { code: 'username-already-in-use' };
+
             const credential = await createUserWithEmailAndPassword(auth, email, password);
             const uid = credential.user.uid;
 
@@ -2700,6 +2704,7 @@
             // 아이디 조회용 문서. 동일 아이디는 가입 단계에서 차단한다.
             await setDoc(doc(db, 'usernames', username), {
                 uid,
+                email,
                 createdAt: Date.now()
             });
 
@@ -2749,6 +2754,7 @@
         } catch (e) {
             console.error('회원가입 실패:', e);
             const messages = {
+                'username-already-in-use':'이미 사용 중인 아이디입니다.',
                 'auth/email-already-in-use':'이미 사용 중인 이메일입니다. 로그인해 주세요.',
                 'auth/invalid-email':'이메일 주소를 확인해 주세요.',
                 'auth/weak-password':'비밀번호는 8자 이상을 사용해 주세요.'
@@ -4164,12 +4170,14 @@
         const category=categoryEl?categoryEl.value:(getEffectiveFixedExpenseCategories()[0]||'고정 지출');
         const date=dateEl&&dateEl.value?dateEl.value:getQuickExpenseDate();
         const name=nameEl&&nameEl.value.trim()?nameEl.value.trim():category;
-        store[currentMonth].categories.expense.push({date,name:category,amount,owner});
+        store[currentMonth].categories.expense.push({date,name,category,amount,owner});
         const patch={'categories.expense':cloneData(store[currentMonth].categories.expense),updatedAt:Date.now()};
         closeQuickFixedExpense();
         render();
         saveMonthPatch(currentMonth,patch,'고정 지출이 저장되었습니다.');
     }
+
+    window.saveQuickFixedExpense = saveQuickFixedExpense;
 
     function openRecordTypeChooser() {
         const modal=document.getElementById('record-type-chooser');
@@ -4224,7 +4232,8 @@
             categoryHtml=`<label>카테고리</label><select id="record-edit-category">${categoryOptions}</select>`;
         }
         const ownerHtml=type==='saving'?`<label>저축 주체</label><select id="record-edit-owner"><option value="shared" ${record.owner==='shared'?'selected':''}>공통</option><option value="bora" ${record.owner==='bora'?'selected':''}>보라</option><option value="sang" ${record.owner==='sang'?'selected':''}>상훈</option></select>`:'';
-        bodyEl.innerHTML=`<div class="record-editor">${dateHtml}${categoryHtml}<label>항목명</label><input id="record-edit-name" value="${escapeHtml(record.name||'')}">${ownerHtml}<label>${record.isUsd?'금액 (USD)':'금액'}</label><input id="record-edit-amount" inputmode="numeric" value="${formatNumberString(record.amount||0)}"><button type="button" class="record-delete-btn" onclick="window.deleteEditingRecord()">삭제</button></div>`;\n        saveBtn.innerText='저장';saveBtn.onclick=saveEditingRecord;
+        bodyEl.innerHTML=`<div class="record-editor">${dateHtml}${categoryHtml}<label>항목명</label><input id="record-edit-name" value="${escapeHtml(record.name||'')}">${ownerHtml}<label>${record.isUsd?'금액 (USD)':'금액'}</label><input id="record-edit-amount" inputmode="numeric" value="${formatNumberString(record.amount||0)}"><button type="button" class="record-delete-btn" onclick="window.deleteEditingRecord()">삭제</button></div>`;
+        saveBtn.innerText='저장';saveBtn.onclick=saveEditingRecord;
         modal.classList.add('open');modal.style.display='flex';modal.style.pointerEvents='auto';modal.setAttribute('aria-hidden','false');
         setTimeout(()=>{const inp=document.getElementById('record-edit-amount');if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}},30);
     }

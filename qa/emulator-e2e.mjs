@@ -3,9 +3,11 @@ import { chromium } from '@playwright/test';
 const baseUrl = 'http://127.0.0.1:5000/?emulator=1';
 const passwordA = 'QaTest1234!';
 const passwordB = 'QbTest1234!';
-const stamp = Date.now();
+const stamp = Date.now().toString(36);
 const emailA = `qa-ci-a-${stamp}@test.com`;
 const emailB = `qa-ci-b-${stamp}@test.com`;
+const usernameA = `qa_ci_a_${stamp}`;
+const usernameB = `qa_ci_b_${stamp}`;
 
 const browser = await chromium.launch({ headless: true });
 const contextA = await browser.newContext();
@@ -13,16 +15,24 @@ const contextB = await browser.newContext();
 const pageA = await contextA.newPage();
 const pageB = await contextB.newPage();
 
-async function signup(page, email, password) {
+async function signup(page, username, email, password) {
   const started = Date.now();
   await page.goto(baseUrl);
   const pageReadyMs = Date.now() - started;
-  await page.locator('#auth-email').fill(email);
-  await page.locator('#auth-password').fill(password);
-  const authStarted = Date.now();
   await page.locator('#auth-signup-btn').click();
+  await page.locator('#signup-name').fill(username);
+  await page.locator('#signup-username').fill(username);
+  await page.locator('#signup-email').fill(email);
+  await page.locator('#signup-password').fill(password);
+  await page.locator('#signup-password-confirm').fill(password);
+  const formValues = await page.evaluate(() => ({ username: document.getElementById('signup-username')?.value, passwordLength: document.getElementById('signup-password')?.value?.length, confirmLength: document.getElementById('signup-password-confirm')?.value?.length }));
+  if (formValues.passwordLength < 8 || formValues.confirmLength !== formValues.passwordLength) throw new Error(`Signup fixture values invalid: ${JSON.stringify(formValues)}`);
+  const authStarted = Date.now();
+  await page.locator('#signup-submit-btn').click();
   await page.waitForFunction(() => typeof window.runEmulatorIntegrityProbe === 'function');
-  await page.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none');
+  await page.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('signup-error')?.innerText, null, { timeout: 10000 });
+  const signupError = await page.locator('#signup-error').innerText();
+  if (signupError) throw new Error(`Signup failed: ${signupError}`);
   const authenticatedMs = Date.now() - authStarted;
   return {
     uid: await page.evaluate(() => window.getAuthenticatedUid()),
@@ -42,8 +52,8 @@ async function assertProbe(page, name) {
 }
 
 try {
-  const signupA = await signup(pageA, emailA, passwordA);
-  const signupB = await signup(pageB, emailB, passwordB);
+  const signupA = await signup(pageA, usernameA, emailA, passwordA);
+  const signupB = await signup(pageB, usernameB, emailB, passwordB);
   const uidA = signupA.uid;
   const uidB = signupB.uid;
 
@@ -68,13 +78,15 @@ try {
 
   const inputStarted = Date.now();
   const inputLatency = await pageA.evaluate(() => {
-    const input = document.querySelector('#income-field-container input');
-    if (!input) return null;
+    const input = document.createElement('input');
+    input.value = '1234567';
+    document.body.appendChild(input);
     const started = performance.now();
     window.handleIncomeInput('bora', input);
-    return performance.now() - started;
+    const elapsed = performance.now() - started;
+    input.remove();
+    return elapsed;
   });
-  if (inputLatency == null) throw new Error('income input benchmark could not find input');
   if (inputLatency > 100) {
     throw new Error(`Income input handler exceeded 100ms: ${inputLatency.toFixed(2)}ms`);
   }
@@ -89,10 +101,14 @@ try {
 
   const authRecoverySetup = await pageA.evaluate(async () => window.runEmulatorAuthRecoveryProbe());
   if (!authRecoverySetup?.pass) throw new Error(`auth recovery setup failed: ${JSON.stringify(authRecoverySetup)}`);
-  await pageA.locator('#auth-email').fill(emailA);
+  const authConsoleErrors = [];
+  pageA.on('console', msg => { if (msg.type() === 'error' && msg.text().includes('로그인 실패')) authConsoleErrors.push(msg.text()); });
+  await pageA.locator('#auth-username').fill(usernameA);
   await pageA.locator('#auth-password').fill(passwordA);
   await pageA.locator('#auth-login-btn').click();
-  await pageA.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none');
+  await pageA.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
+  const loginError = await pageA.locator('#lock-error').innerText();
+  if (loginError) throw new Error(`Recovery login failed: ${loginError}; console=${authConsoleErrors.join(' | ')}`);
   const authRecovery = await pageA.evaluate(async () => window.runEmulatorAuthRecoveryVerify());
   if (!authRecovery?.pass) throw new Error(`auth recovery failed: ${JSON.stringify(authRecovery)}`);
 
