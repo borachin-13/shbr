@@ -4473,7 +4473,9 @@ function addCategorySetting() {
         const row=(item)=>{
             const label=item.name||item.category||'항목';
             const meta=item.type==='expense' ? [item.category,item.meta].filter(Boolean).join(' · ') : item.meta;
-            const click=`onclick="window.editRecord('${item.type}','${item.type==='income'?item.field:item._sourceKey}',${item.type==='income'?'null':item._sourceIndex})"`;
+            const click=item.type==='income' && item.field === null
+                ? ''
+                : `onclick="window.editRecord('${item.type}','${item.type==='income'?item.field:item._sourceKey}',${item.type==='income'?'null':item._sourceIndex})"`;
             const displayAmount=item.type==='expense'
                 ? getExpenseItemDisplayAmount(item,item._sourceKey,recordsTab)
                 : item.type==='saving'
