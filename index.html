@@ -3558,6 +3558,28 @@
     }
     window.toggleAccordion = toggleAccordion;
 
+    function getCurrentMonthDateValue() {
+        // 선택한 장부 월을 기준으로 날짜 입력을 표시한다.
+        // 과거/미래 월을 보고 있을 때도 오늘 날짜가 아니라 해당 월의 날짜가 기본값이 된다.
+        return /^\d{4}-\d{2}$/.test(currentMonth) ? currentMonth + '-01' : new Date().toISOString().slice(0, 10);
+    }
+
+    function getCurrentMonthDateRange() {
+        if (!/^\d{4}-\d{2}$/.test(currentMonth)) return { min: '', max: '' };
+        const [year, month] = currentMonth.split('-').map(Number);
+        const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+        return {
+            min: currentMonth + '-01',
+            max: currentMonth + '-' + String(lastDay).padStart(2, '0')
+        };
+    }
+
+    function getMonthDateInputAttrs(value) {
+        const range = getCurrentMonthDateRange();
+        const safeValue = value || getCurrentMonthDateValue();
+        return 'value="' + escapeHtml(safeValue) + '" min="' + range.min + '" max="' + range.max + '"';
+    }
+
     function getQuickExpenseDate() {
         const localMonth = getLocalMonthKey();
         if (currentMonth === localMonth) return new Date().toISOString().slice(0, 10);
@@ -4165,7 +4187,7 @@ function renderBudgetModalHTML() {
                     const optionsHtml = getVariableCategoryOptionsHtml(currentCat);
                     html += `
                         <div class="sub-row">
-                            <input type="date" value="${item.date || ''}" class="inp-date">
+                            <input type="date" ${getMonthDateInputAttrs(item.date)} class="inp-date">
                             <select class="inp-cat">${optionsHtml}</select>
                             <select class="inp-owner">${getOwnerOptionsHtml(owner)}</select>
                             <input type="text" value="${escapeHtml(item.name || '')}" class="inp-name" placeholder="내용">
@@ -4195,7 +4217,7 @@ function renderBudgetModalHTML() {
                     fixedItemsForMonth.forEach((item) => {
                         html += `
                         <div class="sub-row">
-                            <input type="date" value="${item.date || ''}" class="inp-date">
+                            <input type="date" ${getMonthDateInputAttrs(item.date)} class="inp-date">
                             <select class="inp-cat">${buildFixedExpenseOptionsHtml(item.name)}</select>
                             <input type="text" value="${formatNumberString(item.amount)}" class="inp-amount" inputmode="numeric" placeholder="0" >
                             <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>
@@ -4225,19 +4247,21 @@ function renderBudgetModalHTML() {
         newRow.className = 'sub-row';
 
         if (k === 'variable_expense') {
-            const today = new Date().toISOString().split('T')[0];
+            const today = getCurrentMonthDateValue();
+            const dateRange = getCurrentMonthDateRange();
             const optionsHtml = getVariableCategoryOptionsHtml(categoryList[0] || '식비');
             newRow.innerHTML = `
-                <input type="date" value="${today}" class="inp-date">
+                <input type="date" value="${today}" min="${dateRange.min}" max="${dateRange.max}" class="inp-date">
                 <select class="inp-cat">${optionsHtml}</select>
                 <select class="inp-owner">${getOwnerOptionsHtml('shared')}</select>
                 <input type="text" value="" class="inp-name" placeholder="내용">
                 <input type="text" value="" class="inp-amount" inputmode="numeric" placeholder="0" >
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
         } else if (k === 'expense') {
-            const today = new Date().toISOString().split('T')[0];
+            const today = getCurrentMonthDateValue();
+            const dateRange = getCurrentMonthDateRange();
             newRow.innerHTML = `
-                <input type="date" value="${today}" class="inp-date">
+                <input type="date" value="${today}" min="${dateRange.min}" max="${dateRange.max}" class="inp-date">
                 <select class="inp-cat">${buildFixedExpenseOptionsHtml(getEffectiveFixedExpenseCategories()[0])}</select>
                 <input type="text" value="" class="inp-amount" inputmode="numeric" placeholder="0" >
                 <button class="btn-del-row" onclick="window.removeSubModalRow(this)">✕</button>`;
