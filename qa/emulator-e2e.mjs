@@ -64,6 +64,25 @@ try {
     throw new Error('CI accounts did not receive distinct authenticated UIDs.');
   }
 
+  // Legacy-compatible login path: email + password must also authenticate successfully.
+  await pageB.evaluate(async () => window.logoutUser());
+  await pageB.locator('#auth-username').fill(emailB);
+  await pageB.locator('#auth-password').fill(passwordB);
+  await pageB.locator('#auth-login-btn').click();
+  await pageB.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
+  const emailLoginError = await pageB.locator('#lock-error').innerText();
+  if (emailLoginError) throw new Error(`Email login failed: ${emailLoginError}`);
+  const emailLoginUid = await pageB.evaluate(() => window.getAuthenticatedUid());
+  if (emailLoginUid !== uidB) throw new Error(`Email login authenticated as wrong user: expected=${uidB}, actual=${emailLoginUid}`);
+
+  await pageB.evaluate(async () => window.logoutUser());
+  await pageB.locator('#auth-username').fill(usernameB);
+  await pageB.locator('#auth-password').fill(passwordB);
+  await pageB.locator('#auth-login-btn').click();
+  await pageB.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
+  const usernameLoginError = await pageB.locator('#lock-error').innerText();
+  if (usernameLoginError) throw new Error(`Username login failed after email login: ${usernameLoginError}`);
+
   // Password-change compatibility: reproduce the post-reset Firebase Auth state
   // by changing the QA user's password through the Auth SDK, then verify the app
   // accepts the new password and rejects the old one.
@@ -99,25 +118,6 @@ try {
   const oldPasswordError = await pageB.locator('#lock-error').innerText();
   if (!oldPasswordError) throw new Error('Old password unexpectedly authenticated after password change.');
   await pageB.evaluate(async () => window.setAuthError(''));
-
-  // Legacy-compatible login path: email + password must also authenticate successfully.
-  await pageB.evaluate(async () => window.logoutUser());
-  await pageB.locator('#auth-username').fill(emailB);
-  await pageB.locator('#auth-password').fill(passwordB);
-  await pageB.locator('#auth-login-btn').click();
-  await pageB.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
-  const emailLoginError = await pageB.locator('#lock-error').innerText();
-  if (emailLoginError) throw new Error(`Email login failed: ${emailLoginError}`);
-  const emailLoginUid = await pageB.evaluate(() => window.getAuthenticatedUid());
-  if (emailLoginUid !== uidB) throw new Error(`Email login authenticated as wrong user: expected=${uidB}, actual=${emailLoginUid}`);
-
-  await pageB.evaluate(async () => window.logoutUser());
-  await pageB.locator('#auth-username').fill(usernameB);
-  await pageB.locator('#auth-password').fill(passwordB);
-  await pageB.locator('#auth-login-btn').click();
-  await pageB.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
-  const usernameLoginError = await pageB.locator('#lock-error').innerText();
-  if (usernameLoginError) throw new Error(`Username login failed after email login: ${usernameLoginError}`);
 
   // Real-user-flow timing baseline. Emulator timing is a regression signal, not a production SLA.
   const monthSwitchStarted = Date.now();
