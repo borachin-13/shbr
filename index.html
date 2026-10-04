@@ -4269,6 +4269,7 @@ function addCategorySetting() {
     let recordsFilter = 'all';
 
     function renderRecords(){
+        const recordsTab = 'all';
         const el=document.getElementById('records-list');
         if(!el)return;
         const d=store[currentMonth]||DEFAULT_MONTH_DATA();
@@ -4279,7 +4280,7 @@ function addCategorySetting() {
             + (Number(d.sang)||0)
             + (Number(d.sang_other_income)||0)
             + ((Number(d.trip_usd)||0)*(Number(d.usdRate)||0));
-        const incomeItems = currentTab === 'all'
+        const incomeItems = recordsTab === 'all'
             ? (householdIncome > 0 ? [{
                 name:'우리 집 수입',
                 amount:householdIncome,
@@ -4288,9 +4289,9 @@ function addCategorySetting() {
                 type:'income'
             }] : [])
             : [
-                {name:'월급',amount:currentTab==='bora'?(Number(d.bora)||0):(Number(d.sang)||0),meta:currentTab==='bora'?'보라 · 급여':'상훈 · 급여',field:currentTab==='bora'?'bora':'sang',type:'income'},
-                {name:'기타수입',amount:currentTab==='bora'?(Number(d.bora_extra)||0):(Number(d.sang_other_income)||0),meta:currentTab==='bora'?'보라 · 기타수입':'상훈 · 기타수입',field:currentTab==='bora'?'bora_extra':'sang_other_income',type:'income'},
-                ...(currentTab==='sang' && (Number(d.trip_usd)||0)>0 ? [{
+                {name:'월급',amount:recordsTab==='bora'?(Number(d.bora)||0):(Number(d.sang)||0),meta:recordsTab==='bora'?'보라 · 급여':'상훈 · 급여',field:recordsTab==='bora'?'bora':'sang',type:'income'},
+                {name:'기타수입',amount:recordsTab==='bora'?(Number(d.bora_extra)||0):(Number(d.sang_other_income)||0),meta:recordsTab==='bora'?'보라 · 기타수입':'상훈 · 기타수입',field:recordsTab==='bora'?'bora_extra':'sang_other_income',type:'income'},
+                ...(recordsTab==='sang' && (Number(d.trip_usd)||0)>0 ? [{
                     name:'출장 외화수입',
                     amount:(Number(d.trip_usd)||0)*(Number(d.usdRate)||0),
                     meta:'상훈 · 출장수입',
@@ -4304,20 +4305,20 @@ function addCategorySetting() {
             const arr=Array.isArray(d?.categories?.[key])?d.categories[key]:[];
             arr.forEach((x,index)=>{
                 const owner=x.owner||'shared';
-                const visible=currentTab==='all'||(key==='bora_personal'?currentTab==='bora':key==='sang_personal'?currentTab==='sang':owner==='shared'||owner===currentTab);
+                const visible=recordsTab==='all'||(key==='bora_personal'?recordsTab==='bora':key==='sang_personal'?recordsTab==='sang':owner==='shared'||owner===recordsTab);
                 if(visible&&(Number(x.amount)||0)>0) expenseItems.push({...x,type:'expense',meta,_sourceKey:key,_sourceIndex:index});
             });
         });
 
         const savingItems=(Array.isArray(d?.categories?.savings)?d.categories.savings:[])
             .map((x,index)=>({...x,_originalIndex:index}))
-            .filter(x=>(Number(x.amount)||0)>0&&(currentTab==='all'||x.owner==='shared'||x.owner===currentTab))
+            .filter(x=>(Number(x.amount)||0)>0&&(recordsTab==='all'||x.owner==='shared'||x.owner===recordsTab))
             .map(x=>({...x,type:'saving',meta:x.owner==='shared'?'공통':x.owner==='bora'?'보라':'상훈',_sourceKey:'savings',_sourceIndex:x._originalIndex}));
 
         const data={
             income:{title:'수입',total:incomeItems.reduce((n,x)=>n+x.amount,0),items:incomeItems},
-            expense:{title:'지출',total:expenseItems.reduce((n,x)=>n+getExpenseItemDisplayAmount(x,x._sourceKey,currentTab),0),items:expenseItems},
-            saving:{title:'저축',total:savingItems.reduce((n,x)=>n+sumCatForTab([x],currentTab),0),items:savingItems}
+            expense:{title:'지출',total:expenseItems.reduce((n,x)=>n+getExpenseItemDisplayAmount(x,x._sourceKey,recordsTab),0),items:expenseItems},
+            saving:{title:'저축',total:savingItems.reduce((n,x)=>n+sumCatForTab([x],recordsTab),0),items:savingItems}
         };
 
         const row=(item)=>{
@@ -4325,9 +4326,9 @@ function addCategorySetting() {
             const meta=item.type==='expense' ? [item.category,item.meta].filter(Boolean).join(' · ') : item.meta;
             const click=`onclick="window.editRecord('${item.type}','${item.type==='income'?item.field:item._sourceKey}',${item.type==='income'?'null':item._sourceIndex})"`;
             const displayAmount=item.type==='expense'
-                ? getExpenseItemDisplayAmount(item,item._sourceKey,currentTab)
+                ? getExpenseItemDisplayAmount(item,item._sourceKey,recordsTab)
                 : item.type==='saving'
-                    ? sumCatForTab([item],currentTab)
+                    ? sumCatForTab([item],recordsTab)
                     : Number(item.amount)||0;
             return `<button type="button" class="record-row record-row-button" ${click}>
                 <div class="record-row-main"><div class="record-name">${escapeHtml(label)}</div><div class="record-meta">${escapeHtml(meta||'')}</div></div>
