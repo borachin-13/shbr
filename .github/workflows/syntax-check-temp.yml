@@ -17,12 +17,6 @@ jobs:
           const end = html.indexOf('</script>', start);
           if (start < 0 || end < 0) throw new Error('module script not found');
           let s = html.slice(start + '<script type="module">'.length, end);
-          s = s.slice(s.indexOf('const firebaseConfig'));
-          try {
-            new Function(s);
-            console.log('SYNTAX PASS');
-          } catch (e) {
-            console.error(e.stack);
-            process.exit(1);
-          }
+          fs.writeFileSync('/tmp/app.mjs', s);
           NODE
+          node --check /tmp/app.mjs
