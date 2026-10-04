@@ -2768,13 +2768,14 @@
     window.submitSignup = submitSignup;
 
     async function authenticateUser(mode) {
-        const username = document.getElementById('auth-username')?.value.trim().toLowerCase() || '';
+        const loginInput = document.getElementById('auth-username')?.value.trim() || '';
+        const username = loginInput.toLowerCase();
         const password = document.getElementById('auth-password')?.value || '';
         const loginBtn = document.getElementById('auth-login-btn');
 
         window.setAuthError('');
-        if (!username || !password) {
-            window.setAuthError('아이디와 비밀번호를 입력해 주세요.');
+        if (!loginInput || !password) {
+            window.setAuthError('아이디(또는 이메일)와 비밀번호를 입력해 주세요.');
             return;
         }
 
@@ -2782,23 +2783,41 @@
         if (loginBtn) { loginBtn.disabled = true; loginBtn.innerText = '로그인 중…'; }
 
         try {
-            // 아이디 → UID → 이메일을 조회한 뒤 Firebase 이메일 인증으로 로그인한다.
-            const usernameSnap = await getDoc(doc(db, 'usernames', username));
-            if (!usernameSnap.exists()) {
-                throw { code: 'auth/user-not-found' };
-            }
-            const userData = usernameSnap.data();
-            const userEmail = userData.email || null;
-            let email = userEmail;
+            // 신규 계정은 아이디 → 이메일로 변환하고, 기존 계정은 이메일로 직접 로그인할 수 있다.
+            // 레거시 계정도 기존 UID/가계부 데이터를 그대로 사용할 수 있도록 이메일 로그인을 유지한다.
+            let email = null;
+            if (loginInput.includes('@')) {
+                email = loginInput.toLowerCase();
+            } else {
+                const usernameSnap = await getDoc(doc(db, 'usernames', username));
+                if (!usernameSnap.exists()) {
+                    throw { code: 'auth/user-not-found' };
+                }
+                const userData = usernameSnap.data();
+                email = userData.email || null;
 
-            // 기존 username 문서가 uid만 가진 경우 프로필에서 이메일을 가져온다.
-            if (!email && userData.uid) {
-                const profileSnap = await getDoc(doc(db, USERS_COLLECTION, userData.uid));
-                if (profileSnap.exists()) email = profileSnap.data().profile?.email || null;
+                // 과거 username 문서가 uid만 가진 경우에는 소유자 프로필에서 이메일을 가져온다.
+                if (!email && userData.uid) {
+                    const profileSnap = await getDoc(doc(db, USERS_COLLECTION, userData.uid));
+                    if (profileSnap.exists()) email = profileSnap.data().profile?.email || null;
+                }
+                if (!email) throw { code: 'auth/user-not-found' };
             }
-            if (!email) throw { code: 'auth/user-not-found' };
 
             await signInWithEmailAndPassword(auth, email, password);
+
+            // 레거시 이메일 계정에 이미 username 프로필이 있다면 누락된 lookup 문서도 자동 복구한다.
+            // 실제 username이 없는 계정에는 임의의 아이디를 생성하지 않는다.
+            const profileRef = doc(db, USERS_COLLECTION, auth.currentUser.uid);
+            const profileSnap = await getDoc(profileRef);
+            const profile = profileSnap.exists() ? (profileSnap.data().profile || {}) : {};
+            if (profile.username) {
+                await setDoc(doc(db, 'usernames', String(profile.username).trim().toLowerCase()), {
+                    uid: auth.currentUser.uid,
+                    email: auth.currentUser.email || profile.email || email,
+                    createdAt: profile.createdAt || Date.now()
+                }, { merge: true });
+            }
 
             document.getElementById('lock-screen').style.display = 'none';
             const loading = document.getElementById('login-data-loading');
@@ -2815,19 +2834,17 @@
             loadRemainingMonthsInBackground();
 
             const badge = document.getElementById('auth-status-badge');
-            const profileSnap = await getDoc(doc(db, USERS_COLLECTION, auth.currentUser.uid));
-            const profile = profileSnap.exists() ? (profileSnap.data().profile || {}) : {};
             if (badge) {
-                badge.innerText = profile.name || username;
+                badge.innerText = profile.name || profile.username || email;
                 badge.style.background = '#c6f6d5';
                 badge.style.color = '#22543d';
             }
         } catch (e) {
             console.error('로그인 실패:', e);
             const messages = {
-                'auth/user-not-found':'아이디 또는 비밀번호를 확인해 주세요.',
-                'auth/wrong-password':'아이디 또는 비밀번호를 확인해 주세요.',
-                'auth/invalid-credential':'아이디 또는 비밀번호를 확인해 주세요.',
+                'auth/user-not-found':'아이디 또는 이메일 주소, 비밀번호를 확인해 주세요.',
+                'auth/wrong-password':'아이디 또는 이메일 주소, 비밀번호를 확인해 주세요.',
+                'auth/invalid-credential':'아이디 또는 이메일 주소, 비밀번호를 확인해 주세요.',
                 'auth/too-many-requests':'로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.'
             };
             window.setAuthError(messages[e?.code] || '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.');
