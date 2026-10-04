@@ -4548,14 +4548,47 @@ function renderBudgetModalHTML() {
     }
     window.addFixedExpenseCategory = addFixedExpenseCategory;
 
-    function removeFixedExpenseCategory(index) {
+    async function removeFixedExpenseCategory(index) {
         if (fixedExpenseCategoryList.length <= 1) {
             alert('최소 1개의 고정 지출 카테고리는 등록되어 있어야 합니다.');
             return;
         }
+
+        const removed = fixedExpenseCategoryList[index];
+        if (!removed) return;
+
+        // 설정에서 삭제한 고정지출이 월별 관리 화면에 0원짜리 빈 항목으로
+        // 계속 살아남지 않도록, 실제 기록이 없는 placeholder만 함께 정리한다.
         fixedExpenseCategoryList.splice(index, 1);
         saveCategoryList();
         renderFixedExpenseCategorySettings();
+
+        const cleanupPromises = [];
+        Object.keys(store || {}).forEach(month => {
+            const items = store[month]?.categories?.expense;
+            if (!Array.isArray(items)) return;
+
+            const filtered = items.filter(item => {
+                const name = String(item?.name || '').trim();
+                const amount = Number(item?.amount) || 0;
+                const date = String(item?.date || '').trim();
+                // 실제 금액/날짜가 있는 과거 기록은 보존한다.
+                return !(name === removed && amount === 0 && !date);
+            });
+
+            if (filtered.length !== items.length) {
+                store[month].categories.expense = filtered;
+                cleanupPromises.push(
+                    saveMonthPatch(month, {
+                        'categories.expense': cloneData(filtered),
+                        updatedAt: Date.now()
+                    }, '')
+                );
+            }
+        });
+
+        await Promise.all(cleanupPromises);
+        render();
     }
     window.removeFixedExpenseCategory = removeFixedExpenseCategory;
 
