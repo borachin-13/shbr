@@ -1434,6 +1434,7 @@
     let currentMonth = getLocalMonthKey();
     let currentTab = 'all';
     let monthlySelectedYear = 2026;
+    let monthlyAnalysisLoading = false;
 
     // 월별 데이터는 사용자별로 완전히 격리한다.
     // 기존 flat gotgan 문서는 1회 마이그레이션 용도로만 읽고, 로그인 이후에는 절대 사용하지 않는다.
@@ -2063,6 +2064,30 @@
         return true;
     }
 
+    async function loadAllUserMonthsForAnalysis(uid) {
+        if (monthlyAnalysisLoading) return false;
+        monthlyAnalysisLoading = true;
+        if (!uid || !isAuthenticatedUser() || auth.currentUser.uid !== uid) return false;
+        try {
+            const monthsSnap = await getDocs(collection(db, USERS_COLLECTION, uid, USER_MONTHS_COLLECTION));
+            if (!isAuthenticatedUser() || auth.currentUser.uid !== uid) return false;
+            monthsSnap.forEach((snap) => {
+                const month = String(snap.id || '').replace(/^month_/, '');
+                if (!/^\d{4}-\d{2}$/.test(month)) return;
+                store[month] = mergeNestedObjects(DEFAULT_MONTH_DATA(), snap.data());
+                loadedMonths.add(month);
+                monthLoadFailures.delete(month);
+            });
+            renderChartAndMonthly();
+            return true;
+        } catch (e) {
+            console.warn('전체 월별 분석 데이터 로드 실패:', e);
+            return false;
+        } finally {
+            monthlyAnalysisLoading = false;
+        }
+    }
+
     async function loadScopedUserData() {
         if (!isAuthenticatedUser()) return false;
 
@@ -2147,6 +2172,7 @@
             render();
         }).catch((e) => console.warn('설정 백그라운드 로드 실패:', e));
 
+        loadAllUserMonthsForAnalysis(uid).catch(e => console.warn('월별 분석 백그라운드 로드 실패:', e));
         return true;
     }
 
