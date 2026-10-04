@@ -20,6 +20,7 @@ async function signup(page, username, email, password) {
   await page.goto(baseUrl);
   const pageReadyMs = Date.now() - started;
   await page.locator('#auth-signup-btn').click();
+  await page.locator('#signup-name').fill(username);
   await page.locator('#signup-username').fill(username);
   await page.locator('#signup-email').fill(email);
   await page.locator('#signup-password').fill(password);
