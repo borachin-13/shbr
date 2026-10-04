@@ -744,6 +744,38 @@
         .income-modal-rate strong{color:var(--primary);font-weight:900}
         .settings-account-card .card-header{margin-bottom:0}
         .settings-account-card .card-header .btn-action-sm{flex:0 0 auto}
+        .monthly-chart-legend{
+            display:flex;
+            gap:14px;
+            padding:0 14px 2px;
+            font-size:10px;
+            color:var(--text-sub);
+        }
+        .monthly-chart-legend span{display:flex;align-items:center;gap:5px}
+        .monthly-legend-dot{
+            width:7px;height:7px;border-radius:50%;display:inline-block;
+        }
+        .monthly-legend-dot.expense{background:var(--expense-color)}
+        .monthly-legend-dot.savings{background:var(--savings-color)}
+        .monthly-insight-card{background:linear-gradient(180deg,#fff,#fbfcfe)}
+        .monthly-insight{
+            padding:14px 15px;
+            border:1px solid var(--border-color);
+            border-radius:12px;
+            background:#f8fafc;
+        }
+        .monthly-insight-main{
+            font-size:14px;
+            line-height:1.65;
+            font-weight:800;
+            color:var(--primary);
+        }
+        .monthly-insight-sub{
+            margin-top:6px;
+            font-size:11px;
+            line-height:1.5;
+            color:var(--text-sub);
+        }
         .modal-card {
             background: white;
             width: 100%;
@@ -1247,9 +1279,19 @@
                 </div>
                 <div class="card">
                     <div class="card-header">
-                        <span class="card-title">📊 월별 지출 vs 저축 추이</span>
+                        <span class="card-title">📊 우리 집 돈 흐름</span>
+                    </div>
+                    <div class="monthly-chart-legend">
+                        <span><i class="monthly-legend-dot expense"></i>지출</span>
+                        <span><i class="monthly-legend-dot savings"></i>저축</span>
                     </div>
                     <div class="chart-container" id="chart-bars"></div>
+                </div>
+                <div class="card monthly-insight-card">
+                    <div class="card-header">
+                        <span class="card-title">💡 이번 달 한눈에 보기</span>
+                    </div>
+                    <div id="monthly-insight"></div>
                 </div>
                 <div class="card">
                     <div class="card-header">
@@ -3516,15 +3558,24 @@
             yearSelect.innerHTML = years.map(y => `<option value="${y}" ${y === monthlySelectedYear ? 'selected' : ''}>${y}년</option>`).join('');
         }
 
-        const months = allMonths.filter(m => Number(m.slice(0,4)) === Number(monthlySelectedYear));
+        const months = allMonths
+            .filter(m => Number(m.slice(0,4)) === Number(monthlySelectedYear))
+            .filter(m => {
+                const summary = calculateMonthlySummary(store[m] || DEFAULT_MONTH_DATA());
+                return summary.income > 0 || summary.expense > 0 || summary.plannedSavings > 0 || summary.reserve > 0;
+            });
+
         const chartContainer = document.getElementById('chart-bars');
         const listContainer = document.getElementById('monthly-accordion-list');
+        const insightContainer = document.getElementById('monthly-insight');
         if (!chartContainer || !listContainer) return;
 
         chartContainer.innerHTML = '';
         listContainer.innerHTML = '';
+        if (insightContainer) insightContainer.innerHTML = '';
 
         if (!months.length) {
+            if (insightContainer) insightContainer.innerHTML = '<div class="dashboard-empty">아직 기록된 월이 없어요.</div>';
             listContainer.innerHTML = '<div class="dashboard-empty">이 연도에 기록된 월이 없어요.</div>';
             return;
         }
@@ -3541,14 +3592,14 @@
             const exp = summary.expense;
             const sav = summary.totalSavings;
             const remaining = Math.max(summary.income - exp - summary.plannedSavings, 0);
-            const expHeight = Math.max(Math.round((exp / maxVal) * 100), 4);
-            const savHeight = Math.max(Math.round((sav / maxVal) * 100), 4);
+            const expHeight = exp > 0 ? Math.max(Math.round((exp / maxVal) * 100), 5) : 0;
+            const savHeight = sav > 0 ? Math.max(Math.round((sav / maxVal) * 100), 5) : 0;
 
             chartContainer.innerHTML += `
                 <div class="bar-col">
                     <div class="bar-pair">
-                        <div class="bar-wrapper"><div class="bar-fill-exp" style="height:${expHeight}%;"></div></div>
-                        <div class="bar-wrapper"><div class="bar-fill-sav" style="height:${savHeight}%;"></div></div>
+                        <div class="bar-wrapper">${expHeight ? `<div class="bar-fill-exp" style="height:${expHeight}%;"></div>` : ''}</div>
+                        <div class="bar-wrapper">${savHeight ? `<div class="bar-fill-sav" style="height:${savHeight}%;"></div>` : ''}</div>
                     </div>
                     <div class="bar-label">${m.split('-')[1]}월</div>
                 </div>`;
@@ -3564,6 +3615,31 @@
                     </div>
                 </div>`;
         });
+
+        if (insightContainer) {
+            const insightMonth = months.includes(currentMonth)
+                ? currentMonth
+                : months[months.length - 1];
+            const d = store[insightMonth] || DEFAULT_MONTH_DATA();
+            const s = calculateMonthlySummary(d);
+            const savingsRate = s.income > 0 ? Math.round((s.totalSavings / s.income) * 100) : 0;
+            const expenseRate = s.income > 0 ? Math.round((s.expense / s.income) * 100) : 0;
+            const monthLabel = Number(insightMonth.slice(5)) + '월';
+
+            if (s.income > 0) {
+                insightContainer.innerHTML = `
+                    <div class="monthly-insight">
+                        <div class="monthly-insight-main">${monthLabel}에는 수입 ${formatAmount(s.income)} 중 ${formatAmount(s.totalSavings)}을 저축했어요.</div>
+                        <div class="monthly-insight-sub">지출은 ${formatAmount(s.expense)}으로 수입의 ${expenseRate}%였고, 저축률은 ${savingsRate}%예요.</div>
+                    </div>`;
+            } else {
+                insightContainer.innerHTML = `
+                    <div class="monthly-insight">
+                        <div class="monthly-insight-main">${monthLabel}의 기록을 확인해보세요.</div>
+                        <div class="monthly-insight-sub">수입이 입력되면 지출과 저축 흐름을 함께 분석해드려요.</div>
+                    </div>`;
+            }
+        }
     }
 
     function changeMonthlyYear(year) {
