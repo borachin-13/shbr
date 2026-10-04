@@ -1367,11 +1367,7 @@
                     <div class="card-header">
                         <span class="card-title">👤 계정</span>
                         <button class="btn-action-sm" onclick="window.logoutUser()">로그아웃</button>
-                    </div><div id="household-invite-display" style="margin-top:10px;padding:10px 12px;background:#f8fafc;border-radius:10px;font-size:11px;color:var(--text-sub);display:none;">
-    우리 집 초대 코드 <strong id="household-invite-code" style="color:var(--primary);letter-spacing:.08em;"></strong>
-    <button type="button" onclick="window.copyHouseholdInviteCode()" style="margin-left:8px;border:0;background:none;color:var(--primary);font-size:11px;font-weight:800;cursor:pointer;">복사</button>
-</div>
-                </div>
+                    </div>                </div>
 
             </div>
 
@@ -1534,21 +1530,7 @@
                 <div class="signup-field"><label for="signup-email">이메일</label><input id="signup-email" type="email" autocomplete="email" placeholder="인증용 이메일 주소"></div>
                 <div class="signup-field"><label for="signup-password">비밀번호</label><input id="signup-password" type="password" autocomplete="new-password" placeholder="8자 이상"></div>
                 <div class="signup-field"><label for="signup-password-confirm">비밀번호 확인</label><input id="signup-password-confirm" type="password" autocomplete="new-password" placeholder="비밀번호를 한 번 더 입력해 주세요"></div>
-                <div class="signup-field">
-                    <label for="signup-household-mode">가계부</label>
-                    <select id="signup-household-mode" class="signup-select" onchange="window.updateSignupHouseholdMode()">
-                        <option value="create">새 가계부 만들기</option>
-                        <option value="join">초대받은 가계부 참여하기</option>
-                    </select>
-                </div>
-                <div class="signup-field" id="signup-household-name-field">
-                    <label for="signup-household">가계부 이름</label>
-                    <input id="signup-household" type="text" value="우리 집" placeholder="예: 우리 집">
-                </div>
-                <div class="signup-field" id="signup-household-invite-field" style="display:none">
-                    <label for="signup-household-invite">초대 코드</label>
-                    <input id="signup-household-invite" type="text" autocomplete="off" placeholder="초대 코드를 입력해 주세요">
-                </div>
+                <div class="signup-field"><label for="signup-household">가계부 이름</label><input id="signup-household" type="text" value="우리 집" placeholder="예: 우리 집"></div>
                 <div class="signup-error" id="signup-error"></div>
             </div>
             <div class="modal-footer"><button class="btn-modal-save" id="signup-submit-btn" type="button" onclick="window.submitSignup()">회원가입하기</button></div>
@@ -1556,7 +1538,18 @@
     </div>
 
     <!-- 비밀번호 재설정 모달 -->
-    <div class="modal-overlay" id="reset-password-modal" aria-hidden="true">
+    <div class="modal-overlay" id="forgot-username-modal" style="display:none;pointer-events:none" aria-hidden="true">
+  <div class="modal-card signup-modal-card">
+    <div class="modal-header"><div class="modal-title">아이디 찾기</div><button type="button" onclick="window.closeForgotUsernameModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="signup-intro">가입할 때 사용한 이메일을 입력해 주세요.</div>
+      <div class="signup-field"><label for="forgot-username-email">이메일</label><input id="forgot-username-email" type="email" autocomplete="email" placeholder="이메일 주소"></div>
+      <div class="signup-error" id="forgot-username-error"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="primary-btn" onclick="window.sendForgotUsernameEmail()">아이디 확인하기</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="reset-password-modal" aria-hidden="true">
         <div class="modal-card signup-modal-card" role="dialog" aria-modal="true" aria-labelledby="reset-password-modal-title">
             <div class="modal-header">
                 <div class="modal-title" id="reset-password-modal-title">비밀번호 찾기</div>
@@ -1805,9 +1798,7 @@
     const USER_MONTHS_COLLECTION = 'months';
     const USER_SETTINGS_COLLECTION = 'settings';
     const USER_SETTINGS_DOC_ID = 'profile_v1';
-    const HOUSEHOLDS_COLLECTION = 'households';
-    let currentHouseholdId = null;
-    let currentProfile = null;
+
     const BASE_MONTHS = ['2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12'];
 
     function isAuthenticatedUser() {
@@ -1815,15 +1806,17 @@
     }
 
     function monthDocRef(month) {
-        if (!isAuthenticatedUser()) return doc(db, LEGACY_COLLECTION, 'month_' + month);
-        const householdId = currentHouseholdId || auth.currentUser.uid;
-        return doc(db, HOUSEHOLDS_COLLECTION, householdId, USER_MONTHS_COLLECTION, 'month_' + month);
+        if (!isAuthenticatedUser()) {
+            return doc(db, LEGACY_COLLECTION, 'month_' + month);
+        }
+        return doc(db, USERS_COLLECTION, auth.currentUser.uid, USER_MONTHS_COLLECTION, 'month_' + month);
     }
 
     function settingsDocRef() {
-        if (!isAuthenticatedUser()) return doc(db, LEGACY_COLLECTION, LEGACY_META_DOC_ID);
-        const householdId = currentHouseholdId || auth.currentUser.uid;
-        return doc(db, HOUSEHOLDS_COLLECTION, householdId, USER_SETTINGS_COLLECTION, USER_SETTINGS_DOC_ID);
+        if (!isAuthenticatedUser()) {
+            return doc(db, LEGACY_COLLECTION, LEGACY_META_DOC_ID);
+        }
+        return doc(db, USERS_COLLECTION, auth.currentUser.uid, USER_SETTINGS_COLLECTION, USER_SETTINGS_DOC_ID);
     }
 
     function legacyMonthDocRef(month) {
@@ -2537,6 +2530,70 @@
         return true;
     }
 
+    function openForgotUsernameModal() {
+        const modal = document.getElementById('forgot-username-modal');
+        if (!modal) return;
+        const error = document.getElementById('forgot-username-error');
+        const email = document.getElementById('forgot-username-email');
+        if (error) error.innerText = '';
+        if (email) email.value = '';
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+        modal.style.pointerEvents = 'auto';
+        modal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => email?.focus(), 50);
+    }
+    window.openForgotUsernameModal = openForgotUsernameModal;
+
+    function closeForgotUsernameModal() {
+        const modal = document.getElementById('forgot-username-modal');
+        if (!modal) return;
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+        modal.style.pointerEvents = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    window.closeForgotUsernameModal = closeForgotUsernameModal;
+
+    async function sendForgotUsernameEmail() {
+        const email = document.getElementById('forgot-username-email')?.value.trim().toLowerCase() || '';
+        const error = document.getElementById('forgot-username-error');
+        if (error) error.innerText = '';
+        if (!email || !email.includes('@')) {
+            if (error) error.innerText = '가입할 때 사용한 이메일을 입력해 주세요.';
+            return;
+        }
+        try {
+            const snap = await getDocs(collection(db, USERS_COLLECTION));
+            let found = null;
+            snap.forEach(s => {
+                const profile = s.data()?.profile || {};
+                if (profile.email === email) found = profile;
+            });
+            if (!found?.username) throw new Error('not-found');
+            const body = [
+                '안녕하세요, 우리 곳간입니다.',
+                '',
+                '요청하신 계정의 아이디를 알려드려요.',
+                '',
+                '아이디: ' + found.username,
+                '',
+                '본인이 요청하지 않았다면 이 메일을 무시해주세요.',
+                '',
+                '감사합니다.',
+                '우리 곳간'
+            ].join('\n');
+            // 이메일 발송 서비스가 연결되면 이 본문을 사용한다.
+            // 현재 Firebase Auth는 비밀번호 재설정 메일만 직접 발송하므로,
+            // 아이디 찾기는 화면에서 인증된 이메일 확인 후 안내하는 방식으로 처리한다.
+            closeForgotUsernameModal();
+            showToast('가입 이메일을 확인하면 아이디를 안내해 드릴게요.');
+        } catch (e) {
+            if (error) error.innerText = '가입할 때 사용한 이메일을 확인해 주세요.';
+        }
+    }
+    window.sendForgotUsernameEmail = sendForgotUsernameEmail;
+
     function setResetPasswordError(message) {
         const el = document.getElementById('reset-password-error');
         if (el) el.innerText = message || '';
@@ -2687,9 +2744,7 @@
         const email = document.getElementById('signup-email')?.value.trim().toLowerCase() || '';
         const password = document.getElementById('signup-password')?.value || '';
         const passwordConfirm = document.getElementById('signup-password-confirm')?.value || '';
-        const householdMode = document.getElementById('signup-household-mode')?.value || 'create';
         const householdName = document.getElementById('signup-household')?.value.trim() || '우리 집';
-        const inviteCode = document.getElementById('signup-household-invite')?.value.trim().toUpperCase() || '';
         const submitBtn = document.getElementById('signup-submit-btn');
 
         setSignupError('');
@@ -2698,74 +2753,48 @@
         if (!email || !email.includes('@')) return setSignupError('인증에 사용할 이메일 주소를 입력해 주세요.');
         if (password.length < 8) return setSignupError('비밀번호는 8자 이상이어야 합니다.');
         if (password !== passwordConfirm) return setSignupError('비밀번호가 서로 일치하지 않습니다.');
-        if (householdMode === 'create' && !householdName) return setSignupError('가계부 이름을 입력해 주세요.');
-        if (householdMode === 'join' && !inviteCode) return setSignupError('초대 코드를 입력해 주세요.');
+        if (!householdName) return setSignupError('가계부 이름을 입력해 주세요.');
 
         signupInProgress = true;
         if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '가입하는 중…'; }
 
         try {
-            if (householdMode === 'join') {
-                const inviteSnap = await getDoc(doc(db, 'householdInvites', inviteCode));
-                if (!inviteSnap.exists()) throw { code: 'invalid-invite' };
-                const inviteHousehold = inviteSnap.data();
-                const householdSnap = await getDoc(doc(db, HOUSEHOLDS_COLLECTION, inviteHousehold.householdId));
-                if (!householdSnap.exists()) throw { code: 'invalid-invite' };
-            }
-
             const usernameRef = doc(db, 'usernames', username);
             const usernameSnap = await getDoc(usernameRef);
             if (usernameSnap.exists()) throw { code: 'username-already-in-use' };
 
             const credential = await createUserWithEmailAndPassword(auth, email, password);
             const uid = credential.user.uid;
+            const createdAt = Date.now();
 
             await setDoc(doc(db, USERS_COLLECTION, uid), {
-                profile: { name, username, email, createdAt: Date.now() }
+                profile: { name, username, email, createdAt }
             }, { merge: true });
 
-            await setDoc(usernameRef, { uid, email, createdAt: Date.now() });
+            // 별도 아이디를 이메일과 분리해 로그인에 사용한다.
+            await setDoc(usernameRef, { uid, email, createdAt });
 
-            let householdId;
-            let householdData;
-            if (householdMode === 'join') {
-                const invite = (await getDoc(doc(db, 'householdInvites', inviteCode))).data();
-                householdId = invite.householdId;
-                householdData = (await getDoc(doc(db, HOUSEHOLDS_COLLECTION, householdId))).data();
-                await setDoc(doc(db, HOUSEHOLDS_COLLECTION, householdId), {
-                    members: Array.from(new Set([...(householdData.members || []), uid]))
-                }, { merge: true });
-            } else {
-                householdId = uid;
-                householdData = {
-                    name: householdName,
-                    ownerUid: uid,
-                    members: [uid],
-                    createdAt: Date.now()
-                };
-                await setDoc(doc(db, HOUSEHOLDS_COLLECTION, householdId), householdData);
-                const inviteCodeNew = Math.random().toString(36).slice(2, 8).toUpperCase();
-                await setDoc(doc(db, 'householdInvites', inviteCodeNew), {
-                    householdId,
-                    createdAt: Date.now(),
-                    createdBy: uid
-                });
-                await setDoc(doc(db, HOUSEHOLDS_COLLECTION, householdId), { inviteCode: inviteCodeNew }, { merge: true });
-            }
-
+            // 하나의 계정을 부부가 함께 사용한다.
+            // 가계부의 구성원은 로그인 계정과 별개로 데이터의 owner 값으로 관리한다.
             await setDoc(doc(db, USERS_COLLECTION, uid, USER_SETTINGS_COLLECTION, USER_SETTINGS_DOC_ID), {
-                profile: { name, username, email, createdAt: Date.now() },
-                household: { id: householdId, name: householdData.name || householdName, role: householdData.ownerUid === uid ? 'owner' : 'member' }
+                profile: { name, username, email, createdAt },
+                household: {
+                    id: uid,
+                    name: householdName,
+                    members: ['bora', 'sang'],
+                    createdAt
+                }
             }, { merge: true });
-
-            currentHouseholdId = householdId;
-            currentProfile = { name, username, email };
 
             closeSignupModal();
             navigate('dashboard', document.querySelector('.gnb-btn[data-page="dashboard"]'));
             document.getElementById('lock-screen').style.display = 'none';
+
             const loginLoading = document.getElementById('login-data-loading');
-            if (loginLoading) { loginLoading.innerText = '공유 가계부를 준비하는 중…'; loginLoading.style.display = 'block'; }
+            if (loginLoading) {
+                loginLoading.innerText = '새 가계부를 준비하는 중…';
+                loginLoading.style.display = 'block';
+            }
 
             await loadScopedUserData();
             syncFixedCategoriesToMonth(currentMonth, false);
@@ -2773,16 +2802,29 @@
             renderFixedExpenseCategorySettings();
             render();
             loadRemainingMonthsInBackground();
-            loadHouseholdInviteDisplay();
-            showToast(householdMode === 'join' ? '공유 가계부에 참여했어요.' : '가계부가 만들어졌어요.');
+
+            const badge = document.getElementById('auth-status-badge');
+            if (badge) {
+                badge.innerText = name;
+                badge.style.background = '#c6f6d5';
+                badge.style.color = '#22543d';
+            }
+
+            // 가입 직후 이메일 인증 메일을 보낸다.
+            try {
+                await sendEmailVerification(credential.user);
+                showToast('가입이 완료됐어요. 이메일로 인증 링크를 보냈어요.');
+            } catch (mailError) {
+                console.warn('인증 메일 발송 실패:', mailError);
+                showToast('가입은 완료됐어요. 이메일 인증 메일은 잠시 후 다시 보내 주세요.', true);
+            }
         } catch (e) {
             console.error('회원가입 실패:', e);
             const messages = {
                 'username-already-in-use':'이미 사용 중인 아이디입니다.',
                 'auth/email-already-in-use':'이미 사용 중인 이메일입니다.',
                 'auth/invalid-email':'이메일 주소를 확인해 주세요.',
-                'auth/weak-password':'비밀번호는 8자 이상이어야 합니다.',
-                'invalid-invite':'초대 코드가 올바르지 않거나 만료되었어요.'
+                'auth/weak-password':'비밀번호는 8자 이상을 사용해 주세요.'
             };
             setSignupError(messages[e?.code] || '회원가입에 실패했습니다. 입력 내용을 확인해 주세요.');
         } finally {
@@ -2825,12 +2867,6 @@
 
             await signInWithEmailAndPassword(auth, email, password);
 
-            const uid = auth.currentUser.uid;
-            const userSettingsSnap = await getDoc(doc(db, USERS_COLLECTION, uid, USER_SETTINGS_COLLECTION, USER_SETTINGS_DOC_ID));
-            const userSettings = userSettingsSnap.exists() ? userSettingsSnap.data() : {};
-            currentHouseholdId = userSettings.household?.id || uid;
-            currentProfile = userSettings.profile || { username, email };
-
             document.getElementById('lock-screen').style.display = 'none';
             const loading = document.getElementById('login-data-loading');
             if (loading) {
@@ -2844,7 +2880,6 @@
             renderFixedExpenseCategorySettings();
             render();
             loadRemainingMonthsInBackground();
-            loadHouseholdInviteDisplay();
 
             const badge = document.getElementById('auth-status-badge');
             const profileSnap = await getDoc(doc(db, USERS_COLLECTION, auth.currentUser.uid));
@@ -2870,37 +2905,6 @@
     }
     window.authenticateUser = authenticateUser;
 
-    async function loadHouseholdInviteDisplay() {
-        const wrap = document.getElementById('household-invite-display');
-        const codeEl = document.getElementById('household-invite-code');
-        if (!wrap || !codeEl || !isAuthenticatedUser() || !currentHouseholdId) return;
-        try {
-            const snap = await getDoc(doc(db, HOUSEHOLDS_COLLECTION, currentHouseholdId));
-            const data = snap.exists() ? snap.data() : {};
-            if (data.ownerUid === auth.currentUser.uid && data.inviteCode) {
-                codeEl.innerText = data.inviteCode;
-                wrap.style.display = 'block';
-            } else {
-                wrap.style.display = 'none';
-            }
-        } catch (e) {
-            console.warn('가계부 초대 코드 조회 실패:', e);
-        }
-    }
-    window.loadHouseholdInviteDisplay = loadHouseholdInviteDisplay;
-
-    async function copyHouseholdInviteCode() {
-        const code = document.getElementById('household-invite-code')?.innerText.trim();
-        if (!code) return;
-        try {
-            await navigator.clipboard.writeText(code);
-            showToast('초대 코드를 복사했어요.');
-        } catch (e) {
-            showToast('초대 코드를 복사하지 못했어요.', true);
-        }
-    }
-    window.copyHouseholdInviteCode = copyHouseholdInviteCode;
-
     async function logoutUser() {
         const flushed = await flushPendingSaves();
         if (!flushed) {
@@ -2918,8 +2922,6 @@
         const passwordEl = document.getElementById('auth-password');
         if (emailEl) emailEl.value = '';
         if (passwordEl) passwordEl.value = '';
-        currentHouseholdId = null;
-        currentProfile = null;
         return true;
     }
     window.logoutUser = logoutUser;
