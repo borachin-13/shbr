@@ -1177,7 +1177,7 @@
             <input type="password" id="auth-password" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="current-password" placeholder="비밀번호 (8자 이상)">
             <button class="lock-btn" id="auth-login-btn" onclick="window.authenticateUser('login')">로그인</button>
             <button class="lock-btn" id="auth-signup-btn" style="margin-top:8px;background:#edf2f7;color:#1a202c;" onclick="window.openSignupModal()">회원가입하기</button>
-            <button type="button" id="auth-reset-btn" style="margin-top:10px;border:none;background:none;color:#718096;font-size:12px;cursor:pointer;" onclick="window.resetPassword()">비밀번호를 잊으셨나요?</button>
+            <button type="button" id="auth-reset-btn" style="margin-top:10px;border:none;background:none;color:#718096;font-size:12px;cursor:pointer;" onclick="window.openResetPasswordModal()">비밀번호를 잊으셨나요?</button>
             <div id="lock-error" class="lock-error"></div>
         </div>
     </div>
@@ -1532,6 +1532,27 @@
                 <div class="signup-error" id="signup-error"></div>
             </div>
             <div class="modal-footer"><button class="btn-modal-save" id="signup-submit-btn" type="button" onclick="window.submitSignup()">회원가입하기</button></div>
+        </div>
+    </div>
+
+    <!-- 비밀번호 재설정 모달 -->
+    <div class="modal-overlay" id="reset-password-modal" aria-hidden="true">
+        <div class="modal-card signup-modal-card" role="dialog" aria-modal="true" aria-labelledby="reset-password-modal-title">
+            <div class="modal-header">
+                <div class="modal-title" id="reset-password-modal-title">비밀번호 찾기</div>
+                <button class="modal-close" type="button" onclick="window.closeResetPasswordModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="signup-intro">가입할 때 사용한 이메일로 비밀번호 재설정 링크를 보내드릴게요.</div>
+                <div class="signup-field">
+                    <label for="reset-email">이메일</label>
+                    <input id="reset-email" type="email" autocomplete="email" placeholder="이메일 주소">
+                </div>
+                <div class="signup-error" id="reset-password-error"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-save" id="reset-password-submit-btn" type="button" onclick="window.submitPasswordReset()">재설정 이메일 보내기</button>
+            </div>
         </div>
     </div>
 
@@ -2494,6 +2515,77 @@
         loadAllUserMonthsForAnalysis(uid).catch(e => console.warn('월별 분석 백그라운드 로드 실패:', e));
         return true;
     }
+
+    function setResetPasswordError(message) {
+        const el = document.getElementById('reset-password-error');
+        if (el) el.innerText = message || '';
+    }
+
+    function openResetPasswordModal() {
+        const modal = document.getElementById('reset-password-modal');
+        const loginEmail = document.getElementById('auth-email');
+        const resetEmail = document.getElementById('reset-email');
+        if (!modal) return;
+        setResetPasswordError('');
+        if (resetEmail) resetEmail.value = loginEmail?.value.trim() || '';
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+        modal.style.pointerEvents = 'auto';
+        modal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => {
+            if (resetEmail) resetEmail.focus();
+        }, 50);
+    }
+    window.openResetPasswordModal = openResetPasswordModal;
+
+    function closeResetPasswordModal() {
+        const modal = document.getElementById('reset-password-modal');
+        if (!modal) return;
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+        modal.style.pointerEvents = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+        setResetPasswordError('');
+    }
+    window.closeResetPasswordModal = closeResetPasswordModal;
+
+    async function submitPasswordReset() {
+        const emailEl = document.getElementById('reset-email');
+        const submitBtn = document.getElementById('reset-password-submit-btn');
+        const email = emailEl?.value.trim() || '';
+        setResetPasswordError('');
+
+        if (!email || !email.includes('@')) {
+            setResetPasswordError('가입할 때 사용한 이메일을 입력해 주세요.');
+            emailEl?.focus();
+            return;
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerText = '보내는 중…';
+        }
+
+        try {
+            await sendPasswordResetEmail(auth, email);
+            closeResetPasswordModal();
+            window.setAuthError('비밀번호 재설정 이메일을 확인해 주세요.');
+        } catch (e) {
+            console.error('비밀번호 재설정 실패:', e);
+            const messages = {
+                'auth/user-not-found': '가입된 계정을 찾을 수 없습니다.',
+                'auth/invalid-email': '이메일 주소를 확인해 주세요.',
+                'auth/too-many-requests': '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'
+            };
+            setResetPasswordError(messages[e?.code] || '재설정 이메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerText = '재설정 이메일 보내기';
+            }
+        }
+    }
+    window.submitPasswordReset = submitPasswordReset;
 
     async function resetPassword() {
         const emailEl = document.getElementById('auth-email');
