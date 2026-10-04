@@ -363,6 +363,10 @@
         .dashboard-card-hint{font-size:10px;color:var(--text-sub);font-weight:700}
         .dashboard-card-actions{display:flex;align-items:center;gap:8px}
         .dashboard-saving-detail{margin-top:10px}
+        .dashboard-saving-total-line{margin-top:8px}
+        .dashboard-saving-total-line strong{font-size:24px;line-height:1.15;font-weight:900;color:var(--primary)}
+        .dashboard-saving-row{min-height:42px}
+
         .dashboard-saving-row{display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px;padding:10px 0;border:0;border-bottom:1px solid #f0f2f4;background:transparent;text-align:left;cursor:pointer;font:inherit}
         .dashboard-saving-row:last-child{border-bottom:0}
         .dashboard-saving-row span{min-width:0;display:flex;flex-direction:column;gap:3px}
@@ -1054,9 +1058,9 @@
                 <section class="card dashboard-section-card dashboard-saving-section">
                     <div class="dashboard-card-title">
                         <span>🏦 이번 달 저축</span>
-                        
+                        <button type="button" class="dashboard-inline-link" onclick="window.navigate('records', this)">전체 내역 →</button>
                     </div>
-                    <div class="dashboard-section-total"><strong id="dashboard-saving-total">0원</strong></div>
+                    <div class="dashboard-saving-total-line"><strong id="dashboard-saving-total">0원</strong></div>
                     <div class="dashboard-saving-detail" id="dashboard-saving-detail"><div class="dashboard-empty">저축 내역이 없어요.</div></div>
                 </section>
                 <div style="display:none;" aria-hidden="true">
@@ -2967,12 +2971,18 @@
             .filter(x=>(Number(x.amount)||0)>0&&(currentTab==='all'||x.owner==='shared'||x.owner===currentTab));
         const savingsBox=document.getElementById('dashboard-saving-detail');
         if(savingsBox){
-            if(!savingsList.length) savingsBox.innerHTML='<div class="dashboard-empty">저축 내역이 없어요.</div>';
-            else savingsBox.innerHTML=savingsList.map(x=>{
-                const owner=x.owner==='bora'?'보라':x.owner==='sang'?'상훈':'공통';
-                const originalIndex=(d.categories.savings||[]).indexOf(x);
-                return `<button type="button" class="dashboard-saving-row" onclick="window.editRecord('saving','savings',${originalIndex})"><span><strong>${escapeHtml(x.name||'저축')}</strong><small>${owner}</small></span><b>${formatAmount(Number(x.amount)||0)}</b></button>`;
-            }).join('');
+            if(!savingsList.length){
+                savingsBox.innerHTML='<div class="dashboard-empty">저축 내역이 없어요.</div>';
+            }else{
+                savingsBox.innerHTML=savingsList.map(x=>{
+                    const owner=x.owner==='bora'?'보라':x.owner==='sang'?'상훈':'공통';
+                    const originalIndex=(d.categories.savings||[]).indexOf(x);
+                    return `<button type="button" class="dashboard-saving-row" onclick="window.editRecord('saving','savings',${originalIndex})">
+                        <span><strong>${escapeHtml(x.name||'저축')}</strong><small>${owner}</small></span>
+                        <b>${formatAmount(Number(x.amount)||0)}</b>
+                    </button>`;
+                }).join('');
+            }
         }
         const box=document.getElementById('dashboard-expense-breakdown');
         if(box) renderDashboardRecentExpenses(d,box);
