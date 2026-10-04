@@ -1173,7 +1173,7 @@
         <div class="lock-card">
             <div class="lock-title">🌾 우리 곳간</div>
             <div class="lock-sub" id="auth-help-text">내 계정으로 안전하게 접속해 주세요.</div>
-            <input type="email" id="auth-email" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="email" placeholder="이메일">
+            <input type="email" id="auth-username" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="username" placeholder="아이디">
             <input type="password" id="auth-password" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="current-password" placeholder="비밀번호 (8자 이상)">
             <button class="lock-btn" id="auth-login-btn" onclick="window.authenticateUser('login')">로그인</button>
             <button class="lock-btn" id="auth-signup-btn" style="margin-top:8px;background:#edf2f7;color:#1a202c;" onclick="window.openSignupModal()">회원가입하기</button>
@@ -1524,11 +1524,13 @@
                 <button class="modal-close" type="button" onclick="window.closeSignupModal()">✕</button>
             </div>
             <div class="modal-body">
-                <div class="signup-intro">우리 곳간에서 사용할 계정을 만들어 주세요.<br>가입 후에는 새 가계부가 자동으로 연결됩니다.</div>
+                <div class="signup-intro">계정을 만들고 우리 집 가계부를 시작해 주세요.</div>
                 <div class="signup-field"><label for="signup-name">이름</label><input id="signup-name" type="text" autocomplete="name" placeholder="이름을 입력해 주세요"></div>
-                <div class="signup-field"><label for="signup-email">이메일</label><input id="signup-email" type="email" autocomplete="email" placeholder="이메일 주소"></div>
+                <div class="signup-field"><label for="signup-username">아이디</label><input id="signup-username" type="text" autocomplete="username" placeholder="로그인에 사용할 아이디"></div>
+                <div class="signup-field"><label for="signup-email">이메일</label><input id="signup-email" type="email" autocomplete="email" placeholder="인증용 이메일 주소"></div>
                 <div class="signup-field"><label for="signup-password">비밀번호</label><input id="signup-password" type="password" autocomplete="new-password" placeholder="8자 이상"></div>
                 <div class="signup-field"><label for="signup-password-confirm">비밀번호 확인</label><input id="signup-password-confirm" type="password" autocomplete="new-password" placeholder="비밀번호를 한 번 더 입력해 주세요"></div>
+                <div class="signup-field"><label for="signup-household">가계부 이름</label><input id="signup-household" type="text" value="우리 집" placeholder="예: 우리 집"></div>
                 <div class="signup-error" id="signup-error"></div>
             </div>
             <div class="modal-footer"><button class="btn-modal-save" id="signup-submit-btn" type="button" onclick="window.submitSignup()">회원가입하기</button></div>
@@ -2523,11 +2525,11 @@
 
     function openResetPasswordModal() {
         const modal = document.getElementById('reset-password-modal');
-        const loginEmail = document.getElementById('auth-email');
+        const loginEmail = document.getElementById('auth-username');
         const resetEmail = document.getElementById('reset-email');
         if (!modal) return;
         setResetPasswordError('');
-        if (resetEmail) resetEmail.value = loginEmail?.value.trim() || '';
+        if (resetEmail) resetEmail.value = '';
         modal.classList.add('open');
         modal.style.display = 'flex';
         modal.style.pointerEvents = 'auto';
@@ -2654,28 +2656,61 @@
     async function submitSignup() {
         if (signupInProgress) return;
         const nameEl = document.getElementById('signup-name');
+        const usernameEl = document.getElementById('signup-username');
         const emailEl = document.getElementById('signup-email');
         const passwordEl = document.getElementById('signup-password');
         const confirmEl = document.getElementById('signup-password-confirm');
+        const householdEl = document.getElementById('signup-household');
         const submitBtn = document.getElementById('signup-submit-btn');
+
         const name = nameEl?.value.trim() || '';
-        const email = emailEl?.value.trim() || '';
+        const username = usernameEl?.value.trim().toLowerCase() || '';
+        const email = emailEl?.value.trim().toLowerCase() || '';
         const password = passwordEl?.value || '';
         const passwordConfirm = confirmEl?.value || '';
+        const householdName = householdEl?.value.trim() || '우리 집';
 
         setSignupError('');
         if (!name) return setSignupError('이름을 입력해 주세요.');
-        if (!email || !email.includes('@')) return setSignupError('올바른 이메일 주소를 입력해 주세요.');
+        if (!/^[a-zA-Z0-9._-]{4,20}$/.test(username)) return setSignupError('아이디는 영문, 숫자, ., _, -를 사용해 4~20자로 입력해 주세요.');
+        if (!email || !email.includes('@')) return setSignupError('인증에 사용할 이메일 주소를 입력해 주세요.');
         if (password.length < 8) return setSignupError('비밀번호는 8자 이상이어야 합니다.');
         if (password !== passwordConfirm) return setSignupError('비밀번호가 서로 일치하지 않습니다.');
+        if (!householdName) return setSignupError('가계부 이름을 입력해 주세요.');
 
         signupInProgress = true;
         if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '가입하는 중…'; }
 
         try {
+            // Firebase Auth는 이메일을 인증 수단으로 사용하고,
+            // 별도 아이디는 Firestore에서 로그인 식별자로 관리한다.
             const credential = await createUserWithEmailAndPassword(auth, email, password);
+            const uid = credential.user.uid;
+
+            await setDoc(doc(db, USERS_COLLECTION, uid), {
+                profile: {
+                    name,
+                    username,
+                    email,
+                    createdAt: Date.now()
+                }
+            }, { merge: true });
+
+            // 아이디 조회용 문서. 동일 아이디는 가입 단계에서 차단한다.
+            await setDoc(doc(db, 'usernames', username), {
+                uid,
+                createdAt: Date.now()
+            });
+
             await setDoc(settingsDocRef(), {
-                profile: { name, email, createdAt: Date.now() }
+                profile: { name, username, email, createdAt: Date.now() },
+                household: {
+                    id: uid,
+                    name: householdName,
+                    ownerUid: uid,
+                    members: [uid],
+                    createdAt: Date.now()
+                }
             }, { merge: true });
 
             closeSignupModal();
@@ -2697,6 +2732,7 @@
                 badge.style.background = '#c6f6d5';
                 badge.style.color = '#22543d';
             }
+
             renderCategorySettings();
             renderFixedExpenseCategorySettings();
             render();
@@ -2707,10 +2743,9 @@
             const messages = {
                 'auth/email-already-in-use':'이미 사용 중인 이메일입니다. 로그인해 주세요.',
                 'auth/invalid-email':'이메일 주소를 확인해 주세요.',
-                'auth/weak-password':'비밀번호는 8자 이상을 사용해 주세요.',
-                'auth/operation-not-allowed':'이메일/비밀번호 로그인이 Firebase에서 아직 활성화되지 않았습니다.'
+                'auth/weak-password':'비밀번호는 8자 이상을 사용해 주세요.'
             };
-            setSignupError(messages[e?.code] || '회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+            setSignupError(messages[e?.code] || '회원가입에 실패했습니다. 입력 내용을 확인해 주세요.');
         } finally {
             signupInProgress = false;
             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '회원가입하기'; }
@@ -2719,95 +2754,72 @@
     window.submitSignup = submitSignup;
 
     async function authenticateUser(mode) {
-        if (authenticationInProgress) return;
-
-        const emailEl = document.getElementById('auth-email');
-        const passwordEl = document.getElementById('auth-password');
+        const username = document.getElementById('auth-username')?.value.trim().toLowerCase() || '';
+        const password = document.getElementById('auth-password')?.value || '';
         const loginBtn = document.getElementById('auth-login-btn');
-        const signupBtn = document.getElementById('auth-signup-btn');
-        const email = emailEl ? emailEl.value.trim() : '';
-        const password = passwordEl ? passwordEl.value : '';
 
         window.setAuthError('');
-        if (!email || !email.includes('@')) {
-            window.setAuthError('이메일 주소를 입력해 주세요.');
-            return;
-        }
-        if (password.length < 8) {
-            window.setAuthError('비밀번호는 8자 이상이어야 합니다.');
+        if (!username || !password) {
+            window.setAuthError('아이디와 비밀번호를 입력해 주세요.');
             return;
         }
 
         authenticationInProgress = true;
-
-        if (loginBtn) {
-            loginBtn.disabled = true;
-            loginBtn.innerText = '로그인 중…';
-        }
-        if (signupBtn) signupBtn.disabled = true;
-
-        const helpText = document.getElementById('auth-help-text');
-        if (helpText) helpText.innerText = '인증 중입니다. 잠시만 기다려 주세요…';
+        if (loginBtn) { loginBtn.disabled = true; loginBtn.innerText = '로그인 중…'; }
 
         try {
-            if (mode === 'signup') {
-                closeSignupModal();
-                openSignupModal();
-                return;
-            } else {
-                await signInWithEmailAndPassword(auth, email, password);
+            // 아이디 → UID → 이메일을 조회한 뒤 Firebase 이메일 인증으로 로그인한다.
+            const usernameSnap = await getDoc(doc(db, 'usernames', username));
+            if (!usernameSnap.exists()) {
+                throw { code: 'auth/user-not-found' };
+            }
+            const userData = usernameSnap.data();
+            const userEmail = userData.email || null;
+            let email = userEmail;
+
+            // 기존 username 문서가 uid만 가진 경우 프로필에서 이메일을 가져온다.
+            if (!email && userData.uid) {
+                const profileSnap = await getDoc(doc(db, USERS_COLLECTION, userData.uid));
+                if (profileSnap.exists()) email = profileSnap.data().profile?.email || null;
+            }
+            if (!email) throw { code: 'auth/user-not-found' };
+
+            await signInWithEmailAndPassword(auth, email, password);
+
+            document.getElementById('lock-screen').style.display = 'none';
+            const loading = document.getElementById('login-data-loading');
+            if (loading) {
+                loading.innerText = '가계부를 불러오는 중…';
+                loading.style.display = 'block';
             }
 
-            // 인증 성공 즉시 대시보드를 열어 Firebase 데이터 조회 때문에
-            // 로그인 화면이 멈춰 보이지 않게 한다.
-            const dashboardBtn = document.querySelector('.gnb-btn[onclick*="navigate(\'dashboard\'"]');
-            navigate('dashboard', dashboardBtn);
-            document.getElementById('lock-screen').style.display = 'none';
-            const loginLoading = document.getElementById('login-data-loading');
-            if (loginLoading) loginLoading.style.display = 'block';
-            render();
-
-            // 서버 데이터는 대시보드가 열린 상태에서 백그라운드로 갱신한다.
-            // 같은 계정의 로컬 캐시가 있으면 여기서 즉시 표시되므로 로그인 완료를 기다리지 않는다.
             await loadScopedUserData();
             syncFixedCategoriesToMonth(currentMonth, false);
-            if (loginLoading) {
-                loginLoading.innerText = '최신 데이터 확인 중…';
-                loginLoading.style.display = 'block';
-            }
-            const badge = document.getElementById('auth-status-badge');
-            if (badge) {
-                badge.innerText = '내 계정';
-                badge.style.background = '#c6f6d5';
-                badge.style.color = '#22543d';
-            }
             renderCategorySettings();
             renderFixedExpenseCategorySettings();
             render();
-            // 첫 화면을 먼저 보여준 뒤, 과거/미래 월은 백그라운드에서 채운다.
-            // 사용자가 로그인 직후 기다리는 시간을 줄이기 위한 의도적인 지연 로딩이다.
             loadRemainingMonthsInBackground();
-            showToast(mode === 'signup' ? '계정과 데이터가 안전하게 연결되었어요.' : '로그인되었습니다.');
+
+            const badge = document.getElementById('auth-status-badge');
+            const profileSnap = await getDoc(doc(db, USERS_COLLECTION, auth.currentUser.uid));
+            const profile = profileSnap.exists() ? (profileSnap.data().profile || {}) : {};
+            if (badge) {
+                badge.innerText = profile.name || username;
+                badge.style.background = '#c6f6d5';
+                badge.style.color = '#22543d';
+            }
         } catch (e) {
-            console.error('계정 인증 실패 또는 초기 데이터 로드 실패:', e);
-            const code = e && e.code ? e.code : '';
+            console.error('로그인 실패:', e);
             const messages = {
-                'auth/email-already-in-use': '이미 사용 중인 이메일입니다. 로그인해 주세요.',
-                'auth/invalid-credential': '이메일 또는 비밀번호가 올바르지 않습니다.',
-                'auth/wrong-password': '이메일 또는 비밀번호가 올바르지 않습니다.',
-                'auth/user-not-found': '가입된 계정을 찾을 수 없습니다.',
-                'auth/weak-password': '비밀번호는 8자 이상을 사용해 주세요.',
-                'auth/operation-not-allowed': '이메일/비밀번호 로그인이 Firebase에서 아직 활성화되지 않았습니다.'
+                'auth/user-not-found':'아이디 또는 비밀번호를 확인해 주세요.',
+                'auth/wrong-password':'아이디 또는 비밀번호를 확인해 주세요.',
+                'auth/invalid-credential':'아이디 또는 비밀번호를 확인해 주세요.',
+                'auth/too-many-requests':'로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.'
             };
-            window.setAuthError(messages[code] || '계정 인증에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+            window.setAuthError(messages[e?.code] || '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         } finally {
             authenticationInProgress = false;
-            if (loginBtn) {
-                loginBtn.disabled = false;
-                loginBtn.innerText = '로그인';
-            }
-            if (signupBtn) signupBtn.disabled = false;
-            if (helpText) helpText.innerText = '내 계정으로 안전하게 접속해 주세요.';
+            if (loginBtn) { loginBtn.disabled = false; loginBtn.innerText = '로그인'; }
         }
     }
     window.authenticateUser = authenticateUser;
