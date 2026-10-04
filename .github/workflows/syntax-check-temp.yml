@@ -7,22 +7,21 @@ jobs:
   syntax:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Parse module script
         run: |
           node <<'NODE'
-          const fs=require('fs');
-          const html=fs.readFileSync('index.html','utf8');
-          const m=html.match(/<script\\b[^>]*type=["']module["'][^>]*>([\\s\\S]*?)<\\/script>/i);
-          if(!m) throw new Error('module script not found');
-          let s=m[1];
-          const marker='const firebaseConfig';
-          s=s.slice(s.indexOf(marker));
+          const fs = require('fs');
+          const html = fs.readFileSync('index.html','utf8');
+          const start = html.indexOf('<script type="module">');
+          const end = html.indexOf('</script>', start);
+          if (start < 0 || end < 0) throw new Error('module script not found');
+          let s = html.slice(start + '<script type="module">'.length, end);
+          s = s.slice(s.indexOf('const firebaseConfig'));
           try {
             new Function(s);
             console.log('SYNTAX PASS');
-          } catch(e) {
+          } catch (e) {
             console.error(e.stack);
             process.exit(1);
           }
