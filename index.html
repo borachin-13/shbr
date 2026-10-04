@@ -4274,13 +4274,30 @@ function addCategorySetting() {
         const d=store[currentMonth]||DEFAULT_MONTH_DATA();
         const isAll=recordsFilter==='all';
 
-        const incomeItems=[
-            {name:'보라 월급',amount:Number(d.bora)||0,meta:'보라 · 급여',field:'bora',type:'income'},
-            {name:'보라 기타수입',amount:Number(d.bora_extra)||0,meta:'보라 · 기타수입',field:'bora_extra',type:'income'},
-            {name:'상훈 월급',amount:Number(d.sang)||0,meta:'상훈 · 급여',field:'sang',type:'income'},
-            {name:'상훈 기타수입',amount:Number(d.sang_other_income)||0,meta:'상훈 · 기타수입',field:'sang_other_income',type:'income'},
-            {name:'상훈 출장 외화수입',amount:(Number(d.trip_usd)||0)*(Number(d.usdRate)||0),meta:'상훈 · 출장수입',field:'trip_usd',type:'income'}
-        ].filter(x=>x.amount>0).filter(x=>currentTab==='all'||x.meta.startsWith(currentTab==='bora'?'보라':'상훈'));
+        const householdIncome = (Number(d.bora)||0)
+            + (Number(d.bora_extra)||0)
+            + (Number(d.sang)||0)
+            + (Number(d.sang_other_income)||0)
+            + ((Number(d.trip_usd)||0)*(Number(d.usdRate)||0));
+        const incomeItems = currentTab === 'all'
+            ? (householdIncome > 0 ? [{
+                name:'우리 집 수입',
+                amount:householdIncome,
+                meta:'가계 전체 수입',
+                field:null,
+                type:'income'
+            }] : [])
+            : [
+                {name:'월급',amount:currentTab==='bora'?(Number(d.bora)||0):(Number(d.sang)||0),meta:currentTab==='bora'?'보라 · 급여':'상훈 · 급여',field:currentTab==='bora'?'bora':'sang',type:'income'},
+                {name:'기타수입',amount:currentTab==='bora'?(Number(d.bora_extra)||0):(Number(d.sang_other_income)||0),meta:currentTab==='bora'?'보라 · 기타수입':'상훈 · 기타수입',field:currentTab==='bora'?'bora_extra':'sang_other_income',type:'income'},
+                ...(currentTab==='sang' && (Number(d.trip_usd)||0)>0 ? [{
+                    name:'출장 외화수입',
+                    amount:(Number(d.trip_usd)||0)*(Number(d.usdRate)||0),
+                    meta:'상훈 · 출장수입',
+                    field:'trip_usd',
+                    type:'income'
+                }] : [])
+            ].filter(x=>x.amount>0);
 
         const expenseItems=[];
         [['expense','고정지출'],['living','공동생활'],['bora_personal','보라 · 개인'],['sang_personal','상훈 · 개인'],['variable_expense','변동지출']].forEach(([key,meta])=>{
