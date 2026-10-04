@@ -2786,11 +2786,17 @@
             // 프로필에 username이 있는 기존 계정이면 lookup 문서를 자동 복구한다.
             if (profile.username) {
                 authStage = 'username-repair';
-                await setDoc(doc(db, 'usernames', String(profile.username).trim().toLowerCase()), {
-                    uid: auth.currentUser.uid,
-                    email: auth.currentUser.email || profile.email || email,
-                    createdAt: profile.createdAt || Date.now()
-                }, { merge: true });
+                try {
+                    await setDoc(doc(db, 'usernames', String(profile.username).trim().toLowerCase()), {
+                        uid: auth.currentUser.uid,
+                        email: auth.currentUser.email || profile.email || email,
+                        createdAt: profile.createdAt || Date.now()
+                    }, { merge: true });
+                } catch (repairError) {
+                    // Username repair is non-critical after Firebase Auth succeeds.
+                    // Never turn a valid email/password login into a login failure.
+                    console.warn('username mapping repair skipped:', repairError?.code || repairError);
+                }
             }
 
             authStage = 'data-load';
