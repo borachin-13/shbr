@@ -101,12 +101,14 @@ try {
 
   const authRecoverySetup = await pageA.evaluate(async () => window.runEmulatorAuthRecoveryProbe());
   if (!authRecoverySetup?.pass) throw new Error(`auth recovery setup failed: ${JSON.stringify(authRecoverySetup)}`);
+  const authConsoleErrors = [];
+  pageA.on('console', msg => { if (msg.type() === 'error' && msg.text().includes('로그인 실패')) authConsoleErrors.push(msg.text()); });
   await pageA.locator('#auth-username').fill(usernameA);
   await pageA.locator('#auth-password').fill(passwordA);
   await pageA.locator('#auth-login-btn').click();
   await pageA.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
   const loginError = await pageA.locator('#lock-error').innerText();
-  if (loginError) throw new Error(`Recovery login failed: ${loginError}`);
+  if (loginError) throw new Error(`Recovery login failed: ${loginError}; console=${authConsoleErrors.join(' | ')}`);
   const authRecovery = await pageA.evaluate(async () => window.runEmulatorAuthRecoveryVerify());
   if (!authRecovery?.pass) throw new Error(`auth recovery failed: ${JSON.stringify(authRecovery)}`);
 
