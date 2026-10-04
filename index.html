@@ -1572,6 +1572,7 @@
         linkWithCredential,
         sendPasswordResetEmail,
         sendEmailVerification,
+        deleteUser,
         signOut
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, connectFirestoreEmulator, doc, getDoc, getDocs, setDoc, deleteDoc, deleteField, collection, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -2628,6 +2629,7 @@
 
     async function submitSignup() {
         if (signupInProgress) return;
+
         const nameEl = document.getElementById('signup-name');
         const usernameEl = document.getElementById('signup-username');
         const emailEl = document.getElementById('signup-email');
@@ -2652,52 +2654,68 @@
         if (!householdName) return setSignupError('가계부 이름을 입력해 주세요.');
 
         signupInProgress = true;
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '가입하는 중…'; }
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerText = '가입하는 중…';
+        }
+
+        let createdUser = null;
+        let signupStage = 'username-check';
 
         try {
             // 아이디는 Firebase Auth 이메일과 별도로 Firestore에서 로그인 식별자로 관리한다.
-            // Auth 계정을 만들기 전에 중복 아이디를 차단해 orphan 계정 생성을 줄인다.
+            // Auth 계정을 만들기 전에 중복 아이디를 차단해 불필요한 계정 생성을 줄인다.
             const usernameRef = doc(db, 'usernames', username);
             const usernameSnap = await getDoc(usernameRef);
             if (usernameSnap.exists()) throw { code: 'username-already-in-use' };
 
+            signupStage = 'auth-create';
             const credential = await createUserWithEmailAndPassword(auth, email, password);
+            createdUser = credential.user;
             const uid = credential.user.uid;
+            const createdAt = Date.now();
 
-            await setDoc(doc(db, USERS_COLLECTION, uid), {
+            // 가입 직후 필요한 3개 문서는 하나의 batch로 저장한다.
+            // 중간 문서만 저장되는 부분 성공 상태를 방지한다.
+            signupStage = 'profile-save';
+            const batch = writeBatch(db);
+            batch.set(doc(db, USERS_COLLECTION, uid), {
                 profile: {
                     name,
                     username,
                     email,
-                    createdAt: Date.now()
+                    createdAt
                 }
             }, { merge: true });
 
-            // 아이디 조회용 문서. 동일 아이디는 가입 단계에서 차단한다.
-            await setDoc(doc(db, 'usernames', username), {
+            batch.set(doc(db, 'usernames', username), {
                 uid,
                 email,
-                createdAt: Date.now()
+                createdAt
             });
 
-            // 이메일은 로그인 ID가 아니라 계정 인증/복구용으로 사용한다.
+            batch.set(settingsDocRef(), {
+                profile: { name, username, email, createdAt },
+                household: {
+                    id: uid,
+                    name: householdName,
+                    ownerUid: uid,
+                    members: [uid],
+                    createdAt
+                }
+            }, { merge: true });
+
+            await batch.commit();
+
+            // 이메일 인증 메일은 가입 성공을 막지 않는 부가 기능이다.
+            signupStage = 'verification-mail';
             try {
                 await sendEmailVerification(credential.user);
             } catch (mailError) {
                 console.warn('이메일 인증 메일 발송 실패:', mailError);
             }
 
-            await setDoc(settingsDocRef(), {
-                profile: { name, username, email, createdAt: Date.now() },
-                household: {
-                    id: uid,
-                    name: householdName,
-                    ownerUid: uid,
-                    members: [uid],
-                    createdAt: Date.now()
-                }
-            }, { merge: true });
-
+            signupStage = 'data-load';
             closeSignupModal();
             navigate('dashboard', document.querySelector('.gnb-btn[data-page="dashboard"]'));
             document.getElementById('lock-screen').style.display = 'none';
@@ -2724,17 +2742,43 @@
             loadRemainingMonthsInBackground();
             showToast('회원가입이 완료됐어요. 새 가계부를 시작해 보세요.');
         } catch (e) {
-            console.error('회원가입 실패:', e);
+            console.error('회원가입 실패:', {
+                stage: signupStage,
+                code: e?.code,
+                message: e?.message,
+                error: e
+            });
+
+            // Auth 계정 생성 후 Firestore 저장이 실패했다면 방금 만든 계정을 정리한다.
+            // 로그인 가능한데 가계부 데이터가 없는 orphan 계정이 남는 것을 방지한다.
+            if (createdUser && ['profile-save'].includes(signupStage)) {
+                try {
+                    await deleteUser(createdUser);
+                } catch (rollbackError) {
+                    console.error('회원가입 롤백 실패:', rollbackError);
+                }
+            }
+
             const messages = {
-                'username-already-in-use':'이미 사용 중인 아이디입니다.',
-                'auth/email-already-in-use':'이미 사용 중인 이메일입니다. 로그인해 주세요.',
-                'auth/invalid-email':'이메일 주소를 확인해 주세요.',
-                'auth/weak-password':'비밀번호는 8자 이상을 사용해 주세요.'
+                'username-already-in-use': '이미 사용 중인 아이디입니다.',
+                'auth/email-already-in-use': '이미 사용 중인 이메일입니다. 로그인해 주세요.',
+                'auth/email-already-exists': '이미 사용 중인 이메일입니다. 로그인해 주세요.',
+                'auth/invalid-email': '이메일 주소를 확인해 주세요.',
+                'auth/weak-password': '비밀번호는 8자 이상을 사용해 주세요.',
+                'auth/operation-not-allowed': '현재 회원가입 기능을 사용할 수 없습니다. 관리자 설정을 확인해 주세요.',
+                'auth/network-request-failed': '네트워크 연결을 확인한 뒤 다시 시도해 주세요.',
+                'auth/too-many-requests': '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.',
+                'permission-denied': '가계부 저장 권한을 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+                'unavailable': '서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+                'failed-precondition': '가계부 저장을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.'
             };
-            setSignupError(messages[e?.code] || '회원가입에 실패했습니다. 입력 내용을 확인해 주세요.');
+            setSignupError(messages[e?.code] || '회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         } finally {
             signupInProgress = false;
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '회원가입하기'; }
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerText = '회원가입하기';
+            }
         }
     }
     window.submitSignup = submitSignup;
