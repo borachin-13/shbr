@@ -2830,9 +2830,11 @@
                 'auth/network-request-failed':'네트워크 연결을 확인해 주세요.',
                 'auth/too-many-requests':'로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.'
             };
-            const message = messages[e?.code] || (authStage === 'data-load'
-                ? '로그인은 성공했지만 가계부 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
-                : '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+            const message = messages[e?.code] || ({
+                'profile-load': 'Firebase 로그인은 성공했지만 사용자 정보를 불러오지 못했습니다.',
+                'username-repair': 'Firebase 로그인은 성공했지만 아이디 연결 정보를 저장하지 못했습니다.',
+                'data-load': '로그인은 성공했지만 가계부 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+            }[authStage] || '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.');
             window.setAuthError(message);
         } finally {
             authenticationInProgress = false;
