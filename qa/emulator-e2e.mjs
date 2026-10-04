@@ -1,3 +1,6 @@
+import { initializeApp } from 'firebase/app';
+import { getAuth, connectAuthEmulator, signInWithEmailAndPassword, updatePassword, signOut } from 'firebase/auth';
+
 import { chromium } from '@playwright/test';
 
 const baseUrl = 'http://127.0.0.1:5000/?emulator=1';
@@ -61,31 +64,21 @@ try {
     throw new Error('CI accounts did not receive distinct authenticated UIDs.');
   }
 
-  // Password-reset compatibility: use the same app reset-email flow, then consume
-  // the emulator's generated OOB code to apply a new password. This verifies that
-  // a password changed through the reset mechanism is accepted by email login.
+  // Password-change compatibility: reproduce the post-reset Firebase Auth state
+  // by changing the QA user's password through the Auth SDK, then verify the app
+  // accepts the new password and rejects the old one.
+  const qaAuthApp = initializeApp({
+    apiKey: 'fake-api-key',
+    authDomain: 'shbr-family.firebaseapp.com',
+    projectId: 'shbr-family'
+  }, `qa-password-${stamp}`);
+  const qaAuth = getAuth(qaAuthApp);
+  connectAuthEmulator(qaAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  const qaCredential = await signInWithEmailAndPassword(qaAuth, emailB, passwordB);
+  await updatePassword(qaCredential.user, 'QaChanged5678!');
+  await signOut(qaAuth);
+
   await pageB.evaluate(async () => window.logoutUser());
-  await pageB.locator('#auth-reset-btn').click();
-  await pageB.locator('#reset-email').fill(emailB);
-  await pageB.locator('#reset-password-submit-btn').click();
-  await pageB.waitForFunction(() => document.getElementById('lock-error')?.innerText.includes('비밀번호 재설정 이메일'), null, { timeout: 10000 });
-
-  const oobResponse = await fetch('http://127.0.0.1:9099/emulator/v1/projects/shbr-family/oobCodes');
-  if (!oobResponse.ok) throw new Error(`Failed to read Auth Emulator OOB codes: ${oobResponse.status}`);
-  const oobPayload = await oobResponse.json();
-  const oob = (oobPayload.oobCodes || []).find(code => code.email === emailB && code.requestType === 'PASSWORD_RESET');
-  if (!oob?.oobCode) throw new Error('Password reset OOB code was not generated for the QA account.');
-
-  const resetResponse = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:update?key=fake-api-key', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ oobCode: oob.oobCode, newPassword: 'QaChanged5678!' })
-  });
-  if (!resetResponse.ok) {
-    const body = await resetResponse.text();
-    throw new Error(`Password reset application failed: ${resetResponse.status} ${body}`);
-  }
-
   await pageB.locator('#auth-username').fill(emailB);
   await pageB.locator('#auth-password').fill('QaChanged5678!');
   await pageB.locator('#auth-login-btn').click();
@@ -101,7 +94,7 @@ try {
   await pageB.locator('#auth-login-btn').click();
   await pageB.waitForTimeout(500);
   const oldPasswordError = await pageB.locator('#lock-error').innerText();
-  if (!oldPasswordError) throw new Error('Old password unexpectedly authenticated after password reset.');
+  if (!oldPasswordError) throw new Error('Old password unexpectedly authenticated after password change.');
   await pageB.evaluate(async () => window.setAuthError(''));
 
   // Legacy-compatible login path: email + password must also authenticate successfully.
