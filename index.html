@@ -1894,8 +1894,8 @@
         const owner = currentOwner || 'shared';
         return `
             <option value="shared" ${owner === 'shared' ? 'selected' : ''}>공통</option>
-            <option value="bora" ${owner === 'bora' ? 'selected' : ''}>보라</option>
-            <option value="sang" ${owner === 'sang' ? 'selected' : ''}>상훈</option>`;
+            <option value="bora" ${owner === 'bora' ? 'selected' : ''}>${escapeHtml(memberLabel('bora'))}</option>
+            <option value="sang" ${owner === 'sang' ? 'selected' : ''}>${escapeHtml(memberLabel('sang'))}</option>`;
     }
 
     function getVariableCategoryOptionsHtml(currentCategory) {
