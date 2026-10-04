@@ -3,7 +3,7 @@ import { chromium } from '@playwright/test';
 const baseUrl = 'http://127.0.0.1:5000/?emulator=1';
 const passwordA = 'QaTest1234!';
 const passwordB = 'QbTest1234!';
-const stamp = Date.now();
+const stamp = Date.now().toString(36);
 const emailA = `qa-ci-a-${stamp}@test.com`;
 const emailB = `qa-ci-b-${stamp}@test.com`;
 const usernameA = `qa_ci_a_${stamp}`;
