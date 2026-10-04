@@ -362,6 +362,14 @@
         .dashboard-saving-detail{margin-top:9px;font-size:11px;color:var(--text-sub);font-weight:700}
         .dashboard-card-hint{font-size:10px;color:var(--text-sub);font-weight:700}
         .dashboard-card-actions{display:flex;align-items:center;gap:8px}
+        .dashboard-saving-detail{margin-top:10px}
+        .dashboard-saving-row{display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px;padding:10px 0;border:0;border-bottom:1px solid #f0f2f4;background:transparent;text-align:left;cursor:pointer;font:inherit}
+        .dashboard-saving-row:last-child{border-bottom:0}
+        .dashboard-saving-row span{min-width:0;display:flex;flex-direction:column;gap:3px}
+        .dashboard-saving-row strong{font-size:11px;color:var(--primary);font-weight:800}
+        .dashboard-saving-row small{font-size:9px;color:var(--text-sub)}
+        .dashboard-saving-row b{font-size:12px;color:var(--primary);font-weight:900;white-space:nowrap}
+
         .dashboard-inline-action{border:1px solid var(--border-color);background:#f8fafc;color:var(--primary);border-radius:9px;padding:6px 9px;font-size:10px;font-weight:800;cursor:pointer}
         .dashboard-inline-action:active{transform:translateY(1px)}
         .dashboard-expense-row-button,.record-row-button{width:100%;font:inherit;text-align:left;border-left:0;border-right:0;border-top:0;background:transparent;cursor:pointer}
@@ -921,7 +929,7 @@
         .dashboard-expense-row:last-child{border-bottom:0}
         .dashboard-expense-meta{margin-top:3px;font-size:10px;color:var(--text-sub)}
         .dashboard-expense-amount{font-size:13px;font-weight:900;color:var(--primary);white-space:nowrap}
-    <style id="records-ui-final">
+    
 /* 내역 화면 최종 정리 */
 .records-list-card{padding:0 0 24px !important;background:transparent !important;box-shadow:none !important}
 .records-section{display:block !important;background:#fff !important;border:1px solid var(--border-color) !important;border-radius:16px !important;padding:14px 16px !important;margin:0 0 12px !important;box-shadow:var(--shadow-sm) !important}
@@ -940,7 +948,7 @@
 .records-section .record-amount{font-size:14px !important;font-weight:900 !important;color:var(--primary) !important}
 .records-empty{padding:18px 0 4px !important;font-size:11px !important;color:var(--text-sub) !important}
 .records-more-btn{width:100% !important;margin-top:8px !important;padding:10px !important;border:0 !important;background:#f6f8fa !important;color:var(--primary) !important;border-radius:10px !important;font-size:11px !important;font-weight:800 !important}
-<style id="records-ui-final-v2">
+
 #page-records .records-list-card{padding:0 !important;background:transparent !important;border:0 !important;box-shadow:none !important}
 #page-records #records-list{display:flex !important;flex-direction:column !important;gap:12px !important}
 #page-records .records-section{display:block !important;width:100% !important;box-sizing:border-box !important;background:#fff !important;border:1px solid var(--border-color) !important;border-radius:16px !important;padding:14px 16px !important;margin:0 !important;box-shadow:var(--shadow-sm) !important}
@@ -959,7 +967,7 @@
 #page-records .records-date-group{display:block !important;margin:0 !important;padding:0 !important}
 #page-records .records-date-title{padding:11px 0 3px !important;font-size:10px !important;font-weight:900 !important;color:var(--text-sub) !important}
 #page-records .records-empty{padding:16px 0 3px !important;font-size:11px !important;color:var(--text-sub) !important}
-<style id="record-category-select-final">.record-editor select{width:100%;border:1px solid var(--border-color);border-radius:9px;padding:10px;font-size:14px;outline:none;background:#fff;color:var(--primary)}</style></style></style></style>
+ .record-editor select{width:100%;border:1px solid var(--border-color);border-radius:9px;padding:10px;font-size:14px;outline:none;background:#fff;color:var(--primary)}</style>
 </head>
 <body>
 
@@ -1040,7 +1048,7 @@
                             <button type="button" class="dashboard-inline-link" onclick="window.navigate('records', this)">전체 내역 →</button>
                         </div>
                     </div>
-                    <div class="dashboard-section-total"><strong id="kpi-expense">0원</strong><span>이번 달</span></div>
+                    <div class="dashboard-section-total"><strong id="kpi-expense">0원</strong></div>
                     <div id="dashboard-expense-breakdown" class="dashboard-recent-expenses dashboard-expense-unified"><div class="dashboard-empty">아직 지출 기록이 없어요.</div></div>
                 </section>
                 <section class="card dashboard-section-card dashboard-saving-section">
@@ -1048,8 +1056,8 @@
                         <span>🏦 이번 달 저축</span>
                         
                     </div>
-                    <div class="dashboard-section-total"><strong id="dashboard-saving-total">0원</strong><span>고정저축</span></div>
-                    <div class="dashboard-saving-detail" id="dashboard-saving-detail">우리 집 고정저축</div>
+                    <div class="dashboard-section-total"><strong id="dashboard-saving-total">0원</strong></div>
+                    <div class="dashboard-saving-detail" id="dashboard-saving-detail"><div class="dashboard-empty">저축 내역이 없어요.</div></div>
                 </section>
                 <div style="display:none;" aria-hidden="true">
                     <span id="dashboard-expense-count"></span><span id="kpi-target-label"></span><span id="kpi-total-savings">0원</span>
@@ -2952,9 +2960,20 @@
         if(remainingEl) remainingEl.style.color=remaining<0?'var(--expense-color)':'var(--primary)';
         set('dashboard-income-value',formatAmount(income));
         set('dashboard-expense-value',formatAmount(expense));
+        set('kpi-expense',formatAmount(expense));
         set('dashboard-saving-value',formatAmount(savings));
         set('dashboard-saving-total',formatAmount(savings));
-        set('dashboard-saving-detail','우리 집 고정저축 '+formatAmount(savings));
+        const savingsList=(Array.isArray(d.categories?.savings)?d.categories.savings:[])
+            .filter(x=>(Number(x.amount)||0)>0&&(currentTab==='all'||x.owner==='shared'||x.owner===currentTab));
+        const savingsBox=document.getElementById('dashboard-saving-detail');
+        if(savingsBox){
+            if(!savingsList.length) savingsBox.innerHTML='<div class="dashboard-empty">저축 내역이 없어요.</div>';
+            else savingsBox.innerHTML=savingsList.map(x=>{
+                const owner=x.owner==='bora'?'보라':x.owner==='sang'?'상훈':'공통';
+                const originalIndex=(d.categories.savings||[]).indexOf(x);
+                return `<button type="button" class="dashboard-saving-row" onclick="window.editRecord('saving','savings',${originalIndex})"><span><strong>${escapeHtml(x.name||'저축')}</strong><small>${owner}</small></span><b>${formatAmount(Number(x.amount)||0)}</b></button>`;
+            }).join('');
+        }
         const box=document.getElementById('dashboard-expense-breakdown');
         if(box) renderDashboardRecentExpenses(d,box);
     }
