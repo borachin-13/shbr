@@ -19,13 +19,13 @@ async function signup(page, username, email, password) {
   const started = Date.now();
   await page.goto(baseUrl);
   const pageReadyMs = Date.now() - started;
-  await page.locator('#signup-submit-btn').click();
+  await page.locator('#auth-signup-btn').click();
   await page.locator('#signup-username').fill(username);
   await page.locator('#signup-email').fill(email);
   await page.locator('#signup-password').fill(password);
   await page.locator('#signup-password-confirm').fill(password);
   const authStarted = Date.now();
-  await page.locator('#auth-signup-btn').click();
+  await page.locator('#signup-submit-btn').click();
   await page.waitForFunction(() => typeof window.runEmulatorIntegrityProbe === 'function');
   await page.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none');
   const authenticatedMs = Date.now() - authStarted;
