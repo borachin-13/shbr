@@ -361,6 +361,16 @@
         .dashboard-breakdown-label{font-size:10px;color:var(--text-sub);font-weight:700}.dashboard-breakdown-track{height:6px;background:#eef1f3;border-radius:99px;overflow:hidden}.dashboard-breakdown-fill{height:100%;background:var(--primary);border-radius:99px}.dashboard-breakdown-value{font-size:10px;color:var(--primary);font-weight:800;text-align:right}
         .dashboard-saving-detail{margin-top:9px;font-size:11px;color:var(--text-sub);font-weight:700}
         .dashboard-card-hint{font-size:10px;color:var(--text-sub);font-weight:700}
+        .dashboard-card-actions{display:flex;align-items:center;gap:8px}
+        .dashboard-inline-action{border:1px solid var(--border-color);background:#f8fafc;color:var(--primary);border-radius:9px;padding:6px 9px;font-size:10px;font-weight:800;cursor:pointer}
+        .dashboard-inline-action:active{transform:translateY(1px)}
+        .dashboard-expense-row-button,.record-row-button{width:100%;font:inherit;text-align:left;border-left:0;border-right:0;border-top:0;background:transparent;cursor:pointer}
+        .dashboard-expense-row-button:active,.record-row-button:active{background:#f8fafc}
+        .record-row-button{display:flex;align-items:center;justify-content:space-between;gap:12px}
+        .record-editor{display:flex;flex-direction:column;gap:7px}
+        .record-editor label{font-size:11px;font-weight:700;color:var(--text-sub);margin-top:5px}
+        .record-editor input{width:100%;border:1px solid var(--border-color);border-radius:9px;padding:10px;font-size:14px;outline:none}
+        .record-delete-btn{margin-top:10px;border:0;background:#fff5f5;color:#c53030;border-radius:9px;padding:10px;font-size:12px;font-weight:800;cursor:pointer}
         .dashboard-money-card{background:#fff;border-radius:22px;padding:22px 20px 18px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
         .dashboard-money-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
         .dashboard-money-label{font-size:12px;font-weight:800;color:var(--text-sub);margin-top:4px}
@@ -984,11 +994,13 @@
                         <div><span>저축</span><strong id="dashboard-saving-value">0원</strong></div>
                     </div>
                 </section>
-                <button class="quick-ledger-main dashboard-primary-expense" onclick="window.quickAddExpense()">＋ 지출 기록</button>
                 <section class="card dashboard-section-card">
                     <div class="dashboard-card-title">
                         <span>💸 이번 달 지출</span>
-                        <button type="button" class="dashboard-inline-link" onclick="window.navigate('records', this)">전체 내역 →</button>
+                        <div class="dashboard-card-actions">
+                            <button type="button" class="dashboard-inline-action" onclick="window.quickAddExpense()">＋ 기록</button>
+                            <button type="button" class="dashboard-inline-link" onclick="window.navigate('records', this)">전체 내역 →</button>
+                        </div>
                     </div>
                     <div class="dashboard-section-total"><strong id="kpi-expense">0원</strong><span>이번 달</span></div>
                     <div id="dashboard-expense-breakdown" class="dashboard-recent-expenses dashboard-expense-unified"><div class="dashboard-empty">아직 지출 기록이 없어요.</div></div>
@@ -2879,30 +2891,28 @@
     function renderDashboardRecentExpenses(d, targetEl) {
         const el = targetEl || document.getElementById('dashboard-recent-expenses') || document.getElementById('dashboard-expense-breakdown');
         if (!el) return;
-        const items = [
-            ...(Array.isArray(d?.categories?.expense) ? d.categories.expense.map(x => ({...x, meta:'고정지출'})) : []),
-            ...(Array.isArray(d?.categories?.living) ? d.categories.living.map(x => ({...x, meta:'공동생활'})) : []),
-            ...(Array.isArray(d?.categories?.bora_personal) ? d.categories.bora_personal.map(x => ({...x, meta:'보라 · 개인'})) : []),
-            ...(Array.isArray(d?.categories?.sang_personal) ? d.categories.sang_personal.map(x => ({...x, meta:'상훈 · 개인'})) : []),
-            ...(Array.isArray(d?.categories?.variable_expense) ? d.categories.variable_expense.map(x => ({...x, meta:'변동지출'})) : [])
-        ].filter(x => (Number(x.amount)||0) > 0)
-         .sort((a,b) => String(b.date || '').localeCompare(String(a.date || '')))
-         .slice(0, 4);
-        if (!items.length) {
-            el.innerHTML = '<div class="dashboard-empty">아직 지출 기록이 없어요.</div>';
-            return;
-        }
-        el.innerHTML = items.map(item => {
-            const owner = item.owner === 'bora' ? '보라' : item.owner === 'sang' ? '상훈' : '공통';
-            const label = item.name || item.category || '지출';
-            const meta = item.category ? `· ${escapeHtml(item.category)} · ${escapeHtml(item.meta || owner)}` : `· ${escapeHtml(item.meta || owner)}`;
-            return `<div class="dashboard-expense-row">
+        const sources = [
+            {key:'expense', items:Array.isArray(d?.categories?.expense)?d.categories.expense:[], meta:'고정지출'},
+            {key:'living', items:Array.isArray(d?.categories?.living)?d.categories.living:[], meta:'공동생활'},
+            {key:'bora_personal', items:Array.isArray(d?.categories?.bora_personal)?d.categories.bora_personal:[], meta:'보라 · 개인'},
+            {key:'sang_personal', items:Array.isArray(d?.categories?.sang_personal)?d.categories.sang_personal:[], meta:'상훈 · 개인'},
+            {key:'variable_expense', items:Array.isArray(d?.categories?.variable_expense)?d.categories.variable_expense:[], meta:'변동지출'}
+        ];
+        const items=[];
+        sources.forEach(src=>src.items.forEach((item,index)=>{
+            if((Number(item.amount)||0)>0)items.push({...item,_sourceKey:src.key,_sourceIndex:index,_meta:src.meta});
+        }));
+        items.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+        const visible=items.slice(0,4);
+        if(!visible.length){el.innerHTML='<div class="dashboard-empty">아직 지출 기록이 없어요.</div>';return;}
+        el.innerHTML=visible.map(item=>{
+            const owner=item.owner==='bora'?'보라':item.owner==='sang'?'상훈':'공통';
+            const label=item.name||item.category||'지출';
+            const meta=item.category?`· ${escapeHtml(item.category)} · ${escapeHtml(item._meta||owner)}`:`· ${escapeHtml(item._meta||owner)}`;
+            return `<button type="button" class="dashboard-expense-row dashboard-expense-row-button" onclick="window.editRecord('expense','${item._sourceKey}',${item._sourceIndex})">
                 <div><div>${escapeHtml(label)}</div><div class="dashboard-expense-meta">${meta}</div></div>
-                <div class="dashboard-expense-actions">
-                    <div class="dashboard-expense-amount">${formatAmount(Number(item.amount)||0)}</div>
-                    <button type="button" class="dashboard-edit-btn" onclick="window.openModal('expense')">수정</button>
-                </div>
-            </div>`;
+                <div class="dashboard-expense-amount">${formatAmount(Number(item.amount)||0)}</div>
+            </button>`;
         }).join('');
     }
 
@@ -3301,6 +3311,64 @@
     window.getMonthlyBudget = getMonthlyBudget;
     window.saveMonthlyBudget = saveMonthlyBudget;
 
+    let editingRecord = null;
+
+    function openRecordEditor(type, sourceKey, sourceIndex) {
+        const modal=document.getElementById('custom-modal'), titleEl=document.getElementById('modal-title-text'), subtabsEl=document.getElementById('modal-subtabs-container'), bodyEl=document.getElementById('modal-body-content'), saveBtn=document.getElementById('modal-save-btn');
+        if(!modal||!titleEl||!subtabsEl||!bodyEl||!saveBtn)return;
+        const d=store[currentMonth]||DEFAULT_MONTH_DATA();
+        let record=null;
+        if(type==='income'){
+            const names={bora:'보라 월급',bora_extra:'보라 기타수입',sang:'상훈 월급',sang_other_income:'상훈 기타수입',trip_usd:'상훈 출장 외화수입'};
+            record={type,sourceKey,amount:Number(d[sourceKey])||0,name:names[sourceKey]||'수입'};
+        }else{
+            const arr=Array.isArray(d?.categories?.[sourceKey])?d.categories[sourceKey]:[];
+            record=arr[Number(sourceIndex)];
+            if(!record)return;
+            record={...record,type,sourceKey,sourceIndex:Number(sourceIndex)};
+        }
+        editingRecord=record;
+        titleEl.innerText=type==='income'?'💵 수입 수정':type==='saving'?'💰 저축 수정':'💸 지출 수정';
+        subtabsEl.innerHTML='';
+        const dateHtml=type==='expense'?`<label>날짜</label><input id="record-edit-date" type="date" value="${escapeHtml(record.date||'')}">`:'';
+        const categoryHtml=type==='expense'&&sourceKey==='variable_expense'?`<label>카테고리</label><input id="record-edit-category" value="${escapeHtml(record.category||'')}">`:'';
+        bodyEl.innerHTML=`<div class="record-editor">${dateHtml}<label>항목명</label><input id="record-edit-name" value="${escapeHtml(record.name||'')}">${categoryHtml}<label>금액</label><input id="record-edit-amount" inputmode="numeric" value="${formatNumberString(record.amount||0)}"><button type="button" class="record-delete-btn" onclick="window.deleteEditingRecord()">삭제</button></div>`;
+        saveBtn.innerText='저장';saveBtn.onclick=saveEditingRecord;
+        modal.classList.add('open');modal.style.display='flex';modal.style.pointerEvents='auto';modal.setAttribute('aria-hidden','false');
+        setTimeout(()=>{const inp=document.getElementById('record-edit-amount');if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}},30);
+    }
+    window.editRecord=openRecordEditor;
+
+    async function saveEditingRecord(){
+        if(!editingRecord||!store[currentMonth])return;
+        const d=store[currentMonth], amount=parseNumberString(document.getElementById('record-edit-amount')?.value||''), name=document.getElementById('record-edit-name')?.value.trim()||editingRecord.name||'항목';
+        const date=document.getElementById('record-edit-date')?.value||'', category=document.getElementById('record-edit-category')?.value.trim()||editingRecord.category||'';
+        const patch={updatedAt:Date.now()};
+        if(editingRecord.type==='income'){d[editingRecord.sourceKey]=amount;patch[editingRecord.sourceKey]=amount;}
+        else{
+            const key=editingRecord.sourceKey,arr=Array.isArray(d.categories?.[key])?d.categories[key]:[],idx=editingRecord.sourceIndex;
+            if(!arr[idx])return;
+            arr[idx]={...arr[idx],amount,name};
+            if(editingRecord.type==='expense'&&key==='expense')arr[idx].date=date;
+            if(editingRecord.type==='expense'&&key==='variable_expense'){arr[idx].date=date;arr[idx].category=category;}
+            d.categories[key]=arr;patch[`categories.${key}`]=cloneData(arr);
+        }
+        closeModal();editingRecord=null;render();saveMonthPatch(currentMonth,patch,'수정되었습니다.');
+    }
+    window.saveEditingRecord=saveEditingRecord;
+
+    async function deleteEditingRecord(){
+        if(!editingRecord||!store[currentMonth]||!confirm('이 내역을 삭제할까요?'))return;
+        const d=store[currentMonth],patch={updatedAt:Date.now()};
+        if(editingRecord.type==='income'){d[editingRecord.sourceKey]=0;patch[editingRecord.sourceKey]=0;}
+        else{
+            const key=editingRecord.sourceKey,arr=Array.isArray(d.categories?.[key])?d.categories[key]:[];
+            arr.splice(editingRecord.sourceIndex,1);d.categories[key]=arr;patch[`categories.${key}`]=cloneData(arr);
+        }
+        closeModal();editingRecord=null;render();saveMonthPatch(currentMonth,patch,'삭제되었습니다.');
+    }
+    window.deleteEditingRecord=deleteEditingRecord;
+
     function openModal(type) {
         const modal = document.getElementById('custom-modal');
         const titleEl = document.getElementById('modal-title-text');
@@ -3370,6 +3438,7 @@
             modal.style.display = 'none';
             modal.style.pointerEvents = 'none';
             modal.setAttribute('aria-hidden', 'true');
+            const saveBtn=document.getElementById('modal-save-btn'); if(saveBtn) saveBtn.innerText='저장';
         }
     }
     window.closeModal = closeModal;
@@ -4022,84 +4091,43 @@ function addCategorySetting() {
 
     let recordsFilter = 'all';
     function renderRecords(){
-    const el=document.getElementById('records-list');
-    if(!el)return;
-    const d=store[currentMonth]||DEFAULT_MONTH_DATA();
-    const isAll=currentTab==='all';
-
-    // 통합 화면은 사람별 수입을 나열하지 않고 '우리 집 수입'으로 묶는다.
-    // 개인 탭에서는 해당 구성원의 원래 데이터를 그대로 확인할 수 있다.
-    const totalIncome =
-        (Number(d.bora)||0) +
-        (Number(d.bora_extra)||0) +
-        (Number(d.sang)||0) +
-        (Number(d.sang_other_income)||0) +
-        ((Number(d.trip_usd)||0)*(Number(d.usdRate)||0));
-
-    const incomeItems=isAll
-        ? [{name:'우리 집 수입',amount:totalIncome,type:'income',meta:'이번 달 수입 합계'}]
-        : currentTab==='bora'
-            ? [
-                {name:'급여',amount:Number(d.bora)||0,type:'income',meta:'보라 · 급여'},
-                {name:'기타수입',amount:Number(d.bora_extra)||0,type:'income',meta:'보라 · 기타수입'}
-              ]
-            : [
-                {name:'급여',amount:Number(d.sang)||0,type:'income',meta:'상훈 · 급여'},
-                {name:'기타수입',amount:Number(d.sang_other_income)||0,type:'income',meta:'상훈 · 기타수입'},
-                {name:'출장 외화수입',amount:(Number(d.trip_usd)||0)*(Number(d.usdRate)||0),type:'income',meta:'상훈 · 출장수입'}
-              ];
-    
-    const expenseItems=[
-        ...(Array.isArray(d?.categories?.expense)?d.categories.expense.map(x=>({...x,type:'expense',meta:'고정지출'})):[]),
-        ...(Array.isArray(d?.categories?.living)?d.categories.living.map(x=>({...x,type:'expense',meta:'공동생활'})):[]),
-        ...(currentTab!=='sang' && Array.isArray(d?.categories?.bora_personal)?d.categories.bora_personal.map(x=>({...x,type:'expense',meta:isAll?'개인지출':'보라 · 개인'})):[]),
-        ...(currentTab!=='bora' && Array.isArray(d?.categories?.sang_personal)?d.categories.sang_personal.map(x=>({...x,type:'expense',meta:isAll?'개인지출':'상훈 · 개인'})):[]),
-        ...(Array.isArray(d?.categories?.variable_expense)
-            ?d.categories.variable_expense
-                .filter(x=>currentTab==='all' || x.owner==='shared' || x.owner===currentTab)
-                .map(x=>({...x,type:'expense',meta:isAll?'변동지출':(x.owner==='shared'?'공통':currentTab==='bora'?'보라 · 개인':'상훈 · 개인')}))
-            :[])
-    ].filter(x=>(Number(x.amount)||0)>0);
-
-    const savingSource=Array.isArray(d?.categories?.savings)?d.categories.savings:[];
-    const savingItems=savingSource
-        .filter(x=>(Number(x.amount)||0)>0 && (isAll || x.owner==='shared' || x.owner===currentTab))
-        .map(x=>({...x,type:'saving',meta:isAll?'고정저축':(x.owner==='shared'?'공통':currentTab==='bora'?'보라':'상훈')}));
-
-    const items=[...incomeItems,...expenseItems,...savingItems]
-        .filter(x=>(Number(x.amount)||0)>0);
-    const filtered=recordsFilter==='all'?items:items.filter(x=>x.type===recordsFilter);
-
-    if(!filtered.length){
-        el.innerHTML='<div class="dashboard-empty">아직 기록된 내역이 없어요.</div>';
-        return;
+        const el=document.getElementById('records-list');
+        if(!el)return;
+        const d=store[currentMonth]||DEFAULT_MONTH_DATA();
+        const isAll=currentTab==='all';
+        const totalIncome=(Number(d.bora)||0)+(Number(d.bora_extra)||0)+(Number(d.sang)||0)+(Number(d.sang_other_income)||0)+((Number(d.trip_usd)||0)*(Number(d.usdRate)||0));
+        const incomeItems=isAll
+            ? [{name:'우리 집 수입',amount:totalIncome,type:'income',meta:'이번 달 수입 합계',editable:false}]
+            : currentTab==='bora'
+                ? [{name:'급여',amount:Number(d.bora)||0,type:'income',meta:'보라 · 급여',field:'bora'},{name:'기타수입',amount:Number(d.bora_extra)||0,type:'income',meta:'보라 · 기타수입',field:'bora_extra'}]
+                : [{name:'급여',amount:Number(d.sang)||0,type:'income',meta:'상훈 · 급여',field:'sang'},{name:'기타수입',amount:Number(d.sang_other_income)||0,type:'income',meta:'상훈 · 기타수입',field:'sang_other_income'},{name:'출장 외화수입',amount:(Number(d.trip_usd)||0)*(Number(d.usdRate)||0),type:'income',meta:'상훈 · 출장수입',field:'trip_usd'}];
+        const expenseItems=[];
+        [['expense','고정지출'],['living','공동생활'],['bora_personal','보라 · 개인'],['sang_personal','상훈 · 개인'],['variable_expense','변동지출']].forEach(([key,meta])=>{
+            const arr=Array.isArray(d?.categories?.[key])?d.categories[key]:[];
+            arr.forEach((x,index)=>{if((Number(x.amount)||0)>0)expenseItems.push({...x,type:'expense',meta,isAll,_sourceKey:key,_sourceIndex:index});});
+        });
+        const savingItems=(Array.isArray(d?.categories?.savings)?d.categories.savings:[])
+            .filter(x=>(Number(x.amount)||0)>0&&(isAll||x.owner==='shared'||x.owner===currentTab))
+            .map((x,index)=>({...x,type:'saving',meta:isAll?'고정저축':(x.owner==='shared'?'공통':currentTab==='bora'?'보라':'상훈'),_sourceKey:'savings',_sourceIndex:index}));
+        const items=[...incomeItems,...expenseItems,...savingItems].filter(x=>(Number(x.amount)||0)>0);
+        const filtered=recordsFilter==='all'?items:items.filter(x=>x.type===recordsFilter);
+        if(!filtered.length){el.innerHTML='<div class="dashboard-empty">아직 기록된 내역이 없어요.</div>';return;}
+        const labels={income:'수입',expense:'지출',saving:'저축'},groups={};
+        filtered.forEach(item=>{const key=item.date||'이번 달';(groups[key]||(groups[key]=[])).push(item);});
+        el.innerHTML=Object.keys(groups).sort((a,b)=>String(b).localeCompare(String(a))).map(date=>{
+            const rows=groups[date].map(item=>{
+                const label=item.name||item.category||labels[item.type];
+                const editable=item.editable!==false;
+                const click=editable?`onclick="window.editRecord('${item.type}','${item.type==='income'?item.field:item._sourceKey}',${item.type==='income'?'null':item._sourceIndex})"`:'';
+                return `<button type="button" class="record-row record-row-button" ${click}>
+                    <div class="record-row-main"><div class="record-name">${escapeHtml(label)}</div><div class="record-meta">${escapeHtml(item.meta||'')} · ${labels[item.type]}</div></div>
+                    <div class="record-row-right"><div class="record-amount">${formatAmount(Number(item.amount)||0)}</div></div>
+                </button>`;
+            }).join('');
+            return `<div class="record-date-group"><div class="record-date-title">${escapeHtml(date==='이번 달'?'이번 달':formatKoreanDate(date))}</div>${rows}</div>`;
+        }).join('');
     }
 
-    const labels={income:'수입',expense:'지출',saving:'저축'};
-    const groups={};
-    filtered.forEach(item=>{
-        const key=item.date||'이번 달';
-        (groups[key]||(groups[key]=[])).push(item);
-    });
-
-    el.innerHTML=Object.keys(groups).sort((a,b)=>String(b).localeCompare(String(a))).map(date=>{
-        const rows=groups[date].map(item=>{
-            const label=item.name||item.category||labels[item.type];
-            const editType = item.type === 'income' ? 'income' : item.type === 'saving' ? 'savings' : 'expense';
-            return `<div class="record-row">
-                <div class="record-row-main">
-                    <div class="record-name">${escapeHtml(label)}</div>
-                    <div class="record-meta">${escapeHtml(item.meta||'')} · ${labels[item.type]}</div>
-                </div>
-                <div class="record-row-right">
-                    <div class="record-amount">${formatAmount(Number(item.amount)||0)}</div>
-                    <button class="record-edit-btn" type="button" onclick="window.openModal('${editType}')">수정</button>
-                </div>
-            </div>`;
-        }).join('');
-        return `<div class="record-date-group"><div class="record-date-title">${escapeHtml(date==='이번 달'?'이번 달':formatKoreanDate(date))}</div>${rows}</div>`;
-    }).join('');
-}
 function filterRecords(filter,btn){recordsFilter=filter||'all';document.querySelectorAll('.records-filter').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderRecords();} window.filterRecords=filterRecords;
 
     function openMonthManage(){const m=document.getElementById('month-manage-modal'),t=document.getElementById('month-manage-title');if(!m)return;if(t){const p=currentMonth.split('-');t.innerText=Number(p[1])+'월 관리';}m.classList.add('open');m.style.display='flex';m.style.pointerEvents='auto';m.setAttribute('aria-hidden','false');} window.openMonthManage=openMonthManage;
