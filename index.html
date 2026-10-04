@@ -780,7 +780,6 @@
         .signup-intro{padding:4px 0 14px;color:var(--text-sub);font-size:12px;line-height:1.55}
         .signup-field{margin-bottom:12px}
         .signup-field label{display:block;margin-bottom:6px;font-size:11px;font-weight:800;color:var(--text-sub)}
-        .signup-select{width:100%;box-sizing:border-box;padding:12px;border:1px solid var(--border-color);border-radius:10px;background:#fff;font-size:14px;color:var(--primary);outline:none;margin-bottom:0}
         .signup-field input{width:100%;box-sizing:border-box;padding:12px;border:1px solid var(--border-color);border-radius:10px;background:#fff;font-size:14px;color:var(--primary);outline:none}
         .signup-field input:focus{border-color:#aeb9c8;box-shadow:0 0 0 3px rgba(26,32,44,.06)}
         .signup-error{min-height:18px;margin-top:2px;color:var(--expense-color);font-size:11px;line-height:1.5}
@@ -1367,7 +1366,8 @@
                     <div class="card-header">
                         <span class="card-title">👤 계정</span>
                         <button class="btn-action-sm" onclick="window.logoutUser()">로그아웃</button>
-                    </div>                </div>
+                    </div>
+                </div>
 
             </div>
 
@@ -1538,18 +1538,7 @@
     </div>
 
     <!-- 비밀번호 재설정 모달 -->
-    <div class="modal-overlay" id="forgot-username-modal" style="display:none;pointer-events:none" aria-hidden="true">
-  <div class="modal-card signup-modal-card">
-    <div class="modal-header"><div class="modal-title">아이디 찾기</div><button type="button" onclick="window.closeForgotUsernameModal()">✕</button></div>
-    <div class="modal-body">
-      <div class="signup-intro">가입할 때 사용한 이메일을 입력해 주세요.</div>
-      <div class="signup-field"><label for="forgot-username-email">이메일</label><input id="forgot-username-email" type="email" autocomplete="email" placeholder="이메일 주소"></div>
-      <div class="signup-error" id="forgot-username-error"></div>
-    </div>
-    <div class="modal-footer"><button type="button" class="primary-btn" onclick="window.sendForgotUsernameEmail()">아이디 확인하기</button></div>
-  </div>
-</div>
-<div class="modal-overlay" id="reset-password-modal" aria-hidden="true">
+    <div class="modal-overlay" id="reset-password-modal" aria-hidden="true">
         <div class="modal-card signup-modal-card" role="dialog" aria-modal="true" aria-labelledby="reset-password-modal-title">
             <div class="modal-header">
                 <div class="modal-title" id="reset-password-modal-title">비밀번호 찾기</div>
@@ -1799,7 +1788,6 @@
     const USER_MONTHS_COLLECTION = 'months';
     const USER_SETTINGS_COLLECTION = 'settings';
     const USER_SETTINGS_DOC_ID = 'profile_v1';
-
     const BASE_MONTHS = ['2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12'];
 
     function isAuthenticatedUser() {
@@ -2531,70 +2519,6 @@
         return true;
     }
 
-    function openForgotUsernameModal() {
-        const modal = document.getElementById('forgot-username-modal');
-        if (!modal) return;
-        const error = document.getElementById('forgot-username-error');
-        const email = document.getElementById('forgot-username-email');
-        if (error) error.innerText = '';
-        if (email) email.value = '';
-        modal.classList.add('open');
-        modal.style.display = 'flex';
-        modal.style.pointerEvents = 'auto';
-        modal.setAttribute('aria-hidden', 'false');
-        setTimeout(() => email?.focus(), 50);
-    }
-    window.openForgotUsernameModal = openForgotUsernameModal;
-
-    function closeForgotUsernameModal() {
-        const modal = document.getElementById('forgot-username-modal');
-        if (!modal) return;
-        modal.classList.remove('open');
-        modal.style.display = 'none';
-        modal.style.pointerEvents = 'none';
-        modal.setAttribute('aria-hidden', 'true');
-    }
-    window.closeForgotUsernameModal = closeForgotUsernameModal;
-
-    async function sendForgotUsernameEmail() {
-        const email = document.getElementById('forgot-username-email')?.value.trim().toLowerCase() || '';
-        const error = document.getElementById('forgot-username-error');
-        if (error) error.innerText = '';
-        if (!email || !email.includes('@')) {
-            if (error) error.innerText = '가입할 때 사용한 이메일을 입력해 주세요.';
-            return;
-        }
-        try {
-            const snap = await getDocs(collection(db, USERS_COLLECTION));
-            let found = null;
-            snap.forEach(s => {
-                const profile = s.data()?.profile || {};
-                if (profile.email === email) found = profile;
-            });
-            if (!found?.username) throw new Error('not-found');
-            const body = [
-                '안녕하세요, 우리 곳간입니다.',
-                '',
-                '요청하신 계정의 아이디를 알려드려요.',
-                '',
-                '아이디: ' + found.username,
-                '',
-                '본인이 요청하지 않았다면 이 메일을 무시해주세요.',
-                '',
-                '감사합니다.',
-                '우리 곳간'
-            ].join('\n');
-            // 이메일 발송 서비스가 연결되면 이 본문을 사용한다.
-            // 현재 Firebase Auth는 비밀번호 재설정 메일만 직접 발송하므로,
-            // 아이디 찾기는 화면에서 인증된 이메일 확인 후 안내하는 방식으로 처리한다.
-            closeForgotUsernameModal();
-            showToast('가입 이메일을 확인하면 아이디를 안내해 드릴게요.');
-        } catch (e) {
-            if (error) error.innerText = '가입할 때 사용한 이메일을 확인해 주세요.';
-        }
-    }
-    window.sendForgotUsernameEmail = sendForgotUsernameEmail;
-
     function setResetPasswordError(message) {
         const el = document.getElementById('reset-password-error');
         if (el) el.innerText = message || '';
@@ -2667,7 +2591,7 @@
     window.submitPasswordReset = submitPasswordReset;
 
     async function resetPassword() {
-        const emailEl = document.getElementById('auth-email');
+        const emailEl = document.getElementById('auth-username');
         const email = emailEl ? emailEl.value.trim() : '';
         window.setAuthError('');
         if (!email || !email.includes('@')) {
@@ -2703,13 +2627,6 @@
         if (el) el.innerText = message || '';
     }
 
-    function updateSignupHouseholdMode() {
-        const mode = document.getElementById('signup-household-mode')?.value || 'create';
-        const nameField = document.getElementById('signup-household-name-field');
-        const inviteField = document.getElementById('signup-household-invite-field');
-        if (nameField) nameField.style.display = mode === 'create' ? '' : 'none';
-        if (inviteField) inviteField.style.display = mode === 'join' ? '' : 'none';
-    }
     function openSignupModal() {
         const modal = document.getElementById('signup-modal');
         if (!modal) return;
@@ -2724,7 +2641,6 @@
         modal.setAttribute('aria-hidden', 'false');
         setTimeout(() => document.getElementById('signup-name')?.focus(), 50);
     }
-    window.updateSignupHouseholdMode = updateSignupHouseholdMode;
     window.openSignupModal = openSignupModal;
 
     function closeSignupModal() {
@@ -2740,13 +2656,20 @@
 
     async function submitSignup() {
         if (signupInProgress) return;
-        const name = document.getElementById('signup-name')?.value.trim() || '';
-        const username = document.getElementById('signup-username')?.value.trim().toLowerCase() || '';
-        const email = document.getElementById('signup-email')?.value.trim().toLowerCase() || '';
-        const password = document.getElementById('signup-password')?.value || '';
-        const passwordConfirm = document.getElementById('signup-password-confirm')?.value || '';
-        const householdName = document.getElementById('signup-household')?.value.trim() || '우리 집';
+        const nameEl = document.getElementById('signup-name');
+        const usernameEl = document.getElementById('signup-username');
+        const emailEl = document.getElementById('signup-email');
+        const passwordEl = document.getElementById('signup-password');
+        const confirmEl = document.getElementById('signup-password-confirm');
+        const householdEl = document.getElementById('signup-household');
         const submitBtn = document.getElementById('signup-submit-btn');
+
+        const name = nameEl?.value.trim() || '';
+        const username = usernameEl?.value.trim().toLowerCase() || '';
+        const email = emailEl?.value.trim().toLowerCase() || '';
+        const password = passwordEl?.value || '';
+        const passwordConfirm = confirmEl?.value || '';
+        const householdName = householdEl?.value.trim() || '우리 집';
 
         setSignupError('');
         if (!name) return setSignupError('이름을 입력해 주세요.');
@@ -2760,30 +2683,41 @@
         if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '가입하는 중…'; }
 
         try {
-            const usernameRef = doc(db, 'usernames', username);
-            const usernameSnap = await getDoc(usernameRef);
-            if (usernameSnap.exists()) throw { code: 'username-already-in-use' };
-
+            // Firebase Auth는 이메일을 인증 수단으로 사용하고,
+            // 별도 아이디는 Firestore에서 로그인 식별자로 관리한다.
             const credential = await createUserWithEmailAndPassword(auth, email, password);
             const uid = credential.user.uid;
-            const createdAt = Date.now();
 
             await setDoc(doc(db, USERS_COLLECTION, uid), {
-                profile: { name, username, email, createdAt }
+                profile: {
+                    name,
+                    username,
+                    email,
+                    createdAt: Date.now()
+                }
             }, { merge: true });
 
-            // 별도 아이디를 이메일과 분리해 로그인에 사용한다.
-            await setDoc(usernameRef, { uid, email, createdAt });
+            // 아이디 조회용 문서. 동일 아이디는 가입 단계에서 차단한다.
+            await setDoc(doc(db, 'usernames', username), {
+                uid,
+                createdAt: Date.now()
+            });
 
-            // 하나의 계정을 부부가 함께 사용한다.
-            // 가계부의 구성원은 로그인 계정과 별개로 데이터의 owner 값으로 관리한다.
-            await setDoc(doc(db, USERS_COLLECTION, uid, USER_SETTINGS_COLLECTION, USER_SETTINGS_DOC_ID), {
-                profile: { name, username, email, createdAt },
+            // 가입한 이메일은 로그인 ID가 아니라 계정 인증/복구용으로 사용한다.
+            try {
+                await sendEmailVerification(credential.user);
+            } catch (mailError) {
+                console.warn('이메일 인증 메일 발송 실패:', mailError);
+            }
+
+            await setDoc(settingsDocRef(), {
+                profile: { name, username, email, createdAt: Date.now() },
                 household: {
                     id: uid,
                     name: householdName,
-                    members: ['bora', 'sang'],
-                    createdAt
+                    ownerUid: uid,
+                    members: [uid],
+                    createdAt: Date.now()
                 }
             }, { merge: true });
 
@@ -2799,10 +2733,6 @@
 
             await loadScopedUserData();
             syncFixedCategoriesToMonth(currentMonth, false);
-            renderCategorySettings();
-            renderFixedExpenseCategorySettings();
-            render();
-            loadRemainingMonthsInBackground();
 
             const badge = document.getElementById('auth-status-badge');
             if (badge) {
@@ -2811,19 +2741,15 @@
                 badge.style.color = '#22543d';
             }
 
-            // 가입 직후 이메일 인증 메일을 보낸다.
-            try {
-                await sendEmailVerification(credential.user);
-                showToast('가입이 완료됐어요. 이메일로 인증 링크를 보냈어요.');
-            } catch (mailError) {
-                console.warn('인증 메일 발송 실패:', mailError);
-                showToast('가입은 완료됐어요. 이메일 인증 메일은 잠시 후 다시 보내 주세요.', true);
-            }
+            renderCategorySettings();
+            renderFixedExpenseCategorySettings();
+            render();
+            loadRemainingMonthsInBackground();
+            showToast('회원가입이 완료됐어요. 새 가계부를 시작해 보세요.');
         } catch (e) {
             console.error('회원가입 실패:', e);
             const messages = {
-                'username-already-in-use':'이미 사용 중인 아이디입니다.',
-                'auth/email-already-in-use':'이미 사용 중인 이메일입니다.',
+                'auth/email-already-in-use':'이미 사용 중인 이메일입니다. 로그인해 주세요.',
                 'auth/invalid-email':'이메일 주소를 확인해 주세요.',
                 'auth/weak-password':'비밀번호는 8자 이상을 사용해 주세요.'
             };
@@ -2919,7 +2845,7 @@
         clearLocalPersistence();
         document.getElementById('lock-screen').style.display = 'flex';
         window.setAuthError('');
-        const emailEl = document.getElementById('auth-username');
+        const emailEl = document.getElementById('auth-email');
         const passwordEl = document.getElementById('auth-password');
         if (emailEl) emailEl.value = '';
         if (passwordEl) passwordEl.value = '';
