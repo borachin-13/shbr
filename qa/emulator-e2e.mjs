@@ -104,7 +104,9 @@ try {
   await pageA.locator('#auth-username').fill(usernameA);
   await pageA.locator('#auth-password').fill(passwordA);
   await pageA.locator('#auth-login-btn').click();
-  await pageA.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none');
+  await pageA.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
+  const loginError = await pageA.locator('#lock-error').innerText();
+  if (loginError) throw new Error(`Recovery login failed: ${loginError}`);
   const authRecovery = await pageA.evaluate(async () => window.runEmulatorAuthRecoveryVerify());
   if (!authRecovery?.pass) throw new Error(`auth recovery failed: ${JSON.stringify(authRecovery)}`);
 
