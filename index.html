@@ -374,6 +374,13 @@
         .dashboard-saving-row small{font-size:9px;color:var(--text-sub)}
         .dashboard-saving-row b{font-size:12px;color:var(--primary);font-weight:900;white-space:nowrap}
 
+        .record-type-card{width:min(440px,calc(100% - 32px));background:#fff;border-radius:18px;box-shadow:var(--shadow-lg);overflow:hidden}
+        .record-type-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border-color)}
+        .record-type-head strong{font-size:16px;font-weight:900;color:var(--primary)}
+        .record-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px}
+        .record-type-grid button{display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:16px;border:1px solid var(--border-color);border-radius:14px;background:#fff;text-align:left;cursor:pointer}
+        .record-type-grid button b{font-size:13px;color:var(--primary)}
+        .record-type-grid button span{font-size:10px;color:var(--text-sub);line-height:1.4}
         .dashboard-inline-action{border:1px solid var(--border-color);background:#f8fafc;color:var(--primary);border-radius:9px;padding:6px 9px;font-size:10px;font-weight:800;cursor:pointer}
         .dashboard-inline-action:active{transform:translateY(1px)}
         .dashboard-expense-row-button,.record-row-button{width:100%;font:inherit;text-align:left;border-left:0;border-right:0;border-top:0;background:transparent;cursor:pointer}
@@ -1076,7 +1083,7 @@
                 <div class="detail-page-head">
                     <button class="detail-back-btn" type="button" aria-label="뒤로가기" onclick="window.navigate('dashboard')">‹</button>
                     <div class="detail-page-title">내역</div>
-                    <button class="records-add-btn" type="button" onclick="window.quickAddExpense()">＋ 기록</button>
+                    <button class="records-add-btn" type="button" onclick="window.openRecordTypeChooser()">＋ 기록</button>
                 </div>
                 <div class="records-filter-bar">
                     <button class="records-filter active" onclick="window.filterRecords('all', this)">전체</button>
@@ -3405,6 +3412,20 @@
         saveMonthPatch(currentMonth, patch, '지출이 저장되었습니다.');
     }
     window.saveQuickExpense = saveQuickExpense;
+
+    function openRecordTypeChooser() {
+        const modal=document.getElementById('record-type-chooser');
+        if(!modal)return;
+        modal.classList.add('open'); modal.style.display='flex'; modal.style.pointerEvents='auto'; modal.setAttribute('aria-hidden','false');
+    }
+    window.openRecordTypeChooser=openRecordTypeChooser;
+
+    function closeRecordTypeChooser() {
+        const modal=document.getElementById('record-type-chooser');
+        if(!modal)return;
+        modal.classList.remove('open'); modal.style.display='none'; modal.style.pointerEvents='none'; modal.setAttribute('aria-hidden','true');
+    }
+    window.closeRecordTypeChooser=closeRecordTypeChooser;
 
     function quickAddExpense() {
         openQuickExpense();
