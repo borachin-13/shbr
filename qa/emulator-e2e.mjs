@@ -1,3 +1,5 @@
+import { getApps, initializeApp as initializeAdminApp } from 'firebase-admin/app';
+import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { chromium } from '@playwright/test';
 
 const baseUrl = 'http://127.0.0.1:5000/?emulator=1';
@@ -60,6 +62,33 @@ try {
   if (!uidA || !uidB || uidA === uidB) {
     throw new Error('CI accounts did not receive distinct authenticated UIDs.');
   }
+
+  // Password-change compatibility: simulate a Firebase password reset result by changing
+  // the authenticated QA user's password server-side, then verify the new password works
+  // and the old password no longer works. This validates the app's email/password path
+  // independently of the email-delivery UI.
+  const adminApp = getApps()[0] || initializeAdminApp({ projectId: 'shbr-family' });
+  const adminAuth = getAdminAuth(adminApp);
+  const changedPassword = 'QaChanged5678!';
+  await adminAuth.updateUser(uidB, { password: changedPassword });
+  await pageB.evaluate(async () => window.logoutUser());
+  await pageB.locator('#auth-username').fill(emailB);
+  await pageB.locator('#auth-password').fill(changedPassword);
+  await pageB.locator('#auth-login-btn').click();
+  await pageB.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
+  const changedPasswordError = await pageB.locator('#lock-error').innerText();
+  if (changedPasswordError) throw new Error(`Changed-password email login failed: ${changedPasswordError}`);
+  const changedPasswordUid = await pageB.evaluate(() => window.getAuthenticatedUid());
+  if (changedPasswordUid !== uidB) throw new Error(`Changed-password login authenticated as wrong user: expected=${uidB}, actual=${changedPasswordUid}`);
+
+  await pageB.evaluate(async () => window.logoutUser());
+  await pageB.locator('#auth-username').fill(emailB);
+  await pageB.locator('#auth-password').fill(passwordB);
+  await pageB.locator('#auth-login-btn').click();
+  await pageB.waitForTimeout(500);
+  const oldPasswordError = await pageB.locator('#lock-error').innerText();
+  if (!oldPasswordError) throw new Error('Old password unexpectedly authenticated after password change.');
+  await pageB.evaluate(async () => window.setAuthError(''));
 
   // Legacy-compatible login path: email + password must also authenticate successfully.
   await pageB.evaluate(async () => window.logoutUser());
