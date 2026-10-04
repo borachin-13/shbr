@@ -1217,8 +1217,8 @@
         <!-- 멤버 필터 탭 -->
         <div class="member-tab-bar" id="member-tab-bar">
             <button class="tab-pill-btn active" onclick="window.setMemberTab('all', this)">통합</button>
-            <button class="tab-pill-btn" data-member-owner="bora" onclick="window.setMemberTab('bora', this)">보라</button>
-            <button class="tab-pill-btn" data-member-owner="sang" onclick="window.setMemberTab('sang', this)">상훈</button>
+            <button class="tab-pill-btn" data-member-owner="bora" onclick="window.setMemberTab('bora', this)"><span data-member-label="bora">보라</span></button>
+            <button class="tab-pill-btn" data-member-owner="sang" onclick="window.setMemberTab('sang', this)"><span data-member-label="sang">상훈</span></button>
         </div>
 
         <div class="page-content">
@@ -3378,7 +3378,7 @@
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">상훈 특수직 추가수당</span>
+                    <span class="income-input-label"><span data-member-label="sang">상훈</span> 특수직 추가수당</span>
                     <div class="income-input-flex">
                         <input type="text" inputmode="numeric" value="${formatNumberString(d.sang_other_income)}" placeholder="0" oninput="window.handleIncomeInput('sang_other_income', this)">
                         <span class="income-unit">원</span>
@@ -3418,7 +3418,7 @@
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">상훈 특수직 추가수당</span>
+                    <span class="income-input-label"><span data-member-label="sang">상훈</span> 특수직 추가수당</span>
                     <div class="income-input-flex">
                         <input type="text" inputmode="numeric" value="${formatNumberString(d.sang_other_income)}" placeholder="0" oninput="window.handleIncomeInput('sang_other_income', this)">
                         <span class="income-unit">원</span>
@@ -3549,11 +3549,11 @@
         if (currentTab === 'bora') {
             activeIncomeWon = boraWonTotal;
             activeExpenseWon = calculateExpenseForTab(d, 'bora');
-            if(targetLabelEl) targetLabelEl.innerText = '보라 개인 잔액';
+            if(targetLabelEl) targetLabelEl.innerText = memberLabel('bora') + ' 개인 잔액';
         } else if (currentTab === 'sang') {
             activeIncomeWon = sangWonTotal + tripWonTotal;
             activeExpenseWon = calculateExpenseForTab(d, 'sang');
-            if(targetLabelEl) targetLabelEl.innerText = '상훈 개인 잔액';
+            if(targetLabelEl) targetLabelEl.innerText = memberLabel('sang') + ' 개인 잔액';
         } else {
             if(targetLabelEl) targetLabelEl.innerText = '우리 곳간 총 추가 저축 가능액';
         }
@@ -3674,8 +3674,8 @@
         const sources = [
             {key:'expense', items:Array.isArray(d?.categories?.expense)?d.categories.expense:[], meta:'고정지출'},
             {key:'living', items:Array.isArray(d?.categories?.living)?d.categories.living:[], meta:'공동생활'},
-            {key:'bora_personal', items:Array.isArray(d?.categories?.bora_personal)?d.categories.bora_personal:[], meta:'보라 · 개인'},
-            {key:'sang_personal', items:Array.isArray(d?.categories?.sang_personal)?d.categories.sang_personal:[], meta:'상훈 · 개인'},
+            {key:'bora_personal', items:Array.isArray(d?.categories?.bora_personal)?d.categories.bora_personal:[], meta:memberLabel('bora') + ' · 개인'},
+            {key:'sang_personal', items:Array.isArray(d?.categories?.sang_personal)?d.categories.sang_personal:[], meta:memberLabel('sang') + ' · 개인'},
             {key:'variable_expense', items:Array.isArray(d?.categories?.variable_expense)?d.categories.variable_expense:[], meta:'변동지출'}
         ];
         const items=[];
@@ -4335,7 +4335,7 @@
             const categoryOptions=availableCategories.map(cat=>`<option value="${escapeHtml(cat)}" ${currentCategory===cat?'selected':''}>${escapeHtml(cat)}</option>`).join('');
             categoryHtml=`<label>카테고리</label><select id="record-edit-category">${categoryOptions}</select>`;
         }
-        const ownerHtml=type==='saving'?`<label>저축 주체</label><select id="record-edit-owner"><option value="shared" ${record.owner==='shared'?'selected':''}>공통</option><option value="bora" ${record.owner==='bora'?'selected':''}>보라</option><option value="sang" ${record.owner==='sang'?'selected':''}>상훈</option></select>`:'';
+        const ownerHtml=type==='saving'?`<label>저축 주체</label><select id="record-edit-owner"><option value="shared" ${record.owner==='shared'?'selected':''}>공통</option><option value="bora" ${record.owner==='bora'?'selected':''}>${escapeHtml(memberLabel('bora'))}</option><option value="sang" ${record.owner==='sang'?'selected':''}>${escapeHtml(memberLabel('sang'))}</option></select>`:'';
         bodyEl.innerHTML=`<div class="record-editor">${dateHtml}${categoryHtml}<label>항목명</label><input id="record-edit-name" value="${escapeHtml(record.name||'')}">${ownerHtml}<label>${record.isUsd?'금액 (USD)':'금액'}</label><input id="record-edit-amount" inputmode="numeric" value="${formatNumberString(record.amount||0)}"><button type="button" class="record-delete-btn" onclick="window.deleteEditingRecord()">삭제</button></div>`;
         saveBtn.innerText='저장';saveBtn.onclick=saveEditingRecord;
         modal.classList.add('open');modal.style.display='flex';modal.style.pointerEvents='auto';modal.setAttribute('aria-hidden','false');
@@ -4635,8 +4635,8 @@ function renderBudgetModalHTML() {
         
         const expenseSections = [
             { key: 'expense', defaultLabel: '공통 고정지출' },
-            { key: 'bora_personal', defaultLabel: '보라 개인 지출' },
-            { key: 'sang_personal', defaultLabel: '상훈 개인 지출' },
+            { key: 'bora_personal', defaultLabel: memberLabel('bora') + ' 개인 지출' },
+            { key: 'sang_personal', defaultLabel: memberLabel('sang') + ' 개인 지출' },
             { key: 'living', defaultLabel: '공동 생활비' },
             { key: 'variable_expense', defaultLabel: '변동 지출' }
         ];
@@ -5213,19 +5213,19 @@ function addCategorySetting() {
                 type:'income'
             }] : [])
             : [
-                {name:'월급',amount:recordsTab==='bora'?(Number(d.bora)||0):(Number(d.sang)||0),meta:recordsTab==='bora'?'보라 · 급여':'상훈 · 급여',field:recordsTab==='bora'?'bora':'sang',type:'income'},
-                {name:'기타수입',amount:recordsTab==='bora'?(Number(d.bora_extra)||0):(Number(d.sang_other_income)||0),meta:recordsTab==='bora'?'보라 · 기타수입':'상훈 · 기타수입',field:recordsTab==='bora'?'bora_extra':'sang_other_income',type:'income'},
+                {name:'월급',amount:recordsTab==='bora'?(Number(d.bora)||0):(Number(d.sang)||0),meta:recordsTab==='bora'?memberLabel('bora') + ' · 급여':memberLabel('sang') + ' · 급여',field:recordsTab==='bora'?'bora':'sang',type:'income'},
+                {name:'기타수입',amount:recordsTab==='bora'?(Number(d.bora_extra)||0):(Number(d.sang_other_income)||0),meta:recordsTab==='bora'?memberLabel('bora') + ' · 기타수입':memberLabel('sang') + ' · 기타수입',field:recordsTab==='bora'?'bora_extra':'sang_other_income',type:'income'},
                 ...(recordsTab==='sang' && (Number(d.trip_usd)||0)>0 ? [{
                     name:'출장 외화수입',
                     amount:(Number(d.trip_usd)||0)*(Number(d.usdRate)||0),
-                    meta:'상훈 · 출장수입',
+                    meta:memberLabel('sang') + ' · 출장수입',
                     field:'trip_usd',
                     type:'income'
                 }] : [])
             ].filter(x=>x.amount>0);
 
         const expenseItems=[];
-        [['expense','고정지출'],['living','공동생활'],['bora_personal','보라 · 개인'],['sang_personal','상훈 · 개인'],['variable_expense','변동지출']].forEach(([key,meta])=>{
+        [['expense','고정지출'],['living','공동생활'],['bora_personal',memberLabel('bora') + ' · 개인'],['sang_personal',memberLabel('sang') + ' · 개인'],['variable_expense','변동지출']].forEach(([key,meta])=>{
             const arr=Array.isArray(d?.categories?.[key])?d.categories[key]:[];
             arr.forEach((x,index)=>{
                 const owner=x.owner||'shared';
