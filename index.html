@@ -369,7 +369,7 @@
         .record-row-button{display:flex;align-items:center;justify-content:space-between;gap:12px}
         .record-editor{display:flex;flex-direction:column;gap:7px}
         .record-editor label{font-size:11px;font-weight:700;color:var(--text-sub);margin-top:5px}
-        .record-editor input{width:100%;border:1px solid var(--border-color);border-radius:9px;padding:10px;font-size:14px;outline:none}
+        .record-editor input,.record-editor select{width:100%;border:1px solid var(--border-color);border-radius:9px;padding:10px;font-size:14px;outline:none;background:#fff}
         .record-delete-btn{margin-top:10px;border:0;background:#fff5f5;color:#c53030;border-radius:9px;padding:10px;font-size:12px;font-weight:800;cursor:pointer}
         .dashboard-money-card{background:#fff;border-radius:22px;padding:22px 20px 18px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
         .dashboard-money-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -3332,7 +3332,8 @@
         subtabsEl.innerHTML='';
         const dateHtml=type==='expense'?`<label>날짜</label><input id="record-edit-date" type="date" value="${escapeHtml(record.date||'')}">`:'';
         const categoryHtml=type==='expense'&&sourceKey==='variable_expense'?`<label>카테고리</label><input id="record-edit-category" value="${escapeHtml(record.category||'')}">`:'';
-        bodyEl.innerHTML=`<div class="record-editor">${dateHtml}<label>항목명</label><input id="record-edit-name" value="${escapeHtml(record.name||'')}">${categoryHtml}<label>${record.isUsd?'금액 (USD)':'금액'}</label><input id="record-edit-amount" inputmode="numeric" value="${formatNumberString(record.amount||0)}"><button type="button" class="record-delete-btn" onclick="window.deleteEditingRecord()">삭제</button></div>`;
+        const ownerHtml=type==='saving'?`<label>저축 주체</label><select id="record-edit-owner"><option value="shared" ${record.owner==='shared'?'selected':''}>공통</option><option value="bora" ${record.owner==='bora'?'selected':''}>보라</option><option value="sang" ${record.owner==='sang'?'selected':''}>상훈</option></select>`:'';
+        bodyEl.innerHTML=`<div class="record-editor">${dateHtml}<label>항목명</label><input id="record-edit-name" value="${escapeHtml(record.name||'')}">${categoryHtml}${ownerHtml}<label>${record.isUsd?'금액 (USD)':'금액'}</label><input id="record-edit-amount" inputmode="numeric" value="${formatNumberString(record.amount||0)}"><button type="button" class="record-delete-btn" onclick="window.deleteEditingRecord()">삭제</button></div>`;
         saveBtn.innerText='저장';saveBtn.onclick=saveEditingRecord;
         modal.classList.add('open');modal.style.display='flex';modal.style.pointerEvents='auto';modal.setAttribute('aria-hidden','false');
         setTimeout(()=>{const inp=document.getElementById('record-edit-amount');if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}},30);
@@ -3349,6 +3350,10 @@
             const key=editingRecord.sourceKey,arr=Array.isArray(d.categories?.[key])?d.categories[key]:[],idx=editingRecord.sourceIndex;
             if(!arr[idx])return;
             arr[idx]={...arr[idx],amount,name};
+            if(editingRecord.type==='saving'){
+                const owner=document.getElementById('record-edit-owner')?.value||arr[idx].owner||'shared';
+                arr[idx].owner=owner;
+            }
             if(editingRecord.type==='expense'&&key==='expense')arr[idx].date=date;
             if(editingRecord.type==='expense'&&key==='variable_expense'){arr[idx].date=date;arr[idx].category=category;}
             d.categories[key]=arr;patch[`categories.${key}`]=cloneData(arr);
@@ -4107,8 +4112,9 @@ function addCategorySetting() {
             arr.forEach((x,index)=>{if((Number(x.amount)||0)>0)expenseItems.push({...x,type:'expense',meta,isAll,_sourceKey:key,_sourceIndex:index});});
         });
         const savingItems=(Array.isArray(d?.categories?.savings)?d.categories.savings:[])
+            .map((x,index)=>({...x,_originalIndex:index}))
             .filter(x=>(Number(x.amount)||0)>0&&(isAll||x.owner==='shared'||x.owner===currentTab))
-            .map((x,index)=>({...x,type:'saving',meta:isAll?'고정저축':(x.owner==='shared'?'공통':currentTab==='bora'?'보라':'상훈'),_sourceKey:'savings',_sourceIndex:index}));
+            .map(x=>({...x,type:'saving',meta:isAll?'고정저축':(x.owner==='shared'?'공통':x.owner==='bora'?'보라':'상훈'),_sourceKey:'savings',_sourceIndex:x._originalIndex}));
         const items=[...incomeItems,...expenseItems,...savingItems].filter(x=>(Number(x.amount)||0)>0);
         const filtered=recordsFilter==='all'?items:items.filter(x=>x.type===recordsFilter);
         if(!filtered.length){el.innerHTML='<div class="dashboard-empty">아직 기록된 내역이 없어요.</div>';return;}
