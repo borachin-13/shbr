@@ -5088,13 +5088,13 @@ function filterRecords(filter,btn){recordsFilter=filter||'all';document.querySel
         const sangSaving = sumCatForTab(sample.categories.savings, 'sang');
         const pass =
             boraExpense === 750000 &&
-            sangExpense === 850000 &&
+            sangExpense === 800000 &&
             allExpense === 1550000 &&
             boraSaving === 100000 &&
             sangSaving === 100000;
         return {
             pass,
-            expected: { boraExpense: 750000, sangExpense: 850000, allExpense: 1550000, sharedSavingPerPerson: 100000 },
+            expected: { boraExpense: 750000, sangExpense: 800000, allExpense: 1550000, sharedSavingPerPerson: 100000 },
             actual: { boraExpense, sangExpense, allExpense, boraSaving, sangSaving }
         };
     };
