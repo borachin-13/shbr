@@ -1173,7 +1173,7 @@
         <div class="lock-card">
             <div class="lock-title">🌾 우리 곳간</div>
             <div class="lock-sub" id="auth-help-text">내 계정으로 안전하게 접속해 주세요.</div>
-            <input type="email" id="auth-username" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="username" placeholder="아이디">
+            <input type="text" id="auth-username" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="username" placeholder="아이디 또는 이메일">
             <input type="password" id="auth-password" class="lock-input" style="letter-spacing:0;text-align:left;font-size:14px;" autocomplete="current-password" placeholder="비밀번호 (8자 이상)">
             <button class="lock-btn" id="auth-login-btn" onclick="window.authenticateUser('login')">로그인</button>
             <button class="lock-btn" id="auth-signup-btn" style="margin-top:8px;background:#edf2f7;color:#1a202c;" onclick="window.openSignupModal()">회원가입하기</button>
@@ -2590,34 +2590,6 @@
     }
     window.submitPasswordReset = submitPasswordReset;
 
-    async function resetPassword() {
-        const emailEl = document.getElementById('auth-email');
-        const email = emailEl ? emailEl.value.trim() : '';
-        window.setAuthError('');
-        if (!email || !email.includes('@')) {
-            window.setAuthError('비밀번호를 재설정할 이메일을 입력해 주세요.');
-            return;
-        }
-        const resetBtn = document.getElementById('auth-reset-btn');
-        if (resetBtn) resetBtn.disabled = true;
-        try {
-            await sendPasswordResetEmail(auth, email);
-            window.setAuthError('비밀번호 재설정 이메일을 확인해 주세요.');
-        } catch (e) {
-            console.error('비밀번호 재설정 실패:', e);
-            const code = e && e.code ? e.code : '';
-            const messages = {
-                'auth/user-not-found': '가입된 계정을 찾을 수 없습니다.',
-                'auth/invalid-email': '이메일 주소를 확인해 주세요.',
-                'auth/too-many-requests': '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'
-            };
-            window.setAuthError(messages[code] || '비밀번호 재설정 이메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.');
-        } finally {
-            if (resetBtn) resetBtn.disabled = false;
-        }
-    }
-    window.resetPassword = resetPassword;
-
     let authenticationInProgress = false;
 
     let signupInProgress = false;
@@ -2772,6 +2744,7 @@
         const username = loginInput.toLowerCase();
         const password = document.getElementById('auth-password')?.value || '';
         const loginBtn = document.getElementById('auth-login-btn');
+        let authStage = 'input';
 
         window.setAuthError('');
         if (!loginInput || !password) {
@@ -2783,20 +2756,17 @@
         if (loginBtn) { loginBtn.disabled = true; loginBtn.innerText = '로그인 중…'; }
 
         try {
-            // 신규 계정은 아이디 → 이메일로 변환하고, 기존 계정은 이메일로 직접 로그인할 수 있다.
-            // 레거시 계정도 기존 UID/가계부 데이터를 그대로 사용할 수 있도록 이메일 로그인을 유지한다.
+            // 이메일은 Firebase Auth에 직접 전달하고, 아이디는 username lookup을 거친다.
             let email = null;
             if (loginInput.includes('@')) {
                 email = loginInput.toLowerCase();
             } else {
+                authStage = 'username-lookup';
                 const usernameSnap = await getDoc(doc(db, 'usernames', username));
-                if (!usernameSnap.exists()) {
-                    throw { code: 'auth/user-not-found' };
-                }
+                if (!usernameSnap.exists()) throw { code: 'auth/user-not-found' };
                 const userData = usernameSnap.data();
                 email = userData.email || null;
 
-                // 과거 username 문서가 uid만 가진 경우에는 소유자 프로필에서 이메일을 가져온다.
                 if (!email && userData.uid) {
                     const profileSnap = await getDoc(doc(db, USERS_COLLECTION, userData.uid));
                     if (profileSnap.exists()) email = profileSnap.data().profile?.email || null;
@@ -2804,21 +2774,32 @@
                 if (!email) throw { code: 'auth/user-not-found' };
             }
 
+            authStage = 'firebase-auth';
             await signInWithEmailAndPassword(auth, email, password);
 
-            // 레거시 이메일 계정에 이미 username 프로필이 있다면 누락된 lookup 문서도 자동 복구한다.
-            // 실제 username이 없는 계정에는 임의의 아이디를 생성하지 않는다.
+            // 인증 성공 후에만 사용자 프로필을 읽는다.
+            authStage = 'profile-load';
             const profileRef = doc(db, USERS_COLLECTION, auth.currentUser.uid);
             const profileSnap = await getDoc(profileRef);
             const profile = profileSnap.exists() ? (profileSnap.data().profile || {}) : {};
+
+            // 프로필에 username이 있는 기존 계정이면 lookup 문서를 자동 복구한다.
             if (profile.username) {
-                await setDoc(doc(db, 'usernames', String(profile.username).trim().toLowerCase()), {
-                    uid: auth.currentUser.uid,
-                    email: auth.currentUser.email || profile.email || email,
-                    createdAt: profile.createdAt || Date.now()
-                }, { merge: true });
+                authStage = 'username-repair';
+                try {
+                    await setDoc(doc(db, 'usernames', String(profile.username).trim().toLowerCase()), {
+                        uid: auth.currentUser.uid,
+                        email: auth.currentUser.email || profile.email || email,
+                        createdAt: profile.createdAt || Date.now()
+                    }, { merge: true });
+                } catch (repairError) {
+                    // Username repair is non-critical after Firebase Auth succeeds.
+                    // Never turn a valid email/password login into a login failure.
+                    console.warn('username mapping repair skipped:', repairError?.code || repairError);
+                }
             }
 
+            authStage = 'data-load';
             document.getElementById('lock-screen').style.display = 'none';
             const loading = document.getElementById('login-data-loading');
             if (loading) {
@@ -2840,14 +2821,27 @@
                 badge.style.color = '#22543d';
             }
         } catch (e) {
-            console.error('로그인 실패:', e);
+            console.error('로그인 실패:', {
+                code: e?.code || '',
+                stage: authStage,
+                message: e?.message || String(e)
+            });
             const messages = {
-                'auth/user-not-found':'아이디 또는 이메일 주소, 비밀번호를 확인해 주세요.',
-                'auth/wrong-password':'아이디 또는 이메일 주소, 비밀번호를 확인해 주세요.',
-                'auth/invalid-credential':'아이디 또는 이메일 주소, 비밀번호를 확인해 주세요.',
+                'auth/user-not-found':'아이디 또는 이메일 주소를 확인해 주세요.',
+                'auth/wrong-password':'비밀번호를 확인해 주세요.',
+                'auth/invalid-credential':'이메일 또는 비밀번호가 일치하지 않습니다.',
+                'auth/invalid-email':'이메일 주소 형식을 확인해 주세요.',
+                'auth/user-disabled':'사용할 수 없는 계정입니다.',
+                'auth/operation-not-allowed':'이메일/비밀번호 로그인이 Firebase에서 비활성화되어 있습니다.',
+                'auth/network-request-failed':'네트워크 연결을 확인해 주세요.',
                 'auth/too-many-requests':'로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.'
             };
-            window.setAuthError(messages[e?.code] || '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+            const message = messages[e?.code] || ({
+                'profile-load': 'Firebase 로그인은 성공했지만 사용자 정보를 불러오지 못했습니다.',
+                'username-repair': 'Firebase 로그인은 성공했지만 아이디 연결 정보를 저장하지 못했습니다.',
+                'data-load': '로그인은 성공했지만 가계부 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+            }[authStage] || '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+            window.setAuthError(message);
         } finally {
             authenticationInProgress = false;
             if (loginBtn) { loginBtn.disabled = false; loginBtn.innerText = '로그인'; }
@@ -5339,7 +5333,7 @@ function filterRecords(filter,btn){recordsFilter=filter||'all';document.querySel
         assert('사용자 계정이 없으면 저장하지 않음', typeof isAuthenticatedUser === 'function');
         assert('사용자별 월 문서 경로 함수 존재', typeof monthDocRef === 'function');
         assert('사용자별 설정 문서 경로 함수 존재', typeof settingsDocRef === 'function');
-        assert('비밀번호 재설정 함수 존재', typeof resetPassword === 'function');
+        assert('비밀번호 재설정 함수 존재', typeof submitPasswordReset === 'function');
         assert('Auth 초기화 이벤트 함수 존재', typeof onAuthStateChanged === 'function');
         assert('현재 월 서버 새로고침 함수 존재', typeof refreshCurrentMonthFromServer === 'function');
         assert('사용자별 월 컬렉션 조회를 사용하는 초기화 경로', typeof getDocs === 'function' && typeof collection === 'function');

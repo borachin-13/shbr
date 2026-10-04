@@ -1,3 +1,6 @@
+import { initializeApp } from 'firebase/app';
+import { getAuth, connectAuthEmulator, signInWithEmailAndPassword, updatePassword, signOut } from 'firebase/auth';
+
 import { chromium } from '@playwright/test';
 
 const baseUrl = 'http://127.0.0.1:5000/?emulator=1';
@@ -20,11 +23,14 @@ async function signup(page, username, email, password) {
   await page.goto(baseUrl);
   const pageReadyMs = Date.now() - started;
   await page.locator('#auth-signup-btn').click();
+  await page.locator('#signup-modal').waitFor({ state: 'visible' });
+  await page.locator('#signup-name').waitFor({ state: 'visible' });
   await page.locator('#signup-name').fill(username);
   await page.locator('#signup-username').fill(username);
   await page.locator('#signup-email').fill(email);
   await page.locator('#signup-password').fill(password);
   await page.locator('#signup-password-confirm').fill(password);
+  await page.locator('#signup-password-confirm').press('Tab');
   const formValues = await page.evaluate(() => ({ username: document.getElementById('signup-username')?.value, passwordLength: document.getElementById('signup-password')?.value?.length, confirmLength: document.getElementById('signup-password-confirm')?.value?.length }));
   if (formValues.passwordLength < 8 || formValues.confirmLength !== formValues.passwordLength) throw new Error(`Signup fixture values invalid: ${JSON.stringify(formValues)}`);
   const authStarted = Date.now();
@@ -79,6 +85,50 @@ try {
   await pageB.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
   const usernameLoginError = await pageB.locator('#lock-error').innerText();
   if (usernameLoginError) throw new Error(`Username login failed after email login: ${usernameLoginError}`);
+
+  // Password-change compatibility: reproduce the post-reset Firebase Auth state
+  // by changing the QA user's password through the Auth SDK, then verify the app
+  // accepts the new password and rejects the old one.
+  const qaAuthApp = initializeApp({
+    apiKey: 'fake-api-key',
+    authDomain: 'shbr-family.firebaseapp.com',
+    projectId: 'shbr-family'
+  }, `qa-password-${stamp}`);
+  const qaAuth = getAuth(qaAuthApp);
+  connectAuthEmulator(qaAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  const qaCredential = await signInWithEmailAndPassword(qaAuth, emailB, passwordB);
+  await updatePassword(qaCredential.user, 'QaChanged5678!');
+  await signOut(qaAuth);
+  const changedCredential = await signInWithEmailAndPassword(qaAuth, emailB, 'QaChanged5678!');
+  if (changedCredential.user.uid !== uidB) throw new Error('Firebase Auth itself rejected the changed password.');
+  await signOut(qaAuth);
+
+  await pageB.evaluate(async () => window.logoutUser());
+  await pageB.locator('#auth-username').fill(emailB);
+  await pageB.locator('#auth-password').fill('QaChanged5678!');
+  await pageB.locator('#auth-login-btn').click();
+  await pageB.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
+  const changedPasswordError = await pageB.locator('#lock-error').innerText();
+  if (changedPasswordError) throw new Error(`Changed-password email login failed: ${changedPasswordError}`);
+  const changedPasswordUid = await pageB.evaluate(() => window.getAuthenticatedUid());
+  if (changedPasswordUid !== uidB) throw new Error(`Changed-password login authenticated as wrong user: expected=${uidB}, actual=${changedPasswordUid}`);
+
+  await pageB.evaluate(async () => window.logoutUser());
+  await pageB.locator('#auth-username').fill(emailB);
+  await pageB.locator('#auth-password').fill(passwordB);
+  await pageB.locator('#auth-login-btn').click();
+  await pageB.waitForTimeout(500);
+  const oldPasswordError = await pageB.locator('#lock-error').innerText();
+  if (!oldPasswordError) throw new Error('Old password unexpectedly authenticated after password change.');
+  await pageB.evaluate(async () => window.setAuthError(''));
+
+  // Restore B's authenticated session for the cross-user Firestore isolation probes.
+  await pageB.locator('#auth-username').fill(emailB);
+  await pageB.locator('#auth-password').fill('QaChanged5678!');
+  await pageB.locator('#auth-login-btn').click();
+  await pageB.waitForFunction(() => document.getElementById('lock-screen')?.style.display === 'none' || !!document.getElementById('lock-error')?.innerText, null, { timeout: 10000 });
+  const isolationLoginError = await pageB.locator('#lock-error').innerText();
+  if (isolationLoginError) throw new Error(`Isolation setup login failed: ${isolationLoginError}`);
 
   // Real-user-flow timing baseline. Emulator timing is a regression signal, not a production SLA.
   const monthSwitchStarted = Date.now();
