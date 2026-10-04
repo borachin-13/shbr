@@ -742,6 +742,8 @@
             color:var(--text-sub);
         }
         .income-modal-rate strong{color:var(--primary);font-weight:900}
+        .settings-account-card .card-header{margin-bottom:0}
+        .settings-account-card .card-header .btn-action-sm{flex:0 0 auto}
         .modal-card {
             background: white;
             width: 100%;
@@ -1261,28 +1263,6 @@
             <!-- 3. 설정 페이지 -->
             <div id="page-settings" class="page-view">
                 <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">🏷️ 변동 지출 카테고리 관리</span>
-                    </div>
-                    <div style="display:flex; gap:6px; margin-top:8px;">
-                        <input type="text" id="new-cat-input" placeholder="새 카테고리 (예: 경조사)" style="flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; outline:none;">
-                        <button class="btn-action-sm" onclick="window.addCategorySetting()">추가</button>
-                    </div>
-                    <div class="category-tags" id="setting-category-tags"></div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header"><span class="card-title">🏦 1억 5천 목표</span></div>
-                    <div class="household-rule-card">
-                        <div class="household-rule-grid">
-                            <div class="household-rule-field household-goal-field"><label>목표 금액</label><input id="goal-target-amount" inputmode="numeric" value="150,000,000"></div>
-                            <div class="household-rule-field household-goal-field"><label>지금 모아둔 돈</label><input id="goal-current-amount-input" inputmode="numeric" placeholder="현재 금액"></div>
-                        </div>
-                        <button class="household-rule-save" onclick="window.saveHouseholdGoal()">목표 저장</button>
-                    </div>
-                </div>
-
-                <div class="card">
                     <div class="card-header"><span class="card-title">🏠 우리 집 월간 규칙</span></div>
                     <div style="font-size:11px;color:var(--text-sub);line-height:1.5;">매달 반복되는 수입과 청년저축만 한 번 설정하면 새 달에 자동으로 반영합니다.</div>
                     <div class="household-rule-card">
@@ -1312,24 +1292,35 @@
 
                 <div class="card">
                     <div class="card-header">
-                        <span class="card-title">👤 계정</span>
+                        <span class="card-title">🏷️ 변동 지출 카테고리 관리</span>
                     </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-                        <div style="font-size:12px;color:var(--text-sub);line-height:1.5;">내 계정으로 로그인된 상태에서는 다른 사용자의 데이터와 분리됩니다.</div>
+                    <div style="display:flex; gap:6px; margin-top:8px;">
+                        <input type="text" id="new-cat-input" placeholder="새 카테고리 (예: 경조사)" style="flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; outline:none;">
+                        <button class="btn-action-sm" onclick="window.addCategorySetting()">추가</button>
+                    </div>
+                    <div class="category-tags" id="setting-category-tags"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-title">🏦 1억 5천 목표</span></div>
+                    <div class="household-rule-card">
+                        <div class="household-rule-grid">
+                            <div class="household-rule-field household-goal-field"><label>목표 금액</label><input id="goal-target-amount" inputmode="numeric" value="150,000,000"></div>
+                            <div class="household-rule-field household-goal-field"><label>지금 모아둔 돈</label><input id="goal-current-amount-input" inputmode="numeric" placeholder="현재 금액"></div>
+                        </div>
+                        <button class="household-rule-save" onclick="window.saveHouseholdGoal()">목표 저장</button>
+                    </div>
+                </div>
+
+                <div class="card settings-account-card">
+                    <div class="card-header">
+                        <span class="card-title">👤 계정</span>
                         <button class="btn-action-sm" onclick="window.logoutUser()">로그아웃</button>
                     </div>
                 </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">💾 데이터 관리</span>
-                    </div>
-                    <div style="display:flex; gap:8px;">
-                        <button class="add-row-btn" style="margin:0; background:#f7fafc;" onclick="window.exportData()">데이터 내보내기 (JSON)</button>
-                        <button class="add-row-btn" style="margin:0; color:var(--expense-color); background:#fff5f5; border-color:#fed7d7;" onclick="window.resetData()">전체 초기화</button>
-                    </div>
-                </div>
             </div>
+
         </div>
 
         <!-- 하단 내비게이션 -->
