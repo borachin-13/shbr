@@ -2545,8 +2545,47 @@
             const owner = item.owner || 'shared';
             if (owner === tab) return acc + amt;
             if (owner === 'shared') return acc + (amt / 2);
-            return acc; 
+            return acc;
         }, 0);
+    }
+
+    // 공통 지출은 통합 화면에서는 전체 금액, 개인 화면에서는 정확히 1/2만 반영한다.
+    // - 공통 고정지출(expense): owner 필드가 없어도 항상 공동 지출
+    // - 공동생활비(living): 항상 공동 지출
+    // - 변동지출(variable_expense): owner='shared'이면 공동 지출
+    // - 개인지출: 해당 사용자에게만 100% 반영
+    function calculateExpenseForTab(monthData, tab = currentTab) {
+        const d = monthData || DEFAULT_MONTH_DATA();
+        const categories = d.categories || DEFAULT_MONTH_DATA().categories;
+
+        const commonFixed = sumCat(categories.expense);
+        const commonLiving = sumCat(categories.living);
+        const boraPersonal = sumCat(categories.bora_personal);
+        const sangPersonal = sumCat(categories.sang_personal);
+        const variable = sumCatForTab(categories.variable_expense, tab);
+
+        if (tab === 'bora') {
+            return (commonFixed / 2) + (commonLiving / 2) + boraPersonal + variable;
+        }
+        if (tab === 'sang') {
+            return (commonFixed / 2) + (commonLiving / 2) + sangPersonal + variable;
+        }
+        return commonFixed + commonLiving + boraPersonal + sangPersonal + sumCat(categories.variable_expense);
+    }
+
+    function getExpenseItemDisplayAmount(item, sourceKey, tab = currentTab) {
+        const amount = Number(item?.amount) || 0;
+        if (tab === 'all') return amount;
+        if (sourceKey === 'bora_personal') return tab === 'bora' ? amount : 0;
+        if (sourceKey === 'sang_personal') return tab === 'sang' ? amount : 0;
+        const owner = item?.owner || 'shared';
+        if (sourceKey === 'expense' || sourceKey === 'living') return amount / 2;
+        if (sourceKey === 'variable_expense') {
+            if (owner === tab) return amount;
+            if (owner === 'shared') return amount / 2;
+            return 0;
+        }
+        return amount;
     }
 
     // 월 추가 저축 가능액은 '이번 달 수입 - 소비성 지출 - 이미 예정된 저축'으로 계산한다.
@@ -2868,19 +2907,18 @@
         const livSum = sumCat(d.categories.living);
         const varSum = sumCat(d.categories.variable_expense);
         const savForTab = sumCatForTab(d.categories.savings, currentTab);
-        const sharedExpenseHalf = (expSum + livSum) / 2;
 
         let activeIncomeWon = totalIncWon;
-        let activeExpenseWon = expSum + boraExp + sangExp + livSum + varSum;
+        let activeExpenseWon = calculateExpenseForTab(d, currentTab);
 
         const targetLabelEl = document.getElementById('kpi-target-label');
         if (currentTab === 'bora') {
             activeIncomeWon = boraWonTotal;
-            activeExpenseWon = boraExp + sharedExpenseHalf; 
+            activeExpenseWon = calculateExpenseForTab(d, 'bora');
             if(targetLabelEl) targetLabelEl.innerText = '보라 개인 잔액';
         } else if (currentTab === 'sang') {
             activeIncomeWon = sangWonTotal + tripWonTotal;
-            activeExpenseWon = sangExp + sharedExpenseHalf; 
+            activeExpenseWon = calculateExpenseForTab(d, 'sang');
             if(targetLabelEl) targetLabelEl.innerText = '상훈 개인 잔액';
         } else {
             if(targetLabelEl) targetLabelEl.innerText = '우리 곳간 총 추가 저축 가능액';
@@ -2957,12 +2995,12 @@
         let income=Number(base.income)||0, expense=Number(base.expense)||0, savings=Number(base.plannedSavings)||0;
         if(currentTab==='bora'){
             income=(Number(d.bora)||0)+(Number(d.bora_extra)||0);
-            expense=sumCat(d.categories?.bora_personal)+(sumCat(d.categories?.living)/2);
-            savings=(Array.isArray(d.categories?.savings)?d.categories.savings:[]).filter(x=>x.owner==='bora'||x.owner==='shared').reduce((n,x)=>n+(Number(x.amount)||0),0);
+            expense=calculateExpenseForTab(d, 'bora');
+            savings=sumCatForTab(d.categories?.savings, 'bora');
         }else if(currentTab==='sang'){
             income=(Number(d.sang)||0)+(Number(d.sang_other_income)||0)+Math.round((Number(d.trip_usd)||0)*getMonthExchangeRate(d));
-            expense=sumCat(d.categories?.sang_personal)+(sumCat(d.categories?.living)/2);
-            savings=(Array.isArray(d.categories?.savings)?d.categories.savings:[]).filter(x=>x.owner==='sang'||x.owner==='shared').reduce((n,x)=>n+(Number(x.amount)||0),0);
+            expense=calculateExpenseForTab(d, 'sang');
+            savings=sumCatForTab(d.categories?.savings, 'sang');
         }
         const remaining=income-expense-savings;
         const set=(id,val)=>{const el=document.getElementById(id);if(el)el.innerText=val;};
@@ -2984,9 +3022,10 @@
                 savingsBox.innerHTML=savingsList.map(x=>{
                     const owner=x.owner==='bora'?'보라':x.owner==='sang'?'상훈':'공통';
                     const originalIndex=(d.categories.savings||[]).indexOf(x);
+                    const displayAmount=sumCatForTab([x],currentTab);
                     return `<button type="button" class="dashboard-saving-row" onclick="window.editRecord('saving','savings',${originalIndex})">
                         <span><strong>${escapeHtml(x.name||'저축')}</strong><small>${owner}</small></span>
-                        <b>${formatAmount(Number(x.amount)||0)}</b>
+                        <b>${formatAmount(displayAmount)}</b>
                     </button>`;
                 }).join('');
             }
@@ -3018,9 +3057,10 @@
             const owner=item.owner==='bora'?'보라':item.owner==='sang'?'상훈':'공통';
             const label=item.name||item.category||'지출';
             const meta=item.category?`· ${escapeHtml(item.category)} · ${escapeHtml(item._meta||owner)}`:`· ${escapeHtml(item._meta||owner)}`;
+            const displayAmount = getExpenseItemDisplayAmount(item, item._sourceKey, currentTab);
             return `<button type="button" class="dashboard-expense-row dashboard-expense-row-button" onclick="window.editRecord('expense','${item._sourceKey}',${item._sourceIndex})">
                 <div><div>${escapeHtml(label)}</div><div class="dashboard-expense-meta">${meta}</div></div>
-                <div class="dashboard-expense-amount">${formatAmount(Number(item.amount)||0)}</div>
+                <div class="dashboard-expense-amount">${formatAmount(displayAmount)}</div>
             </button>`;
         }).join('');
     }
@@ -4258,17 +4298,22 @@ function addCategorySetting() {
 
         const data={
             income:{title:'수입',total:incomeItems.reduce((n,x)=>n+x.amount,0),items:incomeItems},
-            expense:{title:'지출',total:expenseItems.reduce((n,x)=>n+(Number(x.amount)||0),0),items:expenseItems},
-            saving:{title:'저축',total:savingItems.reduce((n,x)=>n+(Number(x.amount)||0),0),items:savingItems}
+            expense:{title:'지출',total:expenseItems.reduce((n,x)=>n+getExpenseItemDisplayAmount(x,x._sourceKey,currentTab),0),items:expenseItems},
+            saving:{title:'저축',total:savingItems.reduce((n,x)=>n+sumCatForTab([x],currentTab),0),items:savingItems}
         };
 
         const row=(item)=>{
             const label=item.name||item.category||'항목';
             const meta=item.type==='expense' ? [item.category,item.meta].filter(Boolean).join(' · ') : item.meta;
             const click=`onclick="window.editRecord('${item.type}','${item.type==='income'?item.field:item._sourceKey}',${item.type==='income'?'null':item._sourceIndex})"`;
+            const displayAmount=item.type==='expense'
+                ? getExpenseItemDisplayAmount(item,item._sourceKey,currentTab)
+                : item.type==='saving'
+                    ? sumCatForTab([item],currentTab)
+                    : Number(item.amount)||0;
             return `<button type="button" class="record-row record-row-button" ${click}>
                 <div class="record-row-main"><div class="record-name">${escapeHtml(label)}</div><div class="record-meta">${escapeHtml(meta||'')}</div></div>
-                <div class="record-row-right"><div class="record-amount">${formatAmount(Number(item.amount)||0)}</div></div>
+                <div class="record-row-right"><div class="record-amount">${formatAmount(displayAmount)}</div></div>
             </button>`;
         };
 
@@ -5022,6 +5067,37 @@ function filterRecords(filter,btn){recordsFilter=filter||'all';document.querySel
         }
     };
 
+    window.runSharedExpenseSplitQA = function() {
+        const sample = {
+            categories: {
+                expense: [{ name: '월세', amount: 700000 }],
+                living: [{ name: '공동생활비', amount: 400000 }],
+                bora_personal: [{ name: '보라개인지출', amount: 100000 }],
+                sang_personal: [{ name: '상훈개인지출', amount: 200000 }],
+                variable_expense: [
+                    { name: '공통변동', amount: 100000, owner: 'shared' },
+                    { name: '보라변동', amount: 50000, owner: 'bora' }
+                ],
+                savings: [{ name: '공통저축', amount: 200000, owner: 'shared' }]
+            }
+        };
+        const boraExpense = calculateExpenseForTab(sample, 'bora');
+        const sangExpense = calculateExpenseForTab(sample, 'sang');
+        const allExpense = calculateExpenseForTab(sample, 'all');
+        const boraSaving = sumCatForTab(sample.categories.savings, 'bora');
+        const sangSaving = sumCatForTab(sample.categories.savings, 'sang');
+        const pass =
+            boraExpense === 750000 &&
+            sangExpense === 850000 &&
+            allExpense === 1550000 &&
+            boraSaving === 100000 &&
+            sangSaving === 100000;
+        return {
+            pass,
+            expected: { boraExpense: 750000, sangExpense: 850000, allExpense: 1550000, sharedSavingPerPerson: 100000 },
+            actual: { boraExpense, sangExpense, allExpense, boraSaving, sangSaving }
+        };
+    };
     window.runInternalSmokeTests = runInternalSmokeTests;
     }
 
