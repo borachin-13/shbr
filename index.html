@@ -1217,8 +1217,8 @@
         <!-- 멤버 필터 탭 -->
         <div class="member-tab-bar" id="member-tab-bar">
             <button class="tab-pill-btn active" onclick="window.setMemberTab('all', this)">통합</button>
-            <button class="tab-pill-btn" onclick="window.setMemberTab('bora', this)">보라</button>
-            <button class="tab-pill-btn" onclick="window.setMemberTab('sang', this)">상훈</button>
+            <button class="tab-pill-btn" data-member-owner="bora" onclick="window.setMemberTab('bora', this)">보라</button>
+            <button class="tab-pill-btn" data-member-owner="sang" onclick="window.setMemberTab('sang', this)">상훈</button>
         </div>
 
         <div class="page-content">
@@ -1317,11 +1317,11 @@
                     <div style="font-size:11px;color:var(--text-sub);line-height:1.5;">매달 반복되는 수입과 청년저축만 한 번 설정하면 새 달에 자동으로 반영합니다.</div>
                     <div class="household-rule-card">
                         <div class="household-rule-grid">
-                            <div class="household-rule-field household-rule-bora"><label>보라 고정 월급</label><input id="rule-bora-income" inputmode="numeric" placeholder="예: 4,200,000"></div>
-                            <div class="household-rule-field household-rule-sang"><label>상훈 기본급</label><input id="rule-sang-income" inputmode="numeric" placeholder="기본급 입력"></div>
-                            <div class="household-rule-field household-rule-bora"><label>보라 청년저축</label><input id="rule-bora-saving" inputmode="numeric" value="700,000"></div>
-                            <div class="household-rule-field household-rule-sang"><label>상훈 특수직 추가수당</label><input id="rule-sang-special" inputmode="numeric" value="700,000"></div>
-                            <div class="household-rule-field household-rule-sang"><label>상훈 청년저축</label><input id="rule-sang-saving" inputmode="numeric" value="700,000"></div>
+                            <div class="household-rule-field household-rule-bora"><label><span data-member-label="bora">보라</span> 고정 월급</label><input id="rule-bora-income" inputmode="numeric" placeholder="예: 4,200,000"></div>
+                            <div class="household-rule-field household-rule-sang"><label><span data-member-label="sang">상훈</span> 기본급</label><input id="rule-sang-income" inputmode="numeric" placeholder="기본급 입력"></div>
+                            <div class="household-rule-field household-rule-bora"><label><span data-member-label="bora">보라</span> 청년저축</label><input id="rule-bora-saving" inputmode="numeric" value="700,000"></div>
+                            <div class="household-rule-field household-rule-sang"><label><span data-member-label="sang">상훈</span> 특수직 추가수당</label><input id="rule-sang-special" inputmode="numeric" value="700,000"></div>
+                            <div class="household-rule-field household-rule-sang"><label><span data-member-label="sang">상훈</span> 청년저축</label><input id="rule-sang-saving" inputmode="numeric" value="700,000"></div>
                         </div>
                         <button class="household-rule-save" onclick="window.saveHouseholdRules()">저장하고 다음 달부터 자동 적용</button>
                         <div class="household-rule-note">해외출장 달러 수입은 발생한 달에만 별도로 입력합니다. 기존 월별 데이터는 자동으로 덮어쓰지 않습니다.</div>
@@ -1393,8 +1393,8 @@
             <div class="quick-expense-label">누가 썼나요?</div>
             <div class="quick-owner-group" id="quick-expense-owner">
                 <button type="button" class="quick-owner-btn active" data-owner="shared">공통</button>
-                <button type="button" class="quick-owner-btn" data-owner="bora">보라</button>
-                <button type="button" class="quick-owner-btn" data-owner="sang">상훈</button>
+                <button type="button" class="quick-owner-btn" data-owner="bora" data-member-label="bora">보라</button>
+                <button type="button" class="quick-owner-btn" data-owner="sang" data-member-label="sang">상훈</button>
             </div>
             <div class="quick-expense-label">카테고리</div>
             <select id="quick-expense-category" class="quick-expense-select"></select>
@@ -1451,8 +1451,8 @@
             <div class="quick-expense-label">누구의 저축인가요?</div>
             <div class="quick-owner-group" id="quick-saving-owner">
                 <button type="button" class="quick-owner-btn active" data-owner="shared">공통</button>
-                <button type="button" class="quick-owner-btn" data-owner="bora">보라</button>
-                <button type="button" class="quick-owner-btn" data-owner="sang">상훈</button>
+                <button type="button" class="quick-owner-btn" data-owner="bora" data-member-label="bora">보라</button>
+                <button type="button" class="quick-owner-btn" data-owner="sang" data-member-label="sang">상훈</button>
             </div>
             <div class="quick-expense-hint">실제로 저축한 금액만 기록해 주세요.</div>
             <button class="quick-expense-save" onclick="window.saveQuickSaving()">저장하기</button>
@@ -1472,8 +1472,8 @@
             <div class="quick-expense-label">누가 부담했나요?</div>
             <div class="quick-owner-group" id="quick-fixed-expense-owner">
                 <button type="button" class="quick-owner-btn active" data-owner="shared">공통</button>
-                <button type="button" class="quick-owner-btn" data-owner="bora">보라</button>
-                <button type="button" class="quick-owner-btn" data-owner="sang">상훈</button>
+                <button type="button" class="quick-owner-btn" data-owner="bora" data-member-label="bora">보라</button>
+                <button type="button" class="quick-owner-btn" data-owner="sang" data-member-label="sang">상훈</button>
             </div>
             <details class="quick-expense-more">
                 <summary>날짜·내용 추가 <span>선택</span></summary>
@@ -1530,6 +1530,7 @@
                 <div class="signup-field"><label for="signup-email">이메일</label><input id="signup-email" type="email" autocomplete="email" placeholder="인증용 이메일 주소"></div>
                 <div class="signup-field"><label for="signup-password">비밀번호</label><input id="signup-password" type="password" autocomplete="new-password" placeholder="8자 이상"></div>
                 <div class="signup-field"><label for="signup-password-confirm">비밀번호 확인</label><input id="signup-password-confirm" type="password" autocomplete="new-password" placeholder="비밀번호를 한 번 더 입력해 주세요"></div>
+                <div class="signup-field"><label for="signup-partner-name">함께 쓰는 사람 이름</label><input id="signup-partner-name" type="text" autocomplete="name" placeholder="배우자·파트너 이름"></div>
                 <div class="signup-field"><label for="signup-household">가계부 이름</label><input id="signup-household" type="text" value="우리 집" placeholder="예: 우리 집"></div>
                 <div class="signup-error" id="signup-error"></div>
             </div>
@@ -1777,6 +1778,45 @@
     let store = {};
     let currentMonth = getLocalMonthKey();
     let currentTab = 'all';
+    let memberNames = { bora: '보라', sang: '상훈' };
+
+    function memberLabel(owner) {
+        if (owner === 'bora') return memberNames.bora || '보라';
+        if (owner === 'sang') return memberNames.sang || '상훈';
+        return '공통';
+    }
+
+    function setMemberNames(profile) {
+        const names = profile?.memberNames || {};
+        const boraName = String(names.bora || profile?.name || '').trim();
+        const sangName = String(names.sang || '').trim();
+        memberNames = {
+            bora: boraName || '보라',
+            sang: sangName || '상훈'
+        };
+        const tabBar = document.getElementById('member-tab-bar');
+        if (tabBar) {
+            const boraBtn = tabBar.querySelector('[data-member-owner="bora"]');
+            const sangBtn = tabBar.querySelector('[data-member-owner="sang"]');
+            if (boraBtn) boraBtn.textContent = memberNames.bora;
+            if (sangBtn) sangBtn.textContent = memberNames.sang;
+        }
+        document.querySelectorAll('[data-member-label="bora"]').forEach(el => { el.textContent = memberNames.bora; });
+        document.querySelectorAll('[data-member-label="sang"]').forEach(el => { el.textContent = memberNames.sang; });
+    }
+
+    function personalizeDefaultMonthData(data) {
+        const d = cloneData(data || DEFAULT_MONTH_DATA());
+        if (Array.isArray(d.categories?.savings)) {
+            d.categories.savings = d.categories.savings.map(item => {
+                if (item.owner === 'bora' && (!item.name || item.name === '보라 청년계좌')) return { ...item, name: memberNames.bora + ' 청년계좌' };
+                if (item.owner === 'sang' && (!item.name || item.name === '상훈 청년계좌')) return { ...item, name: memberNames.sang + ' 청년계좌' };
+                return item;
+            });
+        }
+        return d;
+    }
+
     let monthlySelectedYear = 2026;
     let monthlyAnalysisLoading = false;
 
@@ -2636,6 +2676,7 @@
         const passwordEl = document.getElementById('signup-password');
         const confirmEl = document.getElementById('signup-password-confirm');
         const householdEl = document.getElementById('signup-household');
+        const partnerNameEl = document.getElementById('signup-partner-name');
         const submitBtn = document.getElementById('signup-submit-btn');
 
         const name = nameEl?.value.trim() || '';
@@ -2644,6 +2685,7 @@
         const password = passwordEl?.value || '';
         const passwordConfirm = confirmEl?.value || '';
         const householdName = householdEl?.value.trim() || '우리 집';
+        const partnerName = partnerNameEl?.value.trim() || '';
 
         setSignupError('');
         if (!name) return setSignupError('이름을 입력해 주세요.');
@@ -2651,6 +2693,7 @@
         if (!email || !email.includes('@')) return setSignupError('인증에 사용할 이메일 주소를 입력해 주세요.');
         if (password.length < 8) return setSignupError('비밀번호는 8자 이상이어야 합니다.');
         if (password !== passwordConfirm) return setSignupError('비밀번호가 서로 일치하지 않습니다.');
+        if (!partnerName) return setSignupError('함께 쓰는 사람 이름을 입력해 주세요.');
         if (!householdName) return setSignupError('가계부 이름을 입력해 주세요.');
 
         signupInProgress = true;
@@ -2684,6 +2727,7 @@
                     name,
                     username,
                     email,
+                    memberNames: { bora: name, sang: partnerName },
                     createdAt
                 }
             }, { merge: true });
@@ -2695,7 +2739,7 @@
             });
 
             batch.set(settingsDocRef(), {
-                profile: { name, username, email, createdAt },
+                profile: { name, username, email, memberNames: { bora: name, sang: partnerName }, createdAt },
                 household: {
                     id: uid,
                     name: householdName,
@@ -2726,7 +2770,11 @@
                 loginLoading.style.display = 'block';
             }
 
+            setMemberNames({ name, memberNames: { bora: name, sang: partnerName } });
             await loadScopedUserData();
+            Object.keys(store || {}).forEach(month => {
+                if (store[month]) store[month] = personalizeDefaultMonthData(store[month]);
+            });
             syncFixedCategoriesToMonth(currentMonth, false);
 
             const badge = document.getElementById('auth-status-badge');
@@ -2826,6 +2874,7 @@
             const profileRef = doc(db, USERS_COLLECTION, auth.currentUser.uid);
             const profileSnap = await getDoc(profileRef);
             const profile = profileSnap.exists() ? (profileSnap.data().profile || {}) : {};
+            setMemberNames(profile);
 
             // 프로필에 username이 있는 기존 계정이면 lookup 문서를 자동 복구한다.
             if (profile.username) {
@@ -3308,21 +3357,21 @@
         if (currentTab === 'all') {
             container.innerHTML = `
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 월급</span>
+                    <span class="income-input-label">${escapeHtml(memberNames.bora)} 월급</span>
                     <div class="income-input-flex">
                         <input type="text" inputmode="numeric" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 기타 수당</span>
+                    <span class="income-input-label">${escapeHtml(memberNames.bora)} 기타 수당</span>
                     <div class="income-input-flex">
                         <input type="text" inputmode="numeric" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">상훈 월급</span>
+                    <span class="income-input-label">${escapeHtml(memberNames.sang)} 월급</span>
                     <div class="income-input-flex">
                         <input type="text" inputmode="numeric" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
                         <span class="income-unit">원</span>
@@ -3346,14 +3395,14 @@
         } else if (currentTab === 'bora') {
             container.innerHTML = `
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 월급</span>
+                    <span class="income-input-label">${escapeHtml(memberNames.bora)} 월급</span>
                     <div class="income-input-flex">
                         <input type="text" inputmode="numeric" value="${formatNumberString(d.bora)}" placeholder="0" oninput="window.handleIncomeInput('bora', this)">
                         <span class="income-unit">원</span>
                     </div>
                 </div>
                 <div class="income-input-card">
-                    <span class="income-input-label">보라 기타 수당</span>
+                    <span class="income-input-label">${escapeHtml(memberNames.bora)} 기타 수당</span>
                     <div class="income-input-flex">
                         <input type="text" inputmode="numeric" value="${formatNumberString(d.bora_extra)}" placeholder="0" oninput="window.handleIncomeInput('bora_extra', this)">
                         <span class="income-unit">원</span>
@@ -3362,7 +3411,7 @@
         } else {
             container.innerHTML = `
                 <div class="income-input-card">
-                    <span class="income-input-label">상훈 월급</span>
+                    <span class="income-input-label">${escapeHtml(memberNames.sang)} 월급</span>
                     <div class="income-input-flex">
                         <input type="text" inputmode="numeric" value="${formatNumberString(d.sang)}" placeholder="0" oninput="window.handleIncomeInput('sang', this)">
                         <span class="income-unit">원</span>
@@ -3407,7 +3456,7 @@
             inputEl.value = formatNumberString(store[currentMonth]?.[key] || 0);
             return;
         }
-        if(!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        if(!store[currentMonth]) store[currentMonth] = personalizeDefaultMonthData(DEFAULT_MONTH_DATA());
         const previousValue = Number(store[currentMonth][key]) || 0;
         store[currentMonth][key] = rawNum;
         // 브라우저가 갑자기 종료되어도 마지막 입력값을 복구할 수 있도록 임시 백업.
@@ -3605,7 +3654,7 @@
                 savingsBox.innerHTML='<div class="dashboard-empty">저축 내역이 없어요.</div>';
             }else{
                 savingsBox.innerHTML=savingsList.map(x=>{
-                    const owner=x.owner==='bora'?'보라':x.owner==='sang'?'상훈':'공통';
+                    const owner=memberLabel(x.owner);
                     const originalIndex=(d.categories.savings||[]).indexOf(x);
                     const displayAmount=sumCatForTab([x],currentTab);
                     return `<button type="button" class="dashboard-saving-row" onclick="window.editRecord('saving','savings',${originalIndex})">
@@ -3639,7 +3688,7 @@
         const visible=items.slice(0,4);
         if(!visible.length){el.innerHTML='<div class="dashboard-empty">아직 지출 기록이 없어요.</div>';return;}
         el.innerHTML=visible.map(item=>{
-            const owner=item.owner==='bora'?'보라':item.owner==='sang'?'상훈':'공통';
+            const owner=memberLabel(item.owner);
             const label=item.name||item.category||'지출';
             const meta=item.category?`· ${escapeHtml(item.category)} · ${escapeHtml(item._meta||owner)}`:`· ${escapeHtml(item._meta||owner)}`;
             const displayAmount = getExpenseItemDisplayAmount(item, item._sourceKey, currentTab);
@@ -3767,7 +3816,7 @@
                     items.forEach(item => {
                         const catTag = item.category ? `[${escapeHtml(item.category)}] ` : '';
                         const owner = item.owner || 'shared';
-                        const ownerLabel = owner === 'bora' ? '보라' : owner === 'sang' ? '상훈' : '공통';
+                        const ownerLabel = memberLabel(owner);
                         const displayAmount = currentTab !== 'all' && owner === 'shared' ? Number(item.amount || 0) / 2 : Number(item.amount || 0);
                         subItemsHtml += `
                             <div class="sub-item-row">
@@ -4075,7 +4124,7 @@
             }
         }
 
-        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        if (!store[currentMonth]) store[currentMonth] = personalizeDefaultMonthData(DEFAULT_MONTH_DATA());
         if (!store[currentMonth].categories) store[currentMonth].categories = DEFAULT_MONTH_DATA().categories;
         if (!Array.isArray(store[currentMonth].categories.variable_expense)) {
             store[currentMonth].categories.variable_expense = [];
@@ -4149,7 +4198,7 @@
             if (amountEl) amountEl.focus();
             return;
         }
-        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        if (!store[currentMonth]) store[currentMonth] = personalizeDefaultMonthData(DEFAULT_MONTH_DATA());
         if (!store[currentMonth].categories) store[currentMonth].categories = DEFAULT_MONTH_DATA().categories;
         if (!Array.isArray(store[currentMonth].categories.savings)) store[currentMonth].categories.savings = [];
         const ownerBtn = document.querySelector('#quick-saving-owner .quick-owner-btn.active');
@@ -4217,7 +4266,7 @@
         const nameEl=document.getElementById('quick-fixed-expense-name');
         const amount=parseNumberString(amountEl?amountEl.value:'');
         if(!amount||amount<1){showToast('금액을 입력해 주세요.',true);if(amountEl)amountEl.focus();return;}
-        if(!store[currentMonth])store[currentMonth]=DEFAULT_MONTH_DATA();
+        if(!store[currentMonth])store[currentMonth]=personalizeDefaultMonthData(DEFAULT_MONTH_DATA());
         if(!store[currentMonth].categories)store[currentMonth].categories=DEFAULT_MONTH_DATA().categories;
         if(!Array.isArray(store[currentMonth].categories.expense))store[currentMonth].categories.expense=[];
         const ownerBtn=document.querySelector('#quick-fixed-expense-owner .quick-owner-btn.active');
@@ -4263,7 +4312,7 @@
         const d=store[currentMonth]||DEFAULT_MONTH_DATA();
         let record=null;
         if(type==='income'){
-            const names={bora:'보라 월급',bora_extra:'보라 기타수입',sang:'상훈 월급',sang_other_income:'상훈 기타수입',trip_usd:'상훈 출장 외화수입'};
+            const names={bora:memberNames.bora+' 월급',bora_extra:memberNames.bora+' 기타수입',sang:memberNames.sang+' 월급',sang_other_income:memberNames.sang+' 기타수입',trip_usd:memberNames.sang+' 출장 외화수입'};
             record={type,sourceKey,amount:Number(d[sourceKey])||0,name:names[sourceKey]||'수입',isUsd:sourceKey==='trip_usd'};
         }else{
             const arr=Array.isArray(d?.categories?.[sourceKey])?d.categories[sourceKey]:[];
@@ -4529,19 +4578,19 @@ function renderBudgetModalHTML() {
         return `
             <div class="cat-group active">
                 <div class="cat-title-box">
-                    <div class="cat-title-label-top">보라 월급</div>
+                    <div class="cat-title-label-top">${escapeHtml(memberNames.bora)} 월급</div>
                     <input type="text" id="income-modal-bora" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.bora || 0).toLocaleString())}" >
                 </div>
                 <div class="cat-title-box">
-                    <div class="cat-title-label-top">보라 추가수입</div>
+                    <div class="cat-title-label-top">${escapeHtml(memberNames.bora)} 추가수입</div>
                     <input type="text" id="income-modal-bora-extra" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.bora_extra || 0).toLocaleString())}" >
                 </div>
                 <div class="cat-title-box">
-                    <div class="cat-title-label-top">상훈 월급</div>
+                    <div class="cat-title-label-top">${escapeHtml(memberNames.sang)} 월급</div>
                     <input type="text" id="income-modal-sang" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.sang || 0).toLocaleString())}" >
                 </div>
                 <div class="cat-title-box">
-                    <div class="cat-title-label-top">상훈 기타수입</div>
+                    <div class="cat-title-label-top">${escapeHtml(memberNames.sang)} 기타수입</div>
                     <input type="text" id="income-modal-sang-other" class="cat-input" inputmode="numeric" value="${escapeHtml(Number(d.sang_other_income || 0).toLocaleString())}" >
                 </div>
                 <div class="cat-title-box">
@@ -4800,7 +4849,7 @@ function renderBudgetModalHTML() {
     window.restorePageScroll = restorePageScroll;
 
     function saveExpenseModal() {
-        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        if (!store[currentMonth]) store[currentMonth] = personalizeDefaultMonthData(DEFAULT_MONTH_DATA());
         const changedPatch = {};
 
         document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
@@ -4864,7 +4913,7 @@ function renderBudgetModalHTML() {
     }
 
     function saveSavingsModal() {
-        if (!store[currentMonth]) store[currentMonth] = DEFAULT_MONTH_DATA();
+        if (!store[currentMonth]) store[currentMonth] = personalizeDefaultMonthData(DEFAULT_MONTH_DATA());
         const changedPatch = {};
 
         document.querySelectorAll('#custom-modal .cat-group').forEach(group => {
@@ -4927,7 +4976,7 @@ function renderBudgetModalHTML() {
 
     async function syncFixedCategoriesToMonth(month, persist = false) {
         if (!month) return false;
-        if (!store[month]) store[month] = DEFAULT_MONTH_DATA();
+        if (!store[month]) store[month] = personalizeDefaultMonthData(DEFAULT_MONTH_DATA());
         if (!store[month].categories) store[month].categories = DEFAULT_MONTH_DATA().categories;
         if (!Array.isArray(store[month].categories.expense)) store[month].categories.expense = [];
 
@@ -5188,7 +5237,7 @@ function addCategorySetting() {
         const savingItems=(Array.isArray(d?.categories?.savings)?d.categories.savings:[])
             .map((x,index)=>({...x,_originalIndex:index}))
             .filter(x=>(Number(x.amount)||0)>0&&(recordsTab==='all'||x.owner==='shared'||x.owner===recordsTab))
-            .map(x=>({...x,type:'saving',meta:x.owner==='shared'?'공통':x.owner==='bora'?'보라':'상훈',_sourceKey:'savings',_sourceIndex:x._originalIndex}));
+            .map(x=>({...x,type:'saving',meta:memberLabel(x.owner),_sourceKey:'savings',_sourceIndex:x._originalIndex}));
 
         const data={
             income:{title:'수입',total:incomeItems.reduce((n,x)=>n+x.amount,0),items:incomeItems},
