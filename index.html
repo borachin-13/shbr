@@ -2683,8 +2683,12 @@
         if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '가입하는 중…'; }
 
         try {
-            // Firebase Auth는 이메일을 인증 수단으로 사용하고,
-            // 별도 아이디는 Firestore에서 로그인 식별자로 관리한다.
+            // 아이디는 Firebase Auth 이메일과 별도로 Firestore에서 로그인 식별자로 관리한다.
+            // Auth 계정을 만들기 전에 중복 아이디를 차단해 orphan 계정 생성을 줄인다.
+            const usernameRef = doc(db, 'usernames', username);
+            const usernameSnap = await getDoc(usernameRef);
+            if (usernameSnap.exists()) throw { code: 'username-already-in-use' };
+
             const credential = await createUserWithEmailAndPassword(auth, email, password);
             const uid = credential.user.uid;
 
@@ -2749,6 +2753,7 @@
         } catch (e) {
             console.error('회원가입 실패:', e);
             const messages = {
+                'username-already-in-use':'이미 사용 중인 아이디입니다.',
                 'auth/email-already-in-use':'이미 사용 중인 이메일입니다. 로그인해 주세요.',
                 'auth/invalid-email':'이메일 주소를 확인해 주세요.',
                 'auth/weak-password':'비밀번호는 8자 이상을 사용해 주세요.'
